@@ -737,7 +737,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [newChoreDesc, setNewChoreDesc] = useState("");
     const [linkCopied, setLinkCopied] = useState(false);
     const [notifStatus, setNotifStatus] = useState("default"); // default | granted | denied | subscribing
-    const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, overdueAlerts: true, streakWarnings: true });
+    const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, overdueAlerts: true, streakWarnings: true, choreDoneAlerts: true });
     const [streakAnim, setStreakAnim] = useState(false);
     const prevStreakRef = useRef(null);
 
@@ -976,6 +976,22 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         prevStreakRef.current = streak;
     }, [streak]);
 
+    // Fire-and-forget push to other household members
+    const notifyChoreComplete = (choreName, together = false) => {
+        if (!profile?.household_id || !VAPID_PUBLIC_KEY) return;
+        fetch("/api/notify-chore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                householdId: profile.household_id,
+                choreName,
+                completedByName: currentUser.name,
+                excludeUserId: user.id,
+                together,
+            }),
+        }).catch(() => {});
+    };
+
     // Actions
     const completeChore = async (choreId) => {
         const chore = chores.find((c) => c.id === choreId);
@@ -985,11 +1001,11 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             .select().single();
         if (!error && data) {
             setCompletions((prev) => [...prev, data]);
-            // Trigger reward animation
             if (chore?.freq) {
                 setRewardAnim(chore.freq);
                 setTimeout(() => setRewardAnim(null), 2500);
             }
+            notifyChoreComplete(chore?.name || "a chore");
         }
     };
 
@@ -1003,6 +1019,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 setRewardAnim(chore.freq);
                 setTimeout(() => setRewardAnim(null), 2500);
             }
+            notifyChoreComplete(chore?.name || "a chore", true);
         }
     };
 
@@ -1691,6 +1708,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             {notifStatus === "granted" && (
                                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid #e8e8e8", paddingTop: "12px" }}>
                                     {[
+                                        { key: "choreDoneAlerts", label: "Partner Activity", desc: "When your partner completes a chore" },
                                         { key: "dailySummary", label: "Daily Summary", desc: "How many chores are due today" },
                                         { key: "overdueAlerts", label: "Overdue Alerts", desc: "When chores go past their due date" },
                                         { key: "streakWarnings", label: "Streak Warnings", desc: "When your streak is about to break" },

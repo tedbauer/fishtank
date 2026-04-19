@@ -30,7 +30,7 @@ export async function POST(request) {
             household_id,
             subscription: JSON.stringify(subscription),
             endpoint,
-            preferences: preferences || { dailySummary: true, overdueAlerts: true, streakWarnings: true },
+            preferences: preferences || { dailySummary: true, overdueAlerts: true, streakWarnings: true, choreDoneAlerts: true },
         });
 
         if (error) throw error;
