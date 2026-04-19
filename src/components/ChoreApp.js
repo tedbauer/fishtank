@@ -20,6 +20,9 @@ import {
     Pencil,
     Save,
     X,
+    Bell,
+    BellOff,
+    Flame,
 } from "lucide-react";
 import HeatmapView from "@/components/HeatmapView";
 
@@ -90,6 +93,51 @@ const computeHappiness = (completions, choresWithStatus) => {
     score += Math.min(12, recentCompletions);
     return Math.max(0, Math.min(100, Math.round(score)));
 };
+
+// =========== STREAK SYSTEM ===========
+const computeStreak = (chores, completions) => {
+    if (!chores.length) return 0;
+    const t = today();
+    let streak = 0;
+
+    for (let dayOffset = 0; dayOffset < 365; dayOffset++) {
+        const checkDate = new Date(t);
+        checkDate.setDate(checkDate.getDate() - dayOffset);
+        const checkStr = formatDate(checkDate);
+
+        // For each chore, was it overdue on this day?
+        let anyOverdue = false;
+        for (const chore of chores) {
+            const freqDays = FREQ[chore.freq]?.days || 7;
+            const choreCreated = chore.created_at ? parseDate(chore.created_at.split("T")[0]) : t;
+            if (checkDate < choreCreated) continue; // chore didn't exist yet
+
+            // Find most recent completion ON or BEFORE checkDate
+            const relevantComps = completions
+                .filter((c) => c.chore_id === chore.id && c.completed_date <= checkStr)
+                .sort((a, b) => b.completed_date.localeCompare(a.completed_date));
+
+            const last = relevantComps[0];
+            let daysSince;
+            if (last) {
+                daysSince = daysBetween(parseDate(last.completed_date), checkDate);
+            } else {
+                daysSince = daysBetween(choreCreated, checkDate);
+            }
+
+            if (daysSince > freqDays + 1) {
+                anyOverdue = true;
+                break;
+            }
+        }
+
+        if (anyOverdue) break;
+        streak++;
+    }
+    return streak;
+};
+
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
 const moodTier = (h) => {
     if (h >= 85) return "ecstatic";
@@ -387,6 +435,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [rewardAnim, setRewardAnim] = useState(null);
     const [newChoreDesc, setNewChoreDesc] = useState("");
     const [linkCopied, setLinkCopied] = useState(false);
+    const [notifStatus, setNotifStatus] = useState("default"); // default | granted | denied | subscribing
 
     const currentUser = {
         id: user.id,
@@ -445,6 +494,42 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         };
         fetchCode();
     }, [profile?.household_id, supabase, loadData]);
+
+    // Check notification permission on mount
+    useEffect(() => {
+        if (typeof window !== "undefined" && "Notification" in window) {
+            setNotifStatus(Notification.permission);
+        }
+    }, []);
+
+    const subscribePush = async () => {
+        if (!VAPID_PUBLIC_KEY) return;
+        setNotifStatus("subscribing");
+        try {
+            const permission = await Notification.requestPermission();
+            setNotifStatus(permission);
+            if (permission !== "granted") return;
+
+            const reg = await navigator.serviceWorker.ready;
+            const subscription = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: VAPID_PUBLIC_KEY,
+            });
+
+            await fetch("/api/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    subscription: subscription.toJSON(),
+                    user_id: user.id,
+                    household_id: profile.household_id,
+                }),
+            });
+        } catch (err) {
+            console.error("Push subscription failed:", err);
+            setNotifStatus("default");
+        }
+    };
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -539,6 +624,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
     const householdHappiness = computeHappiness(completions, choresWithStatus);
     const householdMood = moodTier(householdHappiness);
+    const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
 
     // Actions
     const completeChore = async (choreId) => {
@@ -667,8 +753,22 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         <Aquarium happiness={householdHappiness} mood={householdMood} rewardAnim={rewardAnim} />
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
                         <StatCard label="Left Today" value={todayList.filter((c) => !c.completedToday).length} />
+                        <div style={{
+                            padding: "12px", background: streak > 0 ? "#FEF3C7" : "white",
+                            borderRadius: "12px", textAlign: "center",
+                            border: "2px solid #2C2C2A",
+                            boxShadow: boxShadow(streak > 0 ? "#F59E0B" : "#e8e8e8", 2, 2),
+                        }}>
+                            <div style={{ fontSize: "22px", fontWeight: 800, color: streak > 0 ? "#B45309" : "#2C2C2A", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                                {streak > 0 && <Flame size={18} color="#F59E0B" />}
+                                {streak}
+                            </div>
+                            <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
+                                {streak === 0 ? "No Streak" : streak === 1 ? "Day Streak" : "Day Streak"}
+                            </div>
+                        </div>
                         <StatCard label={`${currentUser.name}'s Week`} value={myCompletionsThisWeek} color={currentUser.color} />
                         <StatCard label={`${partner?.name || "Partner"}'s Week`} value={partnerCompletionsThisWeek} color={partner?.color} />
                     </div>
@@ -831,6 +931,48 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 </button>
                             </>
                         )}
+                    </Section>
+
+                    <Section title="Notifications" accentColor="#F59E0B">
+                        <div style={{
+                            padding: "12px 16px", background: "white", borderRadius: "12px",
+                            fontSize: "14px", color: "#2C2C2A",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow("#F59E0B", 2, 2),
+                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            gap: "12px",
+                        }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                {notifStatus === "granted" ? <Bell size={16} color="#F59E0B" /> : <BellOff size={16} color="#888780" />}
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: "13px" }}>
+                                        {notifStatus === "granted" ? "Notifications Enabled" : "Push Notifications"}
+                                    </div>
+                                    <div style={{ fontSize: "11px", color: "#888780" }}>
+                                        {notifStatus === "granted"
+                                            ? "You will get reminders for overdue chores"
+                                            : notifStatus === "denied"
+                                                ? "Blocked — enable in browser settings"
+                                                : "Get reminded about chores and streaks"}
+                                    </div>
+                                </div>
+                            </div>
+                            {notifStatus !== "granted" && notifStatus !== "denied" && (
+                                <button
+                                    onClick={subscribePush}
+                                    disabled={notifStatus === "subscribing"}
+                                    style={{
+                                        padding: "6px 14px", border: "2px solid #2C2C2A", borderRadius: "8px",
+                                        background: "#FEF3C7", cursor: "pointer",
+                                        fontFamily: FONT, fontWeight: 700, fontSize: "12px",
+                                        color: "#B45309",
+                                        boxShadow: boxShadow("#F59E0B", 2, 2),
+                                        opacity: notifStatus === "subscribing" ? 0.6 : 1,
+                                    }}
+                                >
+                                    {notifStatus === "subscribing" ? "Enabling..." : "Enable"}
+                                </button>
+                            )}
+                        </div>
                     </Section>
 
                     <Section title="All Chores" accentColor="#888780">
