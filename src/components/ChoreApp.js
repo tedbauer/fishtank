@@ -786,9 +786,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
             {/* TAB NAV */}
             <div style={{
-                display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "1.25rem",
+                display: "flex", overflowX: "auto", gap: "4px", marginBottom: "1.25rem",
                 background: "#f5f4f1", padding: "5px", borderRadius: "12px",
                 border: "2px solid #2C2C2A", boxShadow: boxShadow("#2C2C2A", 3, 3),
+                WebkitOverflowScrolling: "touch", scrollbarWidth: "none",
             }}>
                 {[
                     { id: "today", label: "Today", icon: Sparkles, accent: "#D4537E" },
@@ -805,17 +806,19 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             key={t.id}
                             onClick={() => setView(t.id)}
                             style={{
-                                flex: 1, padding: "8px 4px", minWidth: "60px", minHeight: "auto",
+                                flex: "1 0 auto", padding: "8px 6px", minWidth: "52px",
                                 border: active ? "2px solid #2C2C2A" : "2px solid transparent",
                                 background: active ? "white" : "transparent",
-                                borderRadius: "8px", display: "flex", alignItems: "center",
-                                justifyContent: "center", gap: "4px", fontSize: "11px", fontWeight: 700,
-                                cursor: "pointer", fontFamily: FONT,
-                                color: active ? "#2C2C2A" : "#888780",
+                                borderRadius: "8px", display: "flex", flexDirection: "column",
+                                alignItems: "center", justifyContent: "center", gap: "3px",
+                                fontSize: "10px", fontWeight: 700, cursor: "pointer", fontFamily: FONT,
+                                color: active ? t.accent : "#888780",
                                 boxShadow: active ? boxShadow(t.accent, 2, 2) : "none",
+                                transition: "color 0.15s",
                             }}
                         >
-                            <Icon size={12} /> {t.label}
+                            <Icon size={16} />
+                            {t.label}
                         </button>
                     );
                 })}
