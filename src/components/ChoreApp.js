@@ -351,12 +351,12 @@ function FernPlant({ size = 1 }) {
 }
 
 const STORE_ITEMS = [
-    { id: "plant_frond", name: "Leafy Frond", price: 20, render: (size) => <PlantFrond size={size} /> },
-    { id: "plant_bush", name: "Bushy Clover", price: 35, render: (size) => <PlantBush size={size} /> },
-    { id: "moss_clump", name: "Moss Ball", price: 25, render: (size) => <MossClump size={size} /> },
-    { id: "fern_plant", name: "Java Fern", price: 30, render: (size) => <FernPlant size={size} /> },
-    { id: "driftwood", name: "Driftwood", price: 45, render: (size) => <Driftwood size={size} /> },
-    { id: "fish_cave", name: "Fish Cave", price: 80, render: (size) => <FishCave size={size} /> },
+    { id: "plant_frond", name: "Leafy Frond", price: 20, category: "plants", render: (size) => <PlantFrond size={size} /> },
+    { id: "plant_bush", name: "Bushy Clover", price: 35, category: "plants", render: (size) => <PlantBush size={size} /> },
+    { id: "moss_clump", name: "Moss Ball", price: 25, category: "plants", render: (size) => <MossClump size={size} /> },
+    { id: "fern_plant", name: "Java Fern", price: 30, category: "plants", render: (size) => <FernPlant size={size} /> },
+    { id: "driftwood", name: "Driftwood", price: 45, category: "decor", render: (size) => <Driftwood size={size} /> },
+    { id: "fish_cave", name: "Fish Cave", price: 80, category: "decor", render: (size) => <FishCave size={size} /> },
 ];
 
 const STORE_ITEM_MAP = Object.fromEntries(STORE_ITEMS.map((i) => [i.id, i]));
@@ -1421,7 +1421,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
                     <Section title="Plants" accentColor="#22C55E">
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                            {STORE_ITEMS.map((item) => {
+                            {STORE_ITEMS.filter((i) => i.category === "plants").map((item) => {
                                 const canAfford = coinBalance >= item.price;
                                 return (
                                     <div key={item.id} style={{
@@ -1448,6 +1448,50 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                             style={{
                                                 width: "100%", padding: "8px 10px",
                                                 background: canAfford ? "#22C55E" : "#e8e8e8",
+                                                color: canAfford ? "white" : "#888780",
+                                                border: "2px solid #2C2C2A", borderRadius: "8px",
+                                                fontFamily: FONT, fontSize: "12px", fontWeight: 700,
+                                                cursor: canAfford ? "pointer" : "not-allowed",
+                                                boxShadow: canAfford ? boxShadow("#2C2C2A", 2, 2) : "none",
+                                            }}
+                                        >
+                                            {canAfford ? "Buy" : "Not enough"}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </Section>
+
+                    <Section title="Decor" accentColor="#78716C">
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            {STORE_ITEMS.filter((i) => i.category === "decor").map((item) => {
+                                const canAfford = coinBalance >= item.price;
+                                return (
+                                    <div key={item.id} style={{
+                                        padding: "12px", background: "white",
+                                        border: "2px solid #2C2C2A", borderRadius: "12px",
+                                        boxShadow: boxShadow("#78716C", 2, 2),
+                                        display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
+                                    }}>
+                                        <div style={{
+                                            width: "100%", height: "90px", display: "flex",
+                                            alignItems: "flex-end", justifyContent: "center",
+                                            background: "#FAF9F6", borderRadius: "8px",
+                                            border: "1.5px solid #e8e8e8", padding: "6px 0",
+                                        }}>
+                                            {item.render(1)}
+                                        </div>
+                                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#2C2C2A" }}>{item.name}</div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", fontWeight: 700, color: "#78350F" }}>
+                                            <Coins size={13} strokeWidth={2.5} /> {item.price}
+                                        </div>
+                                        <button
+                                            onClick={() => purchaseItem(item.id)}
+                                            disabled={!canAfford}
+                                            style={{
+                                                width: "100%", padding: "8px 10px",
+                                                background: canAfford ? "#78716C" : "#e8e8e8",
                                                 color: canAfford ? "white" : "#888780",
                                                 border: "2px solid #2C2C2A", borderRadius: "8px",
                                                 fontFamily: FONT, fontSize: "12px", fontWeight: 700,
