@@ -116,60 +116,33 @@ const REWARD_MAP = {
 
 // =========== RETRO PIXEL FISH ===========
 function PixelFish({ mood, size = 80 }) {
-    const palette = {
-        ecstatic: { body: "#FFD93D", fin: "#FF6B35", belly: "#FFF3B0", eye: "#2C2C2A", highlight: "#FFFBE6" },
-        happy: { body: "#FF6B9D", fin: "#FF2D87", belly: "#FFD6E7", eye: "#2C2C2A", highlight: "#FFF0F5" },
-        content: { body: "#C084FC", fin: "#8B5CF6", belly: "#E9D5FF", eye: "#2C2C2A", highlight: "#F5F0FF" },
-        meh: { body: "#B4B2A9", fin: "#888780", belly: "#D3D1C7", eye: "#2C2C2A", highlight: "#E8E8E8" },
-        sad: { body: "#67E8F9", fin: "#06B6D4", belly: "#A5F3FC", eye: "#2C2C2A", highlight: "#E0FAFE" },
-        miserable: { body: "#93C5FD", fin: "#3B82F6", belly: "#BFDBFE", eye: "#2C2C2A", highlight: "#DBEAFE" },
-    }[mood] || { body: "#C084FC", fin: "#8B5CF6", belly: "#E9D5FF", eye: "#2C2C2A", highlight: "#F5F0FF" };
+    const c = {
+        ecstatic: "#FFD93D", happy: "#FF6B9D", content: "#C084FC",
+        meh: "#B4B2A9", sad: "#67E8F9", miserable: "#93C5FD",
+    }[mood] || "#C084FC";
 
-    const p = 2; // pixel unit
+    // Minimal line-art fish — just an outline, eye, and tail
     return (
-        <svg width={size} height={size * 0.7} viewBox="0 0 60 42" xmlns="http://www.w3.org/2000/svg" style={{ overflow: "visible", imageRendering: "pixelated" }}>
+        <svg width={size * 0.6} height={size * 0.4} viewBox="0 0 28 16" xmlns="http://www.w3.org/2000/svg" style={{ overflow: "visible", imageRendering: "pixelated" }}>
             {/* Tail */}
-            <rect x={48} y={10} width={p * 3} height={p} fill={palette.fin} />
-            <rect x={50} y={8} width={p * 3} height={p} fill={palette.fin} />
-            <rect x={52} y={6} width={p * 2} height={p} fill={palette.fin} />
-            <rect x={48} y={28} width={p * 3} height={p} fill={palette.fin} />
-            <rect x={50} y={30} width={p * 3} height={p} fill={palette.fin} />
-            <rect x={52} y={32} width={p * 2} height={p} fill={palette.fin} />
-            <rect x={48} y={12} width={p * 2} height={p * 8} fill={palette.fin} />
-            {/* Body */}
-            <rect x={10} y={10} width={p * 19} height={p * 10} fill={palette.body} rx={2} />
-            {/* Belly stripe */}
-            <rect x={10} y={20} width={p * 19} height={p * 3} fill={palette.belly} rx={1} />
-            {/* Head bump */}
-            <rect x={4} y={12} width={p * 4} height={p * 8} fill={palette.body} rx={1} />
-            {/* Top fin */}
-            <rect x={18} y={4} width={p * 2} height={p * 3} fill={palette.fin} />
-            <rect x={22} y={2} width={p * 2} height={p * 4} fill={palette.fin} />
-            <rect x={26} y={4} width={p * 2} height={p * 3} fill={palette.fin} />
-            {/* Side fin */}
-            <rect x={30} y={28} width={p * 3} height={p * 2} fill={palette.fin} opacity={0.8} />
-            <rect x={32} y={30} width={p * 2} height={p * 2} fill={palette.fin} opacity={0.6} />
+            <rect x={22} y={2} width={2} height={2} fill={c} />
+            <rect x={24} y={0} width={2} height={2} fill={c} />
+            <rect x={22} y={12} width={2} height={2} fill={c} />
+            <rect x={24} y={14} width={2} height={2} fill={c} />
+            <rect x={22} y={6} width={2} height={4} fill={c} />
+            {/* Body outline — top */}
+            <rect x={4} y={0} width={16} height={2} fill={c} />
+            {/* Body outline — bottom */}
+            <rect x={4} y={14} width={16} height={2} fill={c} />
+            {/* Body outline — left */}
+            <rect x={2} y={2} width={2} height={12} fill={c} />
+            {/* Body outline — right */}
+            <rect x={20} y={2} width={2} height={12} fill={c} />
             {/* Eye */}
-            <rect x={8} y={14} width={p * 2} height={p * 2} fill="white" />
-            <rect x={8} y={14} width={p} height={p} fill={palette.eye} />
-            {/* Highlight pixel */}
-            <rect x={10} y={14} width={p} height={p} fill={palette.highlight} opacity={0.8} />
-            {/* Mouth */}
-            {mood === "ecstatic" || mood === "happy" ? (
-                <rect x={4} y={22} width={p * 2} height={p} fill={palette.eye} opacity={0.6} />
-            ) : mood === "sad" || mood === "miserable" ? (
-                <rect x={6} y={24} width={p * 2} height={p} fill={palette.eye} opacity={0.5} />
-            ) : (
-                <rect x={4} y={22} width={p} height={p} fill={palette.eye} opacity={0.4} />
-            )}
-            {/* Blush for happy moods */}
-            {(mood === "ecstatic" || mood === "happy") && (
-                <rect x={6} y={20} width={p * 2} height={p} fill="#FF6B9D" opacity={0.4} />
-            )}
-            {/* Tear for sad moods */}
-            {(mood === "sad" || mood === "miserable") && (
-                <rect x={10} y={20} width={p} height={p * 2} fill="#67E8F9" opacity={0.7} />
-            )}
+            <rect x={6} y={6} width={2} height={2} fill={c} />
+            {/* Fin — small triangle on top */}
+            <rect x={12} y={-2} width={2} height={2} fill={c} opacity={0.7} />
+            <rect x={14} y={-2} width={2} height={2} fill={c} opacity={0.5} />
         </svg>
     );
 }
@@ -206,11 +179,15 @@ function Aquarium({ mood, happiness, rewardAnim }) {
 
             <style>{`
         @keyframes ${uid}-swim {
-          0% { transform: translateX(0) translateY(0) scaleX(1); }
-          42% { transform: translateX(calc(100% - 90px)) translateY(6px) scaleX(1); }
-          50% { transform: translateX(calc(100% - 90px)) translateY(6px) scaleX(-1); }
-          92% { transform: translateX(0) translateY(-4px) scaleX(-1); }
-          100% { transform: translateX(0) translateY(0) scaleX(1); }
+          0% { transform: translateX(10px) translateY(0) scaleX(1); }
+          15% { transform: translateX(calc(50% - 24px)) translateY(-12px) scaleX(1); }
+          30% { transform: translateX(calc(100% - 58px)) translateY(4px) scaleX(1); }
+          35% { transform: translateX(calc(100% - 58px)) translateY(4px) scaleX(-1); }
+          55% { transform: translateX(calc(40% - 24px)) translateY(-8px) scaleX(-1); }
+          70% { transform: translateX(calc(15%)) translateY(10px) scaleX(-1); }
+          80% { transform: translateX(10px) translateY(6px) scaleX(-1); }
+          85% { transform: translateX(10px) translateY(6px) scaleX(1); }
+          100% { transform: translateX(10px) translateY(0) scaleX(1); }
         }
         @keyframes ${uid}-bub1 {
           0% { transform: translateY(0); opacity: 0; }
@@ -238,7 +215,7 @@ function Aquarium({ mood, happiness, rewardAnim }) {
           100% { transform: translateY(100%); }
         }
         .${uid}-fish {
-          position: absolute; top: 40px; left: 10px;
+          position: absolute; top: 55px; left: 0;
           animation: ${uid}-swim ${swimDuration} ease-in-out infinite;
           transform-origin: center;
         }
