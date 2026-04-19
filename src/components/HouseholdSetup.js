@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getSupabase } from "@/lib/supabase";
 import { Home, Copy, Check } from "lucide-react";
 
@@ -13,6 +13,16 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
     const [error, setError] = useState(null);
 
     const supabase = getSupabase();
+
+    // Auto-fill from ?join=CODE share link
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const joinCode = params.get("join");
+        if (joinCode) {
+            setInviteCode(joinCode);
+            setMode("join");
+        }
+    }, []);
 
     const handleCreate = async () => {
         setLoading(true);
