@@ -726,11 +726,15 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         completions.filter((c) => c.completed_date === todayStr).map((c) => c.chore_id)
     );
 
-    const choresWithStatus = chores.map((c) => ({
-        ...c,
-        ...choreStatus(c),
-        completedToday: completedTodayIds.has(c.id),
-    }));
+    const choresWithStatus = chores.map((c) => {
+        const todayComps = completions.filter((comp) => comp.chore_id === c.id && comp.completed_date === todayStr);
+        return {
+            ...c,
+            ...choreStatus(c),
+            completedToday: completedTodayIds.has(c.id),
+            doneTogetherToday: todayComps.length > 1,
+        };
+    });
 
     // ===== NEW TAB LOGIC =====
     // TODAY: anything due/overdue OR completed today, AND short-cycle stuff due within 1 day
@@ -798,6 +802,19 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         if (!error && data) {
             setCompletions((prev) => [...prev, data]);
             // Trigger reward animation
+            if (chore?.freq) {
+                setRewardAnim(chore.freq);
+                setTimeout(() => setRewardAnim(null), 2500);
+            }
+        }
+    };
+
+    const completeChoreTogether = async (choreId) => {
+        const chore = chores.find((c) => c.id === choreId);
+        const inserts = users.map((u) => ({ chore_id: choreId, user_id: u.id, completed_date: todayStr }));
+        const { data, error } = await supabase.from("completions").insert(inserts).select();
+        if (!error && data) {
+            setCompletions((prev) => [...prev, ...data]);
             if (chore?.freq) {
                 setRewardAnim(chore.freq);
                 setTimeout(() => setRewardAnim(null), 2500);
@@ -966,17 +983,17 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
                     {myChores.length > 0 && (
                         <Section title={`Your Turn, ${currentUser.name}`} accentColor={currentUser.color}>
-                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onUndo={undoComplete} onAssign={assignOwner} />)}
+                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} />)}
                         </Section>
                     )}
                     {unassigned.length > 0 && (
                         <Section title="Up For Grabs" accentColor="#888780">
-                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onUndo={undoComplete} onAssign={assignOwner} />)}
+                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} />)}
                         </Section>
                     )}
                     {partnerChores.length > 0 && partner && (
                         <Section title={`${partner.name}'s turn`} accentColor={partner.color}>
-                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onUndo={undoComplete} onAssign={assignOwner} />)}
+                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} />)}
                         </Section>
                     )}
                 </div>
@@ -1320,17 +1337,26 @@ function Section({ title, accentColor, children }) {
     );
 }
 
-function ChoreRow({ chore, users, currentUser, onComplete, onUndo, onAssign }) {
+function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign }) {
     const freqInfo = FREQ[chore.freq];
     const isOverdue = chore.status === "overdue";
     const isDone = chore.completedToday;
     const [justChecked, setJustChecked] = useState(false);
+    const [justTogether, setJustTogether] = useState(false);
 
-    const completedBy = isDone && chore.lastDone ? users.find((u) => u.id === chore.lastDone.userId) : null;
+    const completedBy = isDone && !chore.doneTogetherToday && chore.lastDone
+        ? users.find((u) => u.id === chore.lastDone.userId)
+        : null;
 
     const handleClick = () => {
         if (isDone) { onUndo(chore.id); }
         else { setJustChecked(true); setTimeout(() => setJustChecked(false), 600); onComplete(chore.id); }
+    };
+
+    const handleTogether = () => {
+        setJustTogether(true);
+        setTimeout(() => setJustTogether(false), 600);
+        onCompleteTogether(chore.id);
     };
 
     return (
@@ -1372,7 +1398,16 @@ function ChoreRow({ chore, users, currentUser, onComplete, onUndo, onAssign }) {
                     <div style={{ fontSize: "12px", color: "#888780", marginTop: "2px", fontStyle: "italic" }}>{chore.description}</div>
                 )}
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px", flexWrap: "wrap" }}>
-                    {isDone && completedBy ? (
+                    {isDone && chore.doneTogetherToday ? (
+                        <span style={{
+                            fontSize: "11px", padding: "2px 8px", background: "#E1F5EE",
+                            color: "#085041", borderRadius: "6px", fontWeight: 700,
+                            display: "inline-flex", alignItems: "center", gap: "4px",
+                            border: "1.5px solid #1D9E75",
+                        }}>
+                            🤝 done together
+                        </span>
+                    ) : isDone && completedBy ? (
                         <span style={{
                             fontSize: "11px", padding: "2px 8px", background: "#E1F5EE",
                             color: "#085041", borderRadius: "6px", fontWeight: 700,
@@ -1400,14 +1435,33 @@ function ChoreRow({ chore, users, currentUser, onComplete, onUndo, onAssign }) {
                 </div>
             </div>
             {!isDone && (
-                <select
-                    value={chore.owner_id || ""} onChange={(e) => onAssign(chore.id, e.target.value || null)}
-                    style={{ fontSize: "11px", padding: "4px 6px", border: "2px solid #2C2C2A", borderRadius: "6px", width: "auto", fontFamily: FONT, fontWeight: 600 }}
-                    title="Assign owner"
-                >
-                    <option value="">—</option>
-                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "5px", flexShrink: 0 }}>
+                    {users.length > 1 && (
+                        <button
+                            onClick={handleTogether}
+                            title="We did it together"
+                            style={{
+                                fontSize: "11px", padding: "4px 8px", fontFamily: FONT, fontWeight: 700,
+                                border: "2px solid #2C2C2A", borderRadius: "6px", cursor: "pointer",
+                                background: justTogether ? "#E1F5EE" : "white",
+                                color: "#2C2C2A",
+                                transition: "background 0.2s ease, transform 0.2s ease",
+                                transform: justTogether ? "scale(1.08)" : "scale(1)",
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            🤝 together
+                        </button>
+                    )}
+                    <select
+                        value={chore.owner_id || ""} onChange={(e) => onAssign(chore.id, e.target.value || null)}
+                        style={{ fontSize: "11px", padding: "4px 6px", border: "2px solid #2C2C2A", borderRadius: "6px", width: "auto", fontFamily: FONT, fontWeight: 600 }}
+                        title="Assign owner"
+                    >
+                        <option value="">—</option>
+                        {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                </div>
             )}
         </div>
     );
