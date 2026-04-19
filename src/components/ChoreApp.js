@@ -23,6 +23,8 @@ import {
     Bell,
     BellOff,
     Flame,
+    ShoppingBag,
+    Coins,
 } from "lucide-react";
 import HeatmapView from "@/components/HeatmapView";
 
@@ -266,8 +268,105 @@ function LineSnail({ color, size = 24 }) {
     );
 }
 
+// =========== STORE PLANTS (owned items) ===========
+function PlantFrond({ size = 1 }) {
+    return (
+        <svg width={28 * size} height={64 * size} viewBox="0 0 28 64" xmlns="http://www.w3.org/2000/svg">
+            <path d="M14 64 Q13 48 14 32 Q15 18 14 6" stroke="#15803D" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+            <ellipse cx="7" cy="50" rx="7" ry="3.5" fill="#22C55E" stroke="#15803D" strokeWidth="1.2" transform="rotate(-28 7 50)" />
+            <ellipse cx="21" cy="42" rx="7" ry="3.5" fill="#22C55E" stroke="#15803D" strokeWidth="1.2" transform="rotate(28 21 42)" />
+            <ellipse cx="6" cy="32" rx="6" ry="3" fill="#34D57B" stroke="#15803D" strokeWidth="1.2" transform="rotate(-26 6 32)" />
+            <ellipse cx="22" cy="24" rx="6" ry="3" fill="#34D57B" stroke="#15803D" strokeWidth="1.2" transform="rotate(26 22 24)" />
+            <ellipse cx="14" cy="10" rx="5" ry="3" fill="#4ADE80" stroke="#15803D" strokeWidth="1.2" />
+        </svg>
+    );
+}
+
+function PlantBush({ size = 1 }) {
+    return (
+        <svg width={38 * size} height={48 * size} viewBox="0 0 38 48" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 48 Q19 38 19 28" stroke="#15803D" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+            <circle cx="10" cy="28" r="8" fill="#16A34A" stroke="#15803D" strokeWidth="1.3" />
+            <circle cx="28" cy="24" r="9" fill="#16A34A" stroke="#15803D" strokeWidth="1.3" />
+            <circle cx="19" cy="14" r="8" fill="#22C55E" stroke="#15803D" strokeWidth="1.3" />
+            <circle cx="13" cy="34" r="5.5" fill="#22C55E" stroke="#15803D" strokeWidth="1.3" />
+            <circle cx="26" cy="36" r="5.5" fill="#22C55E" stroke="#15803D" strokeWidth="1.3" />
+        </svg>
+    );
+}
+
+const STORE_ITEMS = [
+    { id: "plant_frond", name: "Leafy Frond", price: 20, render: (size) => <PlantFrond size={size} /> },
+    { id: "plant_bush", name: "Bushy Clover", price: 35, render: (size) => <PlantBush size={size} /> },
+];
+
+const STORE_ITEM_MAP = Object.fromEntries(STORE_ITEMS.map((i) => [i.id, i]));
+
+// =========== DRAGGABLE PURCHASE ===========
+function DraggablePurchase({ purchase, tankRef, onMoveEnd, children }) {
+    const [pos, setPos] = useState({ x: purchase.x, y: purchase.y });
+    const dragState = useRef(null);
+
+    useEffect(() => {
+        if (!dragState.current) setPos({ x: purchase.x, y: purchase.y });
+    }, [purchase.x, purchase.y]);
+
+    const clampPos = (rect, dx, dy, origX, origY) => ({
+        x: Math.max(2, Math.min(98, origX + (dx / rect.width) * 100)),
+        y: Math.max(8, Math.min(85, origY + (-dy / rect.height) * 100)),
+    });
+
+    const handlePointerDown = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+        dragState.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, pointerId: e.pointerId };
+    };
+
+    const handlePointerMove = (e) => {
+        if (!dragState.current || !tankRef.current) return;
+        if (e.pointerId !== dragState.current.pointerId) return;
+        const rect = tankRef.current.getBoundingClientRect();
+        const next = clampPos(rect, e.clientX - dragState.current.startX, e.clientY - dragState.current.startY, dragState.current.origX, dragState.current.origY);
+        setPos(next);
+    };
+
+    const handlePointerUp = (e) => {
+        if (!dragState.current || !tankRef.current) return;
+        if (e.pointerId !== dragState.current.pointerId) return;
+        const rect = tankRef.current.getBoundingClientRect();
+        const final = clampPos(rect, e.clientX - dragState.current.startX, e.clientY - dragState.current.startY, dragState.current.origX, dragState.current.origY);
+        dragState.current = null;
+        setPos(final);
+        onMoveEnd(purchase.id, Math.round(final.x), Math.round(final.y));
+    };
+
+    return (
+        <div
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            style={{
+                position: "absolute",
+                left: `${pos.x}%`,
+                bottom: `${pos.y}%`,
+                transform: "translateX(-50%)",
+                cursor: "grab",
+                zIndex: 4,
+                touchAction: "none",
+                userSelect: "none",
+                filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.25))",
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
 // =========== MINIMAL AQUARIUM ===========
-function Aquarium({ mood, happiness, rewardAnim }) {
+function Aquarium({ mood, happiness, rewardAnim, purchases = [], coinBalance = 0, onMovePurchase }) {
+    const tankRef = useRef(null);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpDur = { ecstatic: "30s", happy: "35s", content: "40s", meh: "50s", sad: "60s", miserable: "80s" }[mood] || "40s";
     const schoolDur = { ecstatic: "24s", happy: "29s", content: "34s", meh: "43s", sad: "54s", miserable: "70s" }[mood] || "34s";
@@ -290,7 +389,7 @@ function Aquarium({ mood, happiness, rewardAnim }) {
     }[mood] || "#C084FC";
 
     return (
-        <div style={{
+        <div ref={tankRef} style={{
             position: "relative", width: "100%", height: "160px",
             overflow: "hidden", fontFamily: FONT,
             border: "2px solid #2C2C2A",
@@ -524,6 +623,36 @@ function Aquarium({ mood, happiness, rewardAnim }) {
                 </div>
             )}
 
+            {/* Purchased items (draggable) */}
+            {purchases.map((p) => {
+                const item = STORE_ITEM_MAP[p.item_id];
+                if (!item) return null;
+                return (
+                    <DraggablePurchase
+                        key={p.id}
+                        purchase={p}
+                        tankRef={tankRef}
+                        onMoveEnd={onMovePurchase}
+                    >
+                        {item.render(0.75)}
+                    </DraggablePurchase>
+                );
+            })}
+
+            {/* Coin balance chip */}
+            <div style={{
+                position: "absolute", top: 8, right: 10, zIndex: 6,
+                display: "flex", alignItems: "center", gap: "4px",
+                padding: "3px 8px", borderRadius: "10px",
+                background: "rgba(245,158,11,0.92)",
+                color: "#2C2C2A", fontSize: "11px", fontWeight: 700,
+                border: "1.5px solid #2C2C2A",
+                boxShadow: boxShadow("#2C2C2A", 1, 1),
+                pointerEvents: "none",
+            }}>
+                <Coins size={11} strokeWidth={2.5} /> {coinBalance}
+            </div>
+
             {/* Status */}
             <div style={{
                 position: "absolute", bottom: 0, left: 0, right: 0, padding: "6px 12px",
@@ -550,6 +679,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const supabase = getSupabase();
     const [chores, setChores] = useState([]);
     const [completions, setCompletions] = useState([]);
+    const [purchases, setPurchases] = useState([]);
     const [view, setView] = useState("today");
     const [calMonth, setCalMonth] = useState(today());
     const [newChoreName, setNewChoreName] = useState("");
@@ -584,15 +714,16 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     // Load data
     const loadData = useCallback(async () => {
         if (!profile?.household_id) return;
-        const [choresRes, compsRes] = await Promise.all([
+        const choreIdsRes = await supabase.from("chores").select("id").eq("household_id", profile.household_id);
+        const choreIds = choreIdsRes.data?.map((c) => c.id) || [];
+        const [choresRes, compsRes, purchasesRes] = await Promise.all([
             supabase.from("chores").select("*").eq("household_id", profile.household_id).order("created_at"),
-            supabase.from("completions").select("*").in(
-                "chore_id",
-                (await supabase.from("chores").select("id").eq("household_id", profile.household_id)).data?.map((c) => c.id) || []
-            ),
+            supabase.from("completions").select("*").in("chore_id", choreIds),
+            supabase.from("purchases").select("*").eq("household_id", profile.household_id).order("created_at"),
         ]);
         if (choresRes.data) setChores(choresRes.data);
         if (compsRes.data) setCompletions(compsRes.data);
+        if (purchasesRes.data) setPurchases(purchasesRes.data);
         setLoading(false);
     }, [profile?.household_id, supabase]);
 
@@ -605,6 +736,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             .channel("completions-realtime")
             .on("postgres_changes", { event: "*", schema: "public", table: "completions" }, () => loadData())
             .on("postgres_changes", { event: "*", schema: "public", table: "chores" }, () => loadData())
+            .on("postgres_changes", { event: "*", schema: "public", table: "purchases" }, () => loadData())
             .subscribe();
         return () => { supabase.removeChannel(channel); };
     }, [profile?.household_id, supabase, loadData]);
@@ -822,6 +954,45 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         }
     };
 
+    const choreRewardMap = useMemo(() => {
+        const map = {};
+        for (const c of chores) map[c.id] = c.reward ?? 5;
+        return map;
+    }, [chores]);
+
+    const coinsEarned = useMemo(
+        () => completions.reduce((sum, c) => sum + (choreRewardMap[c.chore_id] ?? 5), 0),
+        [completions, choreRewardMap]
+    );
+
+    const coinsSpent = useMemo(
+        () => purchases.reduce((sum, p) => sum + (STORE_ITEM_MAP[p.item_id]?.price ?? 0), 0),
+        [purchases]
+    );
+
+    const coinBalance = coinsEarned - coinsSpent;
+
+    const purchaseItem = async (itemId) => {
+        const item = STORE_ITEM_MAP[itemId];
+        if (!item || !profile?.household_id) return;
+        if (coinBalance < item.price) return;
+        const { data, error } = await supabase
+            .from("purchases")
+            .insert({ household_id: profile.household_id, item_id: itemId, x: 50, y: 20 })
+            .select().single();
+        if (!error && data) setPurchases((prev) => [...prev, data]);
+    };
+
+    const movePurchase = async (purchaseId, x, y) => {
+        setPurchases((prev) => prev.map((p) => (p.id === purchaseId ? { ...p, x, y } : p)));
+        await supabase.from("purchases").update({ x, y }).eq("id", purchaseId);
+    };
+
+    const sellPurchase = async (purchaseId) => {
+        setPurchases((prev) => prev.filter((p) => p.id !== purchaseId));
+        await supabase.from("purchases").delete().eq("id", purchaseId);
+    };
+
     const undoComplete = async (choreId) => {
         const toDelete = completions.filter((c) => c.chore_id === choreId && c.completed_date === todayStr);
         for (const comp of toDelete) {
@@ -901,6 +1072,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     { id: "month", label: "This Month", icon: Calendar, accent: "#1D9E75" },
                     { id: "longterm", label: "Long-Term", icon: RotateCcw, accent: "#BA7517" },
                     { id: "heatmap", label: "Heatmap", icon: BarChart3, accent: "#D85A30" },
+                    { id: "store", label: "Store", icon: ShoppingBag, accent: "#F59E0B" },
                     { id: "manage", label: "Manage", icon: Home, accent: "#888780" },
                 ].map((t) => {
                     const Icon = t.icon;
@@ -932,7 +1104,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             {view === "today" && (
                 <div>
                     <div style={{ marginBottom: "1.25rem" }}>
-                        <Aquarium happiness={householdHappiness} mood={householdMood} rewardAnim={rewardAnim} />
+                        <Aquarium
+                            happiness={householdHappiness}
+                            mood={householdMood}
+                            rewardAnim={rewardAnim}
+                            purchases={purchases}
+                            coinBalance={coinBalance}
+                            onMovePurchase={movePurchase}
+                        />
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
@@ -1101,6 +1280,105 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Chore Performance Heatmap</div>
                     <HeatmapView chores={chores} completions={completions} users={users} />
+                </div>
+            )}
+
+            {/* STORE VIEW */}
+            {view === "store" && (
+                <div>
+                    <div style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "14px 18px", marginBottom: "1.25rem",
+                        background: "#FEF3C7", border: "2px solid #2C2C2A", borderRadius: "12px",
+                        boxShadow: boxShadow("#F59E0B", 3, 3),
+                    }}>
+                        <div style={{ fontSize: "13px", color: "#78350F", fontWeight: 600 }}>Your Balance</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "20px", fontWeight: 800, color: "#2C2C2A" }}>
+                            <Coins size={20} strokeWidth={2.5} /> {coinBalance}
+                        </div>
+                    </div>
+
+                    <Section title="Plants" accentColor="#22C55E">
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                            {STORE_ITEMS.map((item) => {
+                                const canAfford = coinBalance >= item.price;
+                                return (
+                                    <div key={item.id} style={{
+                                        padding: "12px", background: "white",
+                                        border: "2px solid #2C2C2A", borderRadius: "12px",
+                                        boxShadow: boxShadow("#22C55E", 2, 2),
+                                        display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
+                                    }}>
+                                        <div style={{
+                                            width: "100%", height: "90px", display: "flex",
+                                            alignItems: "flex-end", justifyContent: "center",
+                                            background: "#F4FBF7", borderRadius: "8px",
+                                            border: "1.5px solid #e8e8e8", padding: "6px 0",
+                                        }}>
+                                            {item.render(1)}
+                                        </div>
+                                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#2C2C2A" }}>{item.name}</div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", fontWeight: 700, color: "#78350F" }}>
+                                            <Coins size={13} strokeWidth={2.5} /> {item.price}
+                                        </div>
+                                        <button
+                                            onClick={() => purchaseItem(item.id)}
+                                            disabled={!canAfford}
+                                            style={{
+                                                width: "100%", padding: "8px 10px",
+                                                background: canAfford ? "#22C55E" : "#e8e8e8",
+                                                color: canAfford ? "white" : "#888780",
+                                                border: "2px solid #2C2C2A", borderRadius: "8px",
+                                                fontFamily: FONT, fontSize: "12px", fontWeight: 700,
+                                                cursor: canAfford ? "pointer" : "not-allowed",
+                                                boxShadow: canAfford ? boxShadow("#2C2C2A", 2, 2) : "none",
+                                            }}
+                                        >
+                                            {canAfford ? "Buy" : "Not enough"}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </Section>
+
+                    {purchases.length > 0 && (
+                        <Section title="Your Items" accentColor="#7F77DD">
+                            <div style={{ fontSize: "12px", color: "#888780", marginBottom: "10px" }}>
+                                Drag them around the aquarium to place them.
+                            </div>
+                            {purchases.map((p) => {
+                                const item = STORE_ITEM_MAP[p.item_id];
+                                if (!item) return null;
+                                return (
+                                    <div key={p.id} style={{
+                                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                                        padding: "8px 12px", marginBottom: "6px",
+                                        background: "white", border: "2px solid #2C2C2A",
+                                        borderRadius: "10px", boxShadow: boxShadow("#e8e8e8", 2, 2),
+                                    }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                            <div style={{ width: "28px", display: "flex", justifyContent: "center" }}>
+                                                {item.render(0.4)}
+                                            </div>
+                                            <div style={{ fontSize: "13px", fontWeight: 600 }}>{item.name}</div>
+                                        </div>
+                                        <button
+                                            onClick={() => { if (confirm("Remove this item from the aquarium?")) sellPurchase(p.id); }}
+                                            style={{
+                                                padding: "4px 8px", background: "white",
+                                                border: "2px solid #2C2C2A", borderRadius: "6px",
+                                                cursor: "pointer", fontFamily: FONT,
+                                            }}
+                                            title="Remove"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </Section>
+                    )}
                 </div>
             )}
 
@@ -1541,13 +1819,16 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
     const [editDesc, setEditDesc] = useState(chore.description || "");
     const [editFreq, setEditFreq] = useState(chore.freq);
     const [editOwner, setEditOwner] = useState(chore.owner_id || "");
+    const [editReward, setEditReward] = useState(String(chore.reward ?? 5));
 
     const handleSave = () => {
+        const rewardNum = Math.max(0, parseInt(editReward, 10) || 0);
         onUpdate(chore.id, {
             name: editName.trim() || chore.name,
             description: editDesc.trim() || null,
             freq: editFreq,
             owner_id: editOwner || null,
+            reward: rewardNum,
         });
         onAssign(chore.id, editOwner || null);
         setEditing(false);
@@ -1558,6 +1839,7 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
         setEditDesc(chore.description || "");
         setEditFreq(chore.freq);
         setEditOwner(chore.owner_id || "");
+        setEditReward(String(chore.reward ?? 5));
         setEditing(false);
     };
 
@@ -1577,7 +1859,7 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                     placeholder="Description (optional)"
                     style={{ width: "100%", padding: "6px 10px", border: "2px solid #e8e8e8", borderRadius: "8px", fontSize: "12px", fontFamily: FONT, marginBottom: "8px", boxSizing: "border-box" }}
                 />
-                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", marginBottom: "6px" }}>
                     <select value={editFreq} onChange={(e) => setEditFreq(e.target.value)}
                         style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1, minWidth: "100px" }}>
                         {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -1587,6 +1869,16 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                         <option value="">Unassigned</option>
                         {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
+                </div>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#78350F", background: "#FEF3C7", padding: "6px 10px", border: "2px solid #2C2C2A", borderRadius: "6px", flex: 1, minWidth: "140px" }}>
+                        <Coins size={12} strokeWidth={2.5} /> Reward
+                        <input
+                            type="number" min="0" value={editReward}
+                            onChange={(e) => setEditReward(e.target.value)}
+                            style={{ width: "56px", padding: "3px 6px", border: "1.5px solid #2C2C2A", borderRadius: "4px", fontSize: "12px", fontFamily: FONT, fontWeight: 700, marginLeft: "auto" }}
+                        />
+                    </label>
                     <button onClick={handleSave} style={{ padding: "6px 12px", background: "#1D9E75", color: "white", border: "2px solid #2C2C2A", borderRadius: "6px", cursor: "pointer", fontWeight: 700, fontSize: "12px", fontFamily: FONT, display: "flex", alignItems: "center", gap: "4px" }}>
                         <Save size={12} /> Save
                     </button>
@@ -1608,6 +1900,9 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: "14px", fontWeight: 600 }}>{chore.name}</div>
                 {chore.description && <div style={{ fontSize: "11px", color: "#888780", marginTop: "2px", fontStyle: "italic" }}>{chore.description}</div>}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 700, color: "#78350F", background: "#FEF3C7", padding: "3px 7px", borderRadius: "6px", border: "1.5px solid #F59E0B", flexShrink: 0 }}>
+                <Coins size={11} strokeWidth={2.5} /> {chore.reward ?? 5}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
                 <button
