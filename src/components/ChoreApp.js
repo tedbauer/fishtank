@@ -101,7 +101,7 @@ const moodTier = (h) => {
 };
 
 const moodLabel = (tier) =>
-    ({ ecstatic: "Is Thriving! ✨", happy: "Is Happy ~", content: "Is Vibing", meh: "Is Feeling Meh", sad: "Is Looking Blue :(", miserable: "Needs Love!!" })[tier];
+    ({ ecstatic: "Is Thriving! ✨", happy: "Is Happy", content: "Is Vibing", meh: "Is Feeling Meh", sad: "Is Looking Blue", miserable: "Needs Love!!" })[tier];
 
 // =========== REWARD TYPES PER FREQUENCY ===========
 const REWARD_MAP = {
@@ -163,16 +163,16 @@ function Aquarium({ mood, happiness, rewardAnim }) {
         }}>
             <style>{`
         @keyframes ${uid}-swim {
-          0%   { transform: translateX(20px) translateY(0px) scaleX(1); }
-          12%  { transform: translateX(calc(35% - 16px)) translateY(-10px) scaleX(1); }
-          28%  { transform: translateX(calc(75% - 16px)) translateY(5px) scaleX(1); }
-          38%  { transform: translateX(calc(90% - 40px)) translateY(-3px) scaleX(1); }
-          42%  { transform: translateX(calc(90% - 40px)) translateY(-3px) scaleX(-1); }
-          58%  { transform: translateX(calc(55% - 16px)) translateY(8px) scaleX(-1); }
-          72%  { transform: translateX(calc(20% - 8px)) translateY(-6px) scaleX(-1); }
-          84%  { transform: translateX(20px) translateY(4px) scaleX(-1); }
-          88%  { transform: translateX(20px) translateY(4px) scaleX(1); }
-          100% { transform: translateX(20px) translateY(0px) scaleX(1); }
+          0%   { left: 20px;  top: 50px; transform: scaleX(1); }
+          12%  { left: 30%;   top: 40px; transform: scaleX(1); }
+          28%  { left: 60%;   top: 55px; transform: scaleX(1); }
+          38%  { left: 80%;   top: 45px; transform: scaleX(1); }
+          42%  { left: 80%;   top: 45px; transform: scaleX(-1); }
+          58%  { left: 50%;   top: 58px; transform: scaleX(-1); }
+          72%  { left: 18%;   top: 42px; transform: scaleX(-1); }
+          84%  { left: 20px;  top: 52px; transform: scaleX(-1); }
+          88%  { left: 20px;  top: 52px; transform: scaleX(1); }
+          100% { left: 20px;  top: 50px; transform: scaleX(1); }
         }
         @keyframes ${uid}-bub {
           0% { transform: translateY(0); opacity: 0; }
@@ -191,9 +191,8 @@ function Aquarium({ mood, happiness, rewardAnim }) {
           100% { opacity: 0; transform: scale(0.8); }
         }
         .${uid}-fish {
-          position: absolute; top: 45px; left: 0;
+          position: absolute; top: 50px; left: 20px;
           animation: ${uid}-swim ${swimDuration} ease-in-out infinite;
-          transform-origin: center;
         }
       `}</style>
 
