@@ -105,14 +105,16 @@ const computeStreak = (chores, completions) => {
         checkDate.setDate(checkDate.getDate() - dayOffset);
         const checkStr = formatDate(checkDate);
 
-        // For each chore, was it overdue on this day?
         let anyOverdue = false;
+        let anyActive = false;
+
         for (const chore of chores) {
             const freqDays = FREQ[chore.freq]?.days || 7;
             const choreCreated = chore.created_at ? parseDate(chore.created_at.split("T")[0]) : t;
-            if (checkDate < choreCreated) continue; // chore didn't exist yet
+            if (checkDate < choreCreated) continue;
 
-            // Find most recent completion ON or BEFORE checkDate
+            anyActive = true;
+
             const relevantComps = completions
                 .filter((c) => c.chore_id === chore.id && c.completed_date <= checkStr)
                 .sort((a, b) => b.completed_date.localeCompare(a.completed_date));
@@ -131,7 +133,7 @@ const computeStreak = (chores, completions) => {
             }
         }
 
-        if (anyOverdue) break;
+        if (!anyActive || anyOverdue) break;
         streak++;
     }
     return streak;
