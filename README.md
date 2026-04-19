@@ -1,36 +1,130 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ChoreTracker 🐟
+
+A shared household chore tracker with a virtual aquarium pet. Keep your home tidy together — your fish thrives when chores get done.
+
+## Features
+
+- **Shared Households** — Create a household and invite your partner/roommates with a 6-character invite code or share link
+- **Smart Chore Scheduling** — Daily, every 2 days, weekly, biweekly, monthly, quarterly, and biannual frequencies
+- **Virtual Aquarium** — A minimal line-art fish tank that reflects your household's chore health. The fish swims slowly, hearts float up, a shrimp crawls along the bottom, and plants sway with parallax depth
+- **Happiness System** — Fish mood changes based on completion patterns (Thriving → Happy → Vibing → Meh → Blue → Needs Love)
+- **Streak Tracking** — Consecutive days with no overdue chores. Don't break the streak!
+- **Push Notifications (PWA)** — Real push notifications on iOS/Android when installed as a Home Screen app. Configurable: daily summary, overdue alerts, streak warnings
+- **Heatmap Calendar** — Day/week/month tile view showing completion patterns over time
+- **Reward Animations** — Completing chores triggers aquarium animations (fish food, bubbles, plants, treasure)
+- **Chore Descriptions** — Optional descriptions for each chore
+- **Inline Editing** — Edit chore names, descriptions, and frequencies directly in the manage view
+- **Google OAuth** — Secure login via Google
+
+## Tech Stack
+
+- **Framework**: [Next.js](https://nextjs.org/) (App Router)
+- **Database & Auth**: [Supabase](https://supabase.com/) (Postgres + Google OAuth)
+- **Hosting**: [Vercel](https://vercel.com/)
+- **Push**: Web Push API + VAPID keys + Service Worker
+- **Icons**: [Lucide React](https://lucide.dev/)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 18+
+- A [Supabase](https://supabase.com/) project
+- A [Vercel](https://vercel.com/) account (for deployment)
+
+### Setup
+
+1. **Clone the repo**
+
+   ```bash
+   git clone https://github.com/tedbauer/choretracker2.git
+   cd choretracker2
+   npm install
+   ```
+
+2. **Configure environment variables**
+
+   Create a `.env.local` file:
+
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+   NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
+   VAPID_PRIVATE_KEY=your-vapid-private-key
+   CRON_SECRET=your-cron-secret
+   ```
+
+3. **Set up Supabase**
+
+   Run the database migrations in the Supabase SQL Editor. You'll need tables for:
+   - `households` (id, name, invite_code)
+   - `profiles` (id, display_name, avatar_url, household_id, color)
+   - `chores` (id, name, freq, household_id, owner_id, description)
+   - `completions` (id, chore_id, user_id, completed_date)
+   - `push_subscriptions` (id, user_id, household_id, subscription, endpoint, preferences)
+
+   Configure Google OAuth in Supabase Dashboard → Authentication → Providers.
+
+4. **Run locally**
+
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000).
+
+### Deployment
+
+Push to `main` — Vercel auto-deploys. Make sure all environment variables are set in Vercel Dashboard → Settings → Environment Variables.
+
+The `vercel.json` configures a daily cron job that sends push notifications for due/overdue chores.
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── notify/route.js    # Cron endpoint for push notifications
+│   │   └── subscribe/route.js # Save push subscriptions
+│   ├── auth/callback/route.js # OAuth callback
+│   ├── login/page.js          # Login page
+│   ├── layout.js              # Root layout + SW registration
+│   └── page.js                # Main app page
+├── components/
+│   ├── ChoreApp.js            # Main app (aquarium, chores, manage)
+│   ├── HeatmapView.js         # Calendar heatmap
+│   └── HouseholdSetup.js      # Create/join household flow
+├── lib/
+│   └── supabase.js            # Supabase client
+public/
+├── sw.js                      # Service worker for push
+├── manifest.json              # PWA manifest
+├── icon-192.png               # PWA icon
+└── icon-512.png               # PWA icon
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## License
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+MIT License
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copyright (c) 2025 Ted Bauer
 
-## Learn More
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-To learn more about Next.js, take a look at the following resources:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

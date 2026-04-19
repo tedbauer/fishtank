@@ -438,6 +438,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [newChoreDesc, setNewChoreDesc] = useState("");
     const [linkCopied, setLinkCopied] = useState(false);
     const [notifStatus, setNotifStatus] = useState("default"); // default | granted | denied | subscribing
+    const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, overdueAlerts: true, streakWarnings: true });
 
     const currentUser = {
         id: user.id,
@@ -525,11 +526,36 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     subscription: subscription.toJSON(),
                     user_id: user.id,
                     household_id: profile.household_id,
+                    preferences: notifPrefs,
                 }),
             });
         } catch (err) {
             console.error("Push subscription failed:", err);
             setNotifStatus("default");
+        }
+    };
+
+    const updateNotifPrefs = async (newPrefs) => {
+        setNotifPrefs(newPrefs);
+        if (notifStatus === "granted") {
+            try {
+                const reg = await navigator.serviceWorker.ready;
+                const subscription = await reg.pushManager.getSubscription();
+                if (subscription) {
+                    await fetch("/api/subscribe", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            subscription: subscription.toJSON(),
+                            user_id: user.id,
+                            household_id: profile.household_id,
+                            preferences: newPrefs,
+                        }),
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to update prefs:", err);
+            }
         }
     };
 
@@ -940,39 +966,71 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             padding: "12px 16px", background: "white", borderRadius: "12px",
                             fontSize: "14px", color: "#2C2C2A",
                             border: "2px solid #2C2C2A", boxShadow: boxShadow("#F59E0B", 2, 2),
-                            display: "flex", alignItems: "center", justifyContent: "space-between",
-                            gap: "12px",
                         }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                {notifStatus === "granted" ? <Bell size={16} color="#F59E0B" /> : <BellOff size={16} color="#888780" />}
-                                <div>
-                                    <div style={{ fontWeight: 700, fontSize: "13px" }}>
-                                        {notifStatus === "granted" ? "Notifications Enabled" : "Push Notifications"}
-                                    </div>
-                                    <div style={{ fontSize: "11px", color: "#888780" }}>
-                                        {notifStatus === "granted"
-                                            ? "You will get reminders for overdue chores"
-                                            : notifStatus === "denied"
-                                                ? "Blocked — enable in browser settings"
-                                                : "Get reminded about chores and streaks"}
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: notifStatus === "granted" ? "12px" : 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    {notifStatus === "granted" ? <Bell size={16} color="#F59E0B" /> : <BellOff size={16} color="#888780" />}
+                                    <div>
+                                        <div style={{ fontWeight: 700, fontSize: "13px" }}>
+                                            {notifStatus === "granted" ? "Notifications Enabled" : "Push Notifications"}
+                                        </div>
+                                        <div style={{ fontSize: "11px", color: "#888780" }}>
+                                            {notifStatus === "granted"
+                                                ? "Choose what to get notified about"
+                                                : notifStatus === "denied"
+                                                    ? "Blocked \u2014 enable in browser settings"
+                                                    : "Get reminded about chores and streaks"}
+                                        </div>
                                     </div>
                                 </div>
+                                {notifStatus !== "granted" && notifStatus !== "denied" && (
+                                    <button
+                                        onClick={subscribePush}
+                                        disabled={notifStatus === "subscribing"}
+                                        style={{
+                                            padding: "6px 14px", border: "2px solid #2C2C2A", borderRadius: "8px",
+                                            background: "#FEF3C7", cursor: "pointer",
+                                            fontFamily: FONT, fontWeight: 700, fontSize: "12px",
+                                            color: "#B45309",
+                                            boxShadow: boxShadow("#F59E0B", 2, 2),
+                                            opacity: notifStatus === "subscribing" ? 0.6 : 1,
+                                        }}
+                                    >
+                                        {notifStatus === "subscribing" ? "Enabling..." : "Enable"}
+                                    </button>
+                                )}
                             </div>
-                            {notifStatus !== "granted" && notifStatus !== "denied" && (
-                                <button
-                                    onClick={subscribePush}
-                                    disabled={notifStatus === "subscribing"}
-                                    style={{
-                                        padding: "6px 14px", border: "2px solid #2C2C2A", borderRadius: "8px",
-                                        background: "#FEF3C7", cursor: "pointer",
-                                        fontFamily: FONT, fontWeight: 700, fontSize: "12px",
-                                        color: "#B45309",
-                                        boxShadow: boxShadow("#F59E0B", 2, 2),
-                                        opacity: notifStatus === "subscribing" ? 0.6 : 1,
-                                    }}
-                                >
-                                    {notifStatus === "subscribing" ? "Enabling..." : "Enable"}
-                                </button>
+                            {notifStatus === "granted" && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid #e8e8e8", paddingTop: "12px" }}>
+                                    {[
+                                        { key: "dailySummary", label: "Daily Summary", desc: "How many chores are due today" },
+                                        { key: "overdueAlerts", label: "Overdue Alerts", desc: "When chores go past their due date" },
+                                        { key: "streakWarnings", label: "Streak Warnings", desc: "When your streak is about to break" },
+                                    ].map(({ key, label, desc }) => (
+                                        <label key={key} style={{
+                                            display: "flex", alignItems: "center", gap: "10px", cursor: "pointer",
+                                            padding: "6px 0",
+                                        }}>
+                                            <div
+                                                onClick={() => updateNotifPrefs({ ...notifPrefs, [key]: !notifPrefs[key] })}
+                                                style={{
+                                                    width: "20px", height: "20px", borderRadius: "5px",
+                                                    border: "2px solid #2C2C2A", flexShrink: 0,
+                                                    background: notifPrefs[key] ? "#F59E0B" : "white",
+                                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                                    boxShadow: boxShadow(notifPrefs[key] ? "#B45309" : "#e8e8e8", 1, 1),
+                                                    transition: "all 0.15s ease",
+                                                }}
+                                            >
+                                                {notifPrefs[key] && <Check size={12} color="white" strokeWidth={3} />}
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: "13px", fontWeight: 600 }}>{label}</div>
+                                                <div style={{ fontSize: "11px", color: "#888780" }}>{desc}</div>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     </Section>

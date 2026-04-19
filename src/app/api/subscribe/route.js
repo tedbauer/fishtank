@@ -9,7 +9,7 @@ export async function POST(request) {
             process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
         );
 
-        const { subscription, user_id, household_id } = await request.json();
+        const { subscription, user_id, household_id, preferences } = await request.json();
 
         if (!subscription || !user_id || !household_id) {
             return Response.json({ error: "Missing fields" }, { status: 400 });
@@ -24,12 +24,13 @@ export async function POST(request) {
             .eq("user_id", user_id)
             .eq("endpoint", endpoint);
 
-        // Insert new
+        // Insert new with preferences
         const { error } = await supabase.from("push_subscriptions").insert({
             user_id,
             household_id,
             subscription: JSON.stringify(subscription),
             endpoint,
+            preferences: preferences || { dailySummary: true, overdueAlerts: true, streakWarnings: true },
         });
 
         if (error) throw error;

@@ -37,9 +37,13 @@ export async function GET(request) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const householdAlerts = {};
+        // Compute per-household: due today count, overdue list, streak status
+        const householdData = {};
 
         for (const chore of chores) {
+            const hid = chore.household_id;
+            if (!householdData[hid]) householdData[hid] = { dueToday: [], overdue: [], streakAtRisk: false };
+
             const freqDays = FREQ_DAYS[chore.freq] || 7;
             const choreCompletions = (completions || [])
                 .filter((c) => c.chore_id === chore.id)
@@ -59,14 +63,16 @@ export async function GET(request) {
             }
 
             if (daysSince >= freqDays) {
-                const hid = chore.household_id;
-                if (!householdAlerts[hid]) householdAlerts[hid] = [];
                 const overdueDays = daysSince - freqDays;
-                householdAlerts[hid].push({
-                    name: chore.name,
-                    overdue: overdueDays > 0,
-                    overdueDays,
-                });
+                if (overdueDays > 0) {
+                    householdData[hid].overdue.push({ name: chore.name, overdueDays });
+                }
+                householdData[hid].dueToday.push(chore.name);
+            }
+
+            // Streak at risk: chore due today or tomorrow
+            if (daysSince >= freqDays - 1 && daysSince < freqDays + 2) {
+                householdData[hid].streakAtRisk = true;
             }
         }
 
@@ -74,25 +80,47 @@ export async function GET(request) {
         let failed = 0;
 
         for (const sub of subscriptions) {
-            const alerts = householdAlerts[sub.household_id];
-            if (!alerts || alerts.length === 0) continue;
+            const data = householdData[sub.household_id];
+            if (!data) continue;
 
-            const overdueCount = alerts.filter((a) => a.overdue).length;
-            const dueCount = alerts.length;
+            const prefs = sub.preferences || { dailySummary: true, overdueAlerts: true, streakWarnings: true };
+            const messages = [];
 
-            let title, body;
-            if (overdueCount > 0) {
-                title = `🔴 ${overdueCount} Overdue Chore${overdueCount > 1 ? "s" : ""}!`;
-                body = `Don't break your streak! ${alerts.filter((a) => a.overdue).map((a) => a.name).join(", ")}`;
-            } else {
-                title = `🐟 ${dueCount} Chore${dueCount > 1 ? "s" : ""} Due Today`;
-                body = alerts.map((a) => a.name).join(", ");
+            // Daily summary
+            if (prefs.dailySummary && data.dueToday.length > 0) {
+                messages.push({
+                    title: `🐟 ${data.dueToday.length} Chore${data.dueToday.length > 1 ? "s" : ""} Due Today`,
+                    body: data.dueToday.join(", "),
+                    tag: "daily-summary",
+                });
             }
+
+            // Overdue alerts
+            if (prefs.overdueAlerts && data.overdue.length > 0) {
+                messages.push({
+                    title: `🔴 ${data.overdue.length} Overdue!`,
+                    body: data.overdue.map((a) => a.name).join(", "),
+                    tag: "overdue-alert",
+                });
+            }
+
+            // Streak warnings
+            if (prefs.streakWarnings && data.streakAtRisk) {
+                messages.push({
+                    title: "🔥 Streak at risk!",
+                    body: "Complete your chores today to keep your streak going",
+                    tag: "streak-warning",
+                });
+            }
+
+            // Send the most important one (avoid spamming)
+            const msg = messages[0];
+            if (!msg) continue;
 
             try {
                 await webpush.sendNotification(
                     JSON.parse(sub.subscription),
-                    JSON.stringify({ title, body, tag: "chore-daily", url: "/" })
+                    JSON.stringify({ ...msg, url: "/" })
                 );
                 sent++;
             } catch (err) {
@@ -103,7 +131,7 @@ export async function GET(request) {
             }
         }
 
-        return Response.json({ sent, failed, households: Object.keys(householdAlerts).length });
+        return Response.json({ sent, failed, households: Object.keys(householdData).length });
     } catch (err) {
         return Response.json({ error: err.message }, { status: 500 });
     }
