@@ -17,6 +17,9 @@ import {
     BarChart3,
     Copy,
     Link,
+    Pencil,
+    Save,
+    X,
 } from "lucide-react";
 import HeatmapView from "@/components/HeatmapView";
 
@@ -100,187 +103,287 @@ const moodTier = (h) => {
 const moodLabel = (tier) =>
     ({ ecstatic: "Is Thriving! ✨", happy: "Is Happy ~", content: "Is Vibing", meh: "Is Feeling Meh", sad: "Is Looking Blue :(", miserable: "Needs Love!!" })[tier];
 
-// =========== FUNKY FISH SVG ===========
-function Fish({ mood, size = 80 }) {
-    const bodyColor = {
-        ecstatic: "#FFD93D", happy: "#FF6B9D", content: "#C084FC",
-        meh: "#D3D1C7", sad: "#67E8F9", miserable: "#93C5FD",
-    }[mood];
+// =========== REWARD TYPES PER FREQUENCY ===========
+const REWARD_MAP = {
+    daily: { emoji: "🐟", label: "Fish Food!", color: "#FF6B35" },
+    every2: { emoji: "🫧", label: "Bubble Burst!", color: "#67E8F9" },
+    weekly: { emoji: "🌿", label: "New Plant!", color: "#22C55E" },
+    biweekly: { emoji: "💎", label: "Treasure!", color: "#A78BFA" },
+    monthly: { emoji: "🏰", label: "Castle Piece!", color: "#F59E0B" },
+    quarterly: { emoji: "⭐", label: "Starfish!", color: "#EC4899" },
+    biannual: { emoji: "🌈", label: "Rainbow!", color: "#8B5CF6" },
+};
 
-    const finColor = {
-        ecstatic: "#FF6B35", happy: "#FF2D87", content: "#8B5CF6",
-        meh: "#888780", sad: "#06B6D4", miserable: "#3B82F6",
-    }[mood];
+// =========== RETRO PIXEL FISH ===========
+function PixelFish({ mood, size = 80 }) {
+    const palette = {
+        ecstatic: { body: "#FFD93D", fin: "#FF6B35", belly: "#FFF3B0", eye: "#2C2C2A", highlight: "#FFFBE6" },
+        happy: { body: "#FF6B9D", fin: "#FF2D87", belly: "#FFD6E7", eye: "#2C2C2A", highlight: "#FFF0F5" },
+        content: { body: "#C084FC", fin: "#8B5CF6", belly: "#E9D5FF", eye: "#2C2C2A", highlight: "#F5F0FF" },
+        meh: { body: "#B4B2A9", fin: "#888780", belly: "#D3D1C7", eye: "#2C2C2A", highlight: "#E8E8E8" },
+        sad: { body: "#67E8F9", fin: "#06B6D4", belly: "#A5F3FC", eye: "#2C2C2A", highlight: "#E0FAFE" },
+        miserable: { body: "#93C5FD", fin: "#3B82F6", belly: "#BFDBFE", eye: "#2C2C2A", highlight: "#DBEAFE" },
+    }[mood] || { body: "#C084FC", fin: "#8B5CF6", belly: "#E9D5FF", eye: "#2C2C2A", highlight: "#F5F0FF" };
 
-    const stripeColor = {
-        ecstatic: "#FF6B35", happy: "#FFB7D5", content: "#E9D5FF",
-        meh: "#B4B2A9", sad: "#A5F3FC", miserable: "#BFDBFE",
-    }[mood];
-
-    const mouth = (() => {
-        if (mood === "ecstatic") return <path d="M 16 50 Q 22 58 28 50" stroke="#2C2C2A" strokeWidth="2.5" fill="none" strokeLinecap="round" />;
-        if (mood === "happy") return <path d="M 18 50 Q 22 55 26 50" stroke="#2C2C2A" strokeWidth="2" fill="none" strokeLinecap="round" />;
-        if (mood === "content") return <circle cx="22" cy="50" r="2" fill="#2C2C2A" />;
-        if (mood === "meh") return <line x1="18" y1="50" x2="26" y2="50" stroke="#2C2C2A" strokeWidth="2" strokeLinecap="round" />;
-        if (mood === "sad") return <path d="M 18 52 Q 22 47 26 52" stroke="#2C2C2A" strokeWidth="2" fill="none" strokeLinecap="round" />;
-        return <path d="M 16 54 Q 22 46 28 54" stroke="#2C2C2A" strokeWidth="2" fill="none" strokeLinecap="round" />;
-    })();
-
-    // Big sparkly eyes
-    const eyes = (() => {
-        if (mood === "ecstatic") return (
-            <g>
-                <path d="M 30 38 Q 34 32 38 38" stroke="#2C2C2A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                <path d="M 42 38 Q 46 32 50 38" stroke="#2C2C2A" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-            </g>
-        );
-        if (mood === "miserable") return (
-            <g>
-                <circle cx="34" cy="38" r="4" fill="white" /><circle cx="34" cy="39" r="2.5" fill="#2C2C2A" />
-                <circle cx="46" cy="38" r="4" fill="white" /><circle cx="46" cy="39" r="2.5" fill="#2C2C2A" />
-                <line x1="30" y1="32" x2="36" y2="34" stroke="#2C2C2A" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="50" y1="32" x2="44" y2="34" stroke="#2C2C2A" strokeWidth="1.5" strokeLinecap="round" />
-            </g>
-        );
-        return (
-            <g>
-                <circle cx="34" cy="38" r="5" fill="white" /><circle cx="34" cy="38" r="3" fill="#2C2C2A" /><circle cx="35.5" cy="36.5" r="1.2" fill="white" />
-                <circle cx="46" cy="38" r="5" fill="white" /><circle cx="46" cy="38" r="3" fill="#2C2C2A" /><circle cx="47.5" cy="36.5" r="1.2" fill="white" />
-            </g>
-        );
-    })();
-
-    const tear = (mood === "sad" || mood === "miserable") ? (
-        <g>
-            <ellipse cx="32" cy="46" rx="1.5" ry="2.5" fill="#67E8F9" opacity="0.9" />
-            <ellipse cx="48" cy="46" rx="1.5" ry="2.5" fill="#67E8F9" opacity="0.9" />
-        </g>
-    ) : null;
-
-    const blush = (mood === "ecstatic" || mood === "happy") ? (
-        <g>
-            <ellipse cx="26" cy="46" rx="4" ry="2.5" fill="#FF6B9D" opacity="0.35" />
-            <ellipse cx="54" cy="46" rx="4" ry="2.5" fill="#FF6B9D" opacity="0.35" />
-        </g>
-    ) : null;
-
-    // Sparkles for happy moods
-    const sparkles = (mood === "ecstatic" || mood === "happy") ? (
-        <g>
-            <text x="62" y="22" fontSize="8" fill="#FFD93D">✦</text>
-            <text x="12" y="18" fontSize="6" fill="#FF6B9D">✦</text>
-            <text x="70" y="45" fontSize="7" fill="#C084FC">✦</text>
-        </g>
-    ) : null;
-
+    const p = 2; // pixel unit
     return (
-        <svg width={size} height={size * 0.8} viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg" style={{ overflow: "visible" }}>
-            {sparkles}
-            {/* Tail — rounder, more playful */}
-            <ellipse cx="82" cy="25" rx="10" ry="7" fill={finColor} transform="rotate(-20, 82, 25)" />
-            <ellipse cx="82" cy="50" rx="10" ry="7" fill={finColor} transform="rotate(20, 82, 50)" />
-            {/* Body — rounder, chubbier */}
-            <ellipse cx="45" cy="40" rx="32" ry="22" fill={bodyColor} />
-            {/* Stripes */}
-            <ellipse cx="50" cy="40" rx="8" ry="18" fill={stripeColor} opacity="0.4" />
-            <ellipse cx="60" cy="40" rx="5" ry="15" fill={stripeColor} opacity="0.3" />
-            {/* Top fin — spiky and fun */}
-            <path d="M 30 19 Q 35 8 40 14 Q 45 6 50 14 Q 55 10 55 19" fill={finColor} />
-            {/* Little side fin */}
-            <ellipse cx="58" cy="52" rx="8" ry="4" fill={finColor} opacity="0.8" transform="rotate(-15, 58, 52)" />
-            {blush}
-            {eyes}
-            {tear}
-            {mouth}
+        <svg width={size} height={size * 0.7} viewBox="0 0 60 42" xmlns="http://www.w3.org/2000/svg" style={{ overflow: "visible", imageRendering: "pixelated" }}>
+            {/* Tail */}
+            <rect x={48} y={10} width={p * 3} height={p} fill={palette.fin} />
+            <rect x={50} y={8} width={p * 3} height={p} fill={palette.fin} />
+            <rect x={52} y={6} width={p * 2} height={p} fill={palette.fin} />
+            <rect x={48} y={28} width={p * 3} height={p} fill={palette.fin} />
+            <rect x={50} y={30} width={p * 3} height={p} fill={palette.fin} />
+            <rect x={52} y={32} width={p * 2} height={p} fill={palette.fin} />
+            <rect x={48} y={12} width={p * 2} height={p * 8} fill={palette.fin} />
+            {/* Body */}
+            <rect x={10} y={10} width={p * 19} height={p * 10} fill={palette.body} rx={2} />
+            {/* Belly stripe */}
+            <rect x={10} y={20} width={p * 19} height={p * 3} fill={palette.belly} rx={1} />
+            {/* Head bump */}
+            <rect x={4} y={12} width={p * 4} height={p * 8} fill={palette.body} rx={1} />
+            {/* Top fin */}
+            <rect x={18} y={4} width={p * 2} height={p * 3} fill={palette.fin} />
+            <rect x={22} y={2} width={p * 2} height={p * 4} fill={palette.fin} />
+            <rect x={26} y={4} width={p * 2} height={p * 3} fill={palette.fin} />
+            {/* Side fin */}
+            <rect x={30} y={28} width={p * 3} height={p * 2} fill={palette.fin} opacity={0.8} />
+            <rect x={32} y={30} width={p * 2} height={p * 2} fill={palette.fin} opacity={0.6} />
+            {/* Eye */}
+            <rect x={8} y={14} width={p * 2} height={p * 2} fill="white" />
+            <rect x={8} y={14} width={p} height={p} fill={palette.eye} />
+            {/* Highlight pixel */}
+            <rect x={10} y={14} width={p} height={p} fill={palette.highlight} opacity={0.8} />
+            {/* Mouth */}
+            {mood === "ecstatic" || mood === "happy" ? (
+                <rect x={4} y={22} width={p * 2} height={p} fill={palette.eye} opacity={0.6} />
+            ) : mood === "sad" || mood === "miserable" ? (
+                <rect x={6} y={24} width={p * 2} height={p} fill={palette.eye} opacity={0.5} />
+            ) : (
+                <rect x={4} y={22} width={p} height={p} fill={palette.eye} opacity={0.4} />
+            )}
+            {/* Blush for happy moods */}
+            {(mood === "ecstatic" || mood === "happy") && (
+                <rect x={6} y={20} width={p * 2} height={p} fill="#FF6B9D" opacity={0.4} />
+            )}
+            {/* Tear for sad moods */}
+            {(mood === "sad" || mood === "miserable") && (
+                <rect x={10} y={20} width={p} height={p * 2} fill="#67E8F9" opacity={0.7} />
+            )}
         </svg>
     );
 }
 
-// =========== AQUARIUM ===========
-function Aquarium({ mood, happiness }) {
-    const waterTop = { ecstatic: "#E0F2FE", happy: "#FCE7F3", content: "#F3E8FF", meh: "#F1EFE8", sad: "#CFFAFE", miserable: "#DBEAFE" }[mood] || "#E0F2FE";
-    const waterBottom = { ecstatic: "#0EA5E9", happy: "#EC4899", content: "#8B5CF6", meh: "#888780", sad: "#06B6D4", miserable: "#3B82F6" }[mood] || "#0EA5E9";
-    const swimDuration = { ecstatic: "6s", happy: "8s", content: "12s", meh: "16s", sad: "22s", miserable: "28s" }[mood] || "12s";
+// =========== RETRO AQUARIUM ===========
+function Aquarium({ mood, happiness, rewardAnim }) {
+    const waterColors = {
+        ecstatic: ["#1A5276", "#2980B9"], happy: ["#6C2D5A", "#C084FC"], content: ["#1B4332", "#2D6A4F"],
+        meh: ["#3D3D3D", "#5F5F5F"], sad: ["#1A3C4F", "#2471A3"], miserable: ["#2C3E50", "#5D6D7E"],
+    }[mood] || ["#1A5276", "#2980B9"];
 
-    const animName = `fish-swim-${mood}`;
-    const bubble1Name = `bubble-${mood}-1`;
-    const bubble2Name = `bubble-${mood}-2`;
+    const swimDuration = { ecstatic: "5s", happy: "7s", content: "10s", meh: "14s", sad: "20s", miserable: "26s" }[mood] || "10s";
+    const uid = `retro-${mood}`;
 
     return (
         <div style={{
-            position: "relative", width: "100%", height: "180px",
-            borderRadius: "16px", overflow: "hidden", border: "3px solid #2C2C2A",
-            boxShadow: boxShadow("#2C2C2A", 4, 4),
-            background: `linear-gradient(180deg, ${waterTop} 0%, ${waterBottom} 100%)`,
-            transition: "background 1s ease", fontFamily: FONT,
+            position: "relative", width: "100%", height: "200px",
+            overflow: "hidden", fontFamily: FONT,
+            border: "4px solid #2C2C2A",
+            borderRadius: "4px",
+            boxShadow: `${boxShadow("#2C2C2A", 4, 4)}, inset 0 0 30px rgba(0,200,255,0.08)`,
+            background: `linear-gradient(180deg, ${waterColors[0]} 0%, ${waterColors[1]} 100%)`,
+            transition: "background 1s ease",
+            imageRendering: "auto",
         }}>
+            {/* CRT Bezel */}
+            <div style={{
+                position: "absolute", inset: 0,
+                border: "3px solid #1a1a1a",
+                borderRadius: "2px",
+                boxShadow: "inset 0 0 0 1px #444",
+                pointerEvents: "none", zIndex: 10,
+            }} />
+
             <style>{`
-        @keyframes ${animName} {
+        @keyframes ${uid}-swim {
           0% { transform: translateX(0) translateY(0) scaleX(1); }
-          45% { transform: translateX(calc(100% - 100px)) translateY(8px) scaleX(1); }
-          50% { transform: translateX(calc(100% - 100px)) translateY(8px) scaleX(-1); }
-          95% { transform: translateX(0) translateY(-6px) scaleX(-1); }
+          42% { transform: translateX(calc(100% - 90px)) translateY(6px) scaleX(1); }
+          50% { transform: translateX(calc(100% - 90px)) translateY(6px) scaleX(-1); }
+          92% { transform: translateX(0) translateY(-4px) scaleX(-1); }
           100% { transform: translateX(0) translateY(0) scaleX(1); }
         }
-        @keyframes ${bubble1Name} {
-          0% { transform: translateY(0) scale(0.8); opacity: 0; }
-          10% { opacity: 0.7; } 90% { opacity: 0.7; }
-          100% { transform: translateY(-160px) scale(1.1); opacity: 0; }
+        @keyframes ${uid}-bub1 {
+          0% { transform: translateY(0); opacity: 0; }
+          10% { opacity: 0.8; } 90% { opacity: 0.6; }
+          100% { transform: translateY(-180px); opacity: 0; }
         }
-        @keyframes ${bubble2Name} {
-          0% { transform: translateY(0) translateX(0) scale(0.6); opacity: 0; }
+        @keyframes ${uid}-bub2 {
+          0% { transform: translateY(0) translateX(0); opacity: 0; }
           10% { opacity: 0.6; }
-          100% { transform: translateY(-170px) translateX(-4px) scale(1); opacity: 0; }
+          100% { transform: translateY(-180px) translateX(-6px); opacity: 0; }
         }
-        .fish-container-${mood} {
-          position: absolute; top: 30px; left: 10px;
-          animation: ${animName} ${swimDuration} ease-in-out infinite;
+        @keyframes reward-drop {
+          0% { transform: translateY(-30px); opacity: 0; }
+          20% { opacity: 1; }
+          100% { transform: translateY(120px); opacity: 0; }
+        }
+        @keyframes reward-flash {
+          0% { opacity: 0; transform: scale(0.5); }
+          30% { opacity: 1; transform: scale(1.2); }
+          70% { opacity: 1; transform: scale(1); }
+          100% { opacity: 0; transform: scale(0.8); }
+        }
+        @keyframes scanline-move {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
+        }
+        .${uid}-fish {
+          position: absolute; top: 40px; left: 10px;
+          animation: ${uid}-swim ${swimDuration} ease-in-out infinite;
           transform-origin: center;
         }
-        .bubble-${mood} {
-          position: absolute; border-radius: 50%;
-          background: rgba(255,255,255,0.5); border: 2px solid rgba(255,255,255,0.7);
-          bottom: 10px;
+        .${uid}-bubble {
+          position: absolute; bottom: 30px;
+          width: 6px; height: 6px; border-radius: 50%;
+          background: rgba(255,255,255,0.4);
+          border: 1px solid rgba(255,255,255,0.6);
         }
       `}</style>
 
-            {/* Sand */}
-            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "28px", background: "#FAC775", borderTop: "2px solid #E5A83A" }} />
+            {/* Scanlines overlay */}
+            <div style={{
+                position: "absolute", inset: 0, zIndex: 8, pointerEvents: "none",
+                background: "repeating-linear-gradient(0deg, transparent 0px, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)",
+                mixBlendMode: "multiply",
+            }} />
 
-            {/* Seaweed */}
-            <svg style={{ position: "absolute", bottom: 14, left: 20 }} width="30" height="70" viewBox="0 0 30 70">
-                <path d="M 15 70 Q 8 50 15 30 Q 22 15 15 0" stroke="#22C55E" strokeWidth="5" fill="none" strokeLinecap="round" />
-                <path d="M 8 70 Q 2 55 8 40 Q 14 25 8 15" stroke="#4ADE80" strokeWidth="4" fill="none" strokeLinecap="round" opacity="0.7" />
+            {/* Moving scanline bar */}
+            <div style={{
+                position: "absolute", left: 0, right: 0, height: "40px", zIndex: 9,
+                background: "linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%)",
+                animation: "scanline-move 4s linear infinite",
+                pointerEvents: "none",
+            }} />
+
+            {/* Pixel sand */}
+            <div style={{
+                position: "absolute", bottom: 0, left: 0, right: 0, height: "24px",
+                background: "#C4903D",
+                borderTop: "3px solid #A67424",
+                imageRendering: "pixelated",
+            }} />
+            {/* Sand texture dots */}
+            {[15, 40, 70, 110, 150, 190, 230, 270, 310].map((x, i) => (
+                <div key={`sand-${i}`} style={{
+                    position: "absolute", bottom: 6 + (i % 3) * 4, left: `${x % 100}%`,
+                    width: "3px", height: "3px", background: "#B8860B", opacity: 0.4,
+                }} />
+            ))}
+
+            {/* Pixel coral - left */}
+            <svg style={{ position: "absolute", bottom: 20, left: 16, imageRendering: "pixelated" }} width="24" height="36" viewBox="0 0 12 18">
+                <rect x={4} y={0} width={2} height={2} fill="#FF6B9D" />
+                <rect x={2} y={2} width={2} height={2} fill="#FF6B9D" />
+                <rect x={6} y={2} width={2} height={2} fill="#FF6B9D" />
+                <rect x={4} y={4} width={2} height={2} fill="#E11D48" />
+                <rect x={4} y={6} width={2} height={4} fill="#E11D48" />
+                <rect x={2} y={8} width={2} height={4} fill="#FF6B9D" />
+                <rect x={6} y={6} width={2} height={6} fill="#FF6B9D" />
+                <rect x={4} y={10} width={2} height={8} fill="#BE123C" />
+                <rect x={0} y={4} width={2} height={2} fill="#FF6B9D" />
+                <rect x={8} y={4} width={2} height={2} fill="#E11D48" />
             </svg>
-            <svg style={{ position: "absolute", bottom: 14, right: 30 }} width="30" height="55" viewBox="0 0 30 55">
-                <path d="M 15 55 Q 22 40 15 25 Q 8 12 15 2" stroke="#22C55E" strokeWidth="5" fill="none" strokeLinecap="round" />
+
+            {/* Pixel coral - right */}
+            <svg style={{ position: "absolute", bottom: 20, right: 24, imageRendering: "pixelated" }} width="20" height="30" viewBox="0 0 10 15">
+                <rect x={4} y={0} width={2} height={2} fill="#22C55E" />
+                <rect x={2} y={2} width={2} height={2} fill="#22C55E" />
+                <rect x={6} y={2} width={2} height={2} fill="#16A34A" />
+                <rect x={4} y={4} width={2} height={11} fill="#15803D" />
+                <rect x={2} y={6} width={2} height={4} fill="#22C55E" opacity={0.7} />
+                <rect x={6} y={5} width={2} height={5} fill="#16A34A" opacity={0.7} />
             </svg>
 
-            {/* Rocks */}
-            <div style={{ position: "absolute", bottom: 22, right: 65, width: "35px", height: "16px", background: "#78716C", borderRadius: "50%", border: "2px solid #57534E" }} />
-            <div style={{ position: "absolute", bottom: 22, right: 90, width: "22px", height: "12px", background: "#A8A29E", borderRadius: "50%", border: "2px solid #78716C" }} />
+            {/* Pixel rocks */}
+            <div style={{ position: "absolute", bottom: 20, right: 60, width: "18px", height: "10px", background: "#57534E", borderRadius: "2px", border: "2px solid #44403C", imageRendering: "pixelated" }} />
+            <div style={{ position: "absolute", bottom: 20, right: 80, width: "12px", height: "8px", background: "#78716C", borderRadius: "2px", border: "2px solid #57534E", imageRendering: "pixelated" }} />
 
-            {/* Bubbles */}
-            <div className={`bubble-${mood}`} style={{ left: "18%", width: "10px", height: "10px", animation: `${bubble1Name} 5s ease-in infinite` }} />
-            <div className={`bubble-${mood}`} style={{ left: "22%", width: "7px", height: "7px", animation: `${bubble2Name} 6s ease-in infinite`, animationDelay: "1.5s" }} />
-            <div className={`bubble-${mood}`} style={{ right: "35%", width: "9px", height: "9px", animation: `${bubble1Name} 6.5s ease-in infinite`, animationDelay: "2s" }} />
-            <div className={`bubble-${mood}`} style={{ right: "32%", width: "6px", height: "6px", animation: `${bubble2Name} 5.5s ease-in infinite`, animationDelay: "4s" }} />
+            {/* Pixel bubbles */}
+            <div className={`${uid}-bubble`} style={{ left: "20%", animation: `${uid}-bub1 4.5s ease-in infinite` }} />
+            <div className={`${uid}-bubble`} style={{ left: "24%", width: "4px", height: "4px", animation: `${uid}-bub2 5.5s ease-in infinite`, animationDelay: "1.5s" }} />
+            <div className={`${uid}-bubble`} style={{ right: "38%", animation: `${uid}-bub1 6s ease-in infinite`, animationDelay: "2s" }} />
+            <div className={`${uid}-bubble`} style={{ right: "34%", width: "4px", height: "4px", animation: `${uid}-bub2 5s ease-in infinite`, animationDelay: "3.5s" }} />
 
             {/* Fish */}
-            <div className={`fish-container-${mood}`}>
-                <Fish mood={mood} size={90} />
+            <div className={`${uid}-fish`}>
+                <PixelFish mood={mood} size={80} />
             </div>
 
-            {/* Status */}
-            <div style={{
-                position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 14px",
-                background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 100%)", color: "white",
-            }}>
-                <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "4px", textShadow: "1px 1px 0px rgba(0,0,0,0.4)" }}>
-                    Your Fish {moodLabel(mood)}
+            {/* Reward Animation Overlay */}
+            {rewardAnim && (
+                <div style={{
+                    position: "absolute", inset: 0, zIndex: 20,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    pointerEvents: "none",
+                }}>
+                    {/* Falling items for food-type rewards */}
+                    {["daily", "every2"].includes(rewardAnim) && (
+                        <>
+                            {[15, 30, 50, 65, 80].map((x, i) => (
+                                <div key={i} style={{
+                                    position: "absolute", left: `${x}%`, top: 0,
+                                    fontSize: rewardAnim === "daily" ? "16px" : "12px",
+                                    animation: `reward-drop 2s ease-in forwards`,
+                                    animationDelay: `${i * 0.15}s`,
+                                }}>
+                                    {REWARD_MAP[rewardAnim].emoji}
+                                </div>
+                            ))}
+                        </>
+                    )}
+                    {/* Center flash for other rewards */}
+                    {!["daily", "every2"].includes(rewardAnim) && (
+                        <div style={{
+                            fontSize: "40px",
+                            animation: "reward-flash 2s ease-out forwards",
+                            textShadow: `0 0 20px ${REWARD_MAP[rewardAnim]?.color || "#fff"}`,
+                        }}>
+                            {REWARD_MAP[rewardAnim]?.emoji || "✨"}
+                        </div>
+                    )}
+                    {/* Label */}
+                    <div style={{
+                        position: "absolute", bottom: "36px", left: 0, right: 0,
+                        textAlign: "center", fontSize: "13px", fontWeight: 700,
+                        color: "white", textShadow: "1px 1px 0 #000, 2px 2px 0 rgba(0,0,0,0.3)",
+                        animation: "reward-flash 2s ease-out forwards",
+                        animationDelay: "0.3s", opacity: 0,
+                    }}>
+                        {REWARD_MAP[rewardAnim]?.label || "Nice!"}
+                    </div>
                 </div>
-                <div style={{ height: "8px", background: "rgba(255,255,255,0.3)", borderRadius: "99px", overflow: "hidden", border: "1.5px solid rgba(255,255,255,0.5)" }}>
-                    <div style={{ width: `${happiness}%`, height: "100%", background: "white", borderRadius: "99px", transition: "width 0.8s ease" }} />
+            )}
+
+            {/* Status bar */}
+            <div style={{
+                position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 12px",
+                background: "linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.5) 100%)", color: "white",
+                zIndex: 5,
+            }}>
+                <div style={{
+                    fontSize: "12px", fontWeight: 700, marginBottom: "3px",
+                    textShadow: "1px 1px 0px #000",
+                    fontFamily: "'Courier New', monospace",
+                    letterSpacing: "0.5px",
+                }}>
+                    FISH {moodLabel(mood).toUpperCase()}
+                </div>
+                <div style={{ height: "6px", background: "rgba(0,0,0,0.4)", borderRadius: "1px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.2)" }}>
+                    <div style={{
+                        width: `${happiness}%`, height: "100%",
+                        background: happiness > 60 ? "#22C55E" : happiness > 30 ? "#F59E0B" : "#EF4444",
+                        transition: "width 0.8s ease",
+                    }} />
                 </div>
             </div>
         </div>
@@ -299,6 +402,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [loading, setLoading] = useState(true);
     const [inviteCode, setInviteCode] = useState(null);
     const [codeCopied, setCodeCopied] = useState(false);
+    const [rewardAnim, setRewardAnim] = useState(null);
+    const [newChoreDesc, setNewChoreDesc] = useState("");
 
     const currentUser = {
         id: user.id,
@@ -454,11 +559,19 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
     // Actions
     const completeChore = async (choreId) => {
+        const chore = chores.find((c) => c.id === choreId);
         const { data, error } = await supabase
             .from("completions")
             .insert({ chore_id: choreId, user_id: user.id, completed_date: todayStr })
             .select().single();
-        if (!error && data) setCompletions((prev) => [...prev, data]);
+        if (!error && data) {
+            setCompletions((prev) => [...prev, data]);
+            // Trigger reward animation
+            if (chore?.freq) {
+                setRewardAnim(chore.freq);
+                setTimeout(() => setRewardAnim(null), 2500);
+            }
+        }
     };
 
     const undoComplete = async (choreId) => {
@@ -478,9 +591,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         if (!newChoreName.trim() || !profile?.household_id) return;
         const { data, error } = await supabase
             .from("chores")
-            .insert({ name: newChoreName.trim(), freq: newChoreFreq, household_id: profile.household_id })
+            .insert({ name: newChoreName.trim(), freq: newChoreFreq, description: newChoreDesc.trim() || null, household_id: profile.household_id })
             .select().single();
-        if (!error && data) { setChores((prev) => [...prev, data]); setNewChoreName(""); }
+        if (!error && data) { setChores((prev) => [...prev, data]); setNewChoreName(""); setNewChoreDesc(""); }
+    };
+
+    const updateChore = async (choreId, updates) => {
+        const { error } = await supabase.from("chores").update(updates).eq("id", choreId);
+        if (!error) setChores((prev) => prev.map((c) => (c.id === choreId ? { ...c, ...updates } : c)));
     };
 
     const deleteChore = async (choreId) => {
@@ -524,7 +642,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
             {/* TAB NAV */}
             <div style={{
-                display: "flex", gap: "6px", marginBottom: "1.25rem",
+                display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "1.25rem",
                 background: "#f5f4f1", padding: "5px", borderRadius: "12px",
                 border: "2px solid #2C2C2A", boxShadow: boxShadow("#2C2C2A", 3, 3),
             }}>
@@ -543,7 +661,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             key={t.id}
                             onClick={() => setView(t.id)}
                             style={{
-                                flex: 1, padding: "8px 4px", minHeight: "auto",
+                                flex: 1, padding: "8px 4px", minWidth: "60px", minHeight: "auto",
                                 border: active ? "2px solid #2C2C2A" : "2px solid transparent",
                                 background: active ? "white" : "transparent",
                                 borderRadius: "8px", display: "flex", alignItems: "center",
@@ -563,7 +681,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             {view === "today" && (
                 <div>
                     <div style={{ marginBottom: "1.25rem" }}>
-                        <Aquarium happiness={householdHappiness} mood={householdMood} />
+                        <Aquarium happiness={householdHappiness} mood={householdMood} rewardAnim={rewardAnim} />
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
@@ -664,6 +782,11 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 <Plus size={14} /> Add!
                             </button>
                         </div>
+                        <input
+                            type="text" value={newChoreDesc} onChange={(e) => setNewChoreDesc(e.target.value)}
+                            placeholder="Optional description..."
+                            style={{ width: "100%", padding: "8px 12px", border: "2px solid #e8e8e8", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, marginTop: "8px" }}
+                        />
                     </Section>
 
                     <Section title="Household" accentColor="#D4537E">
@@ -721,29 +844,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                         {freqInfo.label}
                                     </div>
                                     {list.map((c) => (
-                                        <div key={c.id} style={{
-                                            display: "flex", alignItems: "center", justifyContent: "space-between",
-                                            padding: "10px 12px", marginBottom: "6px", background: "white",
-                                            border: "2px solid #2C2C2A", borderRadius: "10px", boxShadow: boxShadow("#e8e8e8", 2, 2),
-                                        }}>
-                                            <div style={{ fontSize: "14px", fontWeight: 600 }}>{c.name}</div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                                <select
-                                                    value={c.owner_id || ""} onChange={(e) => assignOwner(c.id, e.target.value || null)}
-                                                    style={{ fontSize: "12px", padding: "4px 6px", border: "2px solid #2C2C2A", borderRadius: "6px", fontFamily: FONT }}
-                                                >
-                                                    <option value="">unassigned</option>
-                                                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                                                </select>
-                                                <button
-                                                    onClick={() => { if (confirm(`Delete "${c.name}"?`)) deleteChore(c.id); }}
-                                                    style={{ padding: "4px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", background: "white", cursor: "pointer", fontFamily: FONT }}
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 size={12} />
-                                                </button>
-                                            </div>
-                                        </div>
+                                        <ManageChoreRow key={c.id} chore={c} users={users} onUpdate={updateChore} onAssign={assignOwner} onDelete={deleteChore} />
                                     ))}
                                 </div>
                             );
@@ -842,6 +943,9 @@ function ChoreRow({ chore, users, currentUser, onComplete, onUndo, onAssign }) {
                 }}>
                     {chore.name}
                 </div>
+                {chore.description && (
+                    <div style={{ fontSize: "12px", color: "#888780", marginTop: "2px", fontStyle: "italic" }}>{chore.description}</div>
+                )}
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px", flexWrap: "wrap" }}>
                     {isDone && completedBy ? (
                         <span style={{
@@ -957,6 +1061,101 @@ function AnimatedCheckRow({ chore, users, onComplete, variant = "week" }) {
                 title="mark done now"
             >
                 <Check size={14} strokeWidth={3} color="white" style={{ opacity: checked ? 1 : 0, transition: "opacity 0.25s ease" }} />
+            </div>
+        </div>
+    );
+}
+
+// =========== MANAGE CHORE ROW (EDITABLE) ===========
+function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
+    const [editing, setEditing] = useState(false);
+    const [editName, setEditName] = useState(chore.name);
+    const [editDesc, setEditDesc] = useState(chore.description || "");
+    const [editFreq, setEditFreq] = useState(chore.freq);
+    const [editOwner, setEditOwner] = useState(chore.owner_id || "");
+
+    const handleSave = () => {
+        onUpdate(chore.id, {
+            name: editName.trim() || chore.name,
+            description: editDesc.trim() || null,
+            freq: editFreq,
+            owner_id: editOwner || null,
+        });
+        onAssign(chore.id, editOwner || null);
+        setEditing(false);
+    };
+
+    const handleCancel = () => {
+        setEditName(chore.name);
+        setEditDesc(chore.description || "");
+        setEditFreq(chore.freq);
+        setEditOwner(chore.owner_id || "");
+        setEditing(false);
+    };
+
+    if (editing) {
+        return (
+            <div style={{
+                padding: "12px", marginBottom: "6px", background: "#FAFAF8",
+                border: "2px solid #7F77DD", borderRadius: "10px",
+                boxShadow: boxShadow("#7F77DD", 2, 2), fontFamily: FONT,
+            }}>
+                <input
+                    value={editName} onChange={(e) => setEditName(e.target.value)}
+                    style={{ width: "100%", padding: "8px 10px", border: "2px solid #2C2C2A", borderRadius: "8px", fontSize: "14px", fontFamily: FONT, fontWeight: 600, marginBottom: "6px", boxSizing: "border-box" }}
+                />
+                <input
+                    value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
+                    placeholder="Description (optional)"
+                    style={{ width: "100%", padding: "6px 10px", border: "2px solid #e8e8e8", borderRadius: "8px", fontSize: "12px", fontFamily: FONT, marginBottom: "8px", boxSizing: "border-box" }}
+                />
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                    <select value={editFreq} onChange={(e) => setEditFreq(e.target.value)}
+                        style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1, minWidth: "100px" }}>
+                        {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                    </select>
+                    <select value={editOwner} onChange={(e) => setEditOwner(e.target.value)}
+                        style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1, minWidth: "100px" }}>
+                        <option value="">Unassigned</option>
+                        {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                    <button onClick={handleSave} style={{ padding: "6px 12px", background: "#1D9E75", color: "white", border: "2px solid #2C2C2A", borderRadius: "6px", cursor: "pointer", fontWeight: 700, fontSize: "12px", fontFamily: FONT, display: "flex", alignItems: "center", gap: "4px" }}>
+                        <Save size={12} /> Save
+                    </button>
+                    <button onClick={handleCancel} style={{ padding: "6px 12px", background: "white", border: "2px solid #2C2C2A", borderRadius: "6px", cursor: "pointer", fontWeight: 700, fontSize: "12px", fontFamily: FONT, display: "flex", alignItems: "center", gap: "4px" }}>
+                        <X size={12} /> Cancel
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "10px 12px", marginBottom: "6px", background: "white",
+            border: "2px solid #2C2C2A", borderRadius: "10px", boxShadow: boxShadow("#e8e8e8", 2, 2),
+            fontFamily: FONT, gap: "8px", flexWrap: "wrap",
+        }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "14px", fontWeight: 600 }}>{chore.name}</div>
+                {chore.description && <div style={{ fontSize: "11px", color: "#888780", marginTop: "2px", fontStyle: "italic" }}>{chore.description}</div>}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                <button
+                    onClick={() => setEditing(true)}
+                    style={{ padding: "4px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", background: "white", cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}
+                    title="Edit"
+                >
+                    <Pencil size={11} /> Edit
+                </button>
+                <button
+                    onClick={() => { if (confirm(`Delete "${chore.name}"?`)) onDelete(chore.id); }}
+                    style={{ padding: "4px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", background: "white", cursor: "pointer", fontFamily: FONT }}
+                    title="Delete"
+                >
+                    <Trash2 size={12} />
+                </button>
             </div>
         </div>
     );
