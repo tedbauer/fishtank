@@ -112,18 +112,19 @@ const computeStreak = (chores, completions) => {
         const choreCreated = chore.created_at ? parseDate(chore.created_at.split("T")[0]) : t;
         if (t < choreCreated) continue;
 
-        const relevantComps = completions
-            .filter((c) => c.chore_id === chore.id && c.completed_date <= todayStr)
+        // Look at completions BEFORE today to determine if chore was due today
+        const preTodayComps = completions
+            .filter((c) => c.chore_id === chore.id && c.completed_date < todayStr)
             .sort((a, b) => b.completed_date.localeCompare(a.completed_date));
-        const last = relevantComps[0];
+        const lastBeforeToday = preTodayComps[0];
         let daysSince;
-        if (last) {
-            daysSince = daysBetween(parseDate(last.completed_date), t);
+        if (lastBeforeToday) {
+            daysSince = daysBetween(parseDate(lastBeforeToday.completed_date), t);
         } else {
             daysSince = daysBetween(choreCreated, t);
         }
 
-        // Is this chore due today?
+        // Was this chore due today (before any today completions)?
         if (daysSince >= freqDays) {
             anyActiveToday = true;
             if (!todayCompletedIds.has(chore.id)) {
