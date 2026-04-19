@@ -297,9 +297,66 @@ function PlantBush({ size = 1 }) {
     );
 }
 
+function FishCave({ size = 1 }) {
+    return (
+        <svg width={56 * size} height={40 * size} viewBox="0 0 56 40" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 40 Q4 18 16 10 Q28 2 40 10 Q52 18 52 40" fill="#78716C" stroke="#57534E" strokeWidth="2" strokeLinecap="round" />
+            <path d="M16 40 Q16 28 28 24 Q40 28 40 40" fill="#292524" stroke="#57534E" strokeWidth="1.5" />
+            <ellipse cx="28" cy="40" rx="12" ry="3" fill="#1C1917" opacity="0.3" />
+            <circle cx="12" cy="22" r="2" fill="#A8A29E" opacity="0.5" />
+            <circle cx="44" cy="18" r="1.5" fill="#A8A29E" opacity="0.4" />
+            <circle cx="34" cy="8" r="1" fill="#A8A29E" opacity="0.3" />
+        </svg>
+    );
+}
+
+function Driftwood({ size = 1 }) {
+    return (
+        <svg width={52 * size} height={28 * size} viewBox="0 0 52 28" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 24 Q10 22 20 18 Q30 14 42 16 Q48 17 50 20" stroke="#92400E" strokeWidth="3" fill="none" strokeLinecap="round" />
+            <path d="M20 18 Q16 12 12 6" stroke="#A16207" strokeWidth="2" fill="none" strokeLinecap="round" />
+            <path d="M34 15 Q38 8 42 4" stroke="#A16207" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+            <path d="M26 16 Q24 10 26 6" stroke="#A16207" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+function MossClump({ size = 1 }) {
+    return (
+        <svg width={32 * size} height={22 * size} viewBox="0 0 32 22" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="10" cy="16" rx="9" ry="6" fill="#166534" stroke="#14532D" strokeWidth="1.2" />
+            <ellipse cx="22" cy="14" rx="9" ry="7" fill="#15803D" stroke="#14532D" strokeWidth="1.2" />
+            <ellipse cx="16" cy="10" rx="7" ry="5" fill="#22C55E" stroke="#15803D" strokeWidth="1.2" />
+            <circle cx="8" cy="12" r="2.5" fill="#4ADE80" opacity="0.6" />
+            <circle cx="24" cy="10" r="2" fill="#4ADE80" opacity="0.5" />
+        </svg>
+    );
+}
+
+function FernPlant({ size = 1 }) {
+    return (
+        <svg width={30 * size} height={56 * size} viewBox="0 0 30 56" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 56 Q15 44 15 32 Q15 20 15 8" stroke="#15803D" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            <path d="M15 44 Q8 40 3 36" stroke="#22C55E" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+            <path d="M15 44 Q22 40 27 36" stroke="#22C55E" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+            <path d="M15 36 Q7 32 2 28" stroke="#34D57B" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+            <path d="M15 36 Q23 32 28 28" stroke="#34D57B" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+            <path d="M15 28 Q9 24 4 20" stroke="#4ADE80" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+            <path d="M15 28 Q21 24 26 20" stroke="#4ADE80" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+            <path d="M15 20 Q10 16 6 12" stroke="#4ADE80" strokeWidth="1" fill="none" strokeLinecap="round" />
+            <path d="M15 20 Q20 16 24 12" stroke="#4ADE80" strokeWidth="1" fill="none" strokeLinecap="round" />
+            <ellipse cx="15" cy="6" rx="4" ry="3" fill="#4ADE80" stroke="#22C55E" strokeWidth="1" />
+        </svg>
+    );
+}
+
 const STORE_ITEMS = [
     { id: "plant_frond", name: "Leafy Frond", price: 20, render: (size) => <PlantFrond size={size} /> },
     { id: "plant_bush", name: "Bushy Clover", price: 35, render: (size) => <PlantBush size={size} /> },
+    { id: "moss_clump", name: "Moss Ball", price: 25, render: (size) => <MossClump size={size} /> },
+    { id: "fern_plant", name: "Java Fern", price: 30, render: (size) => <FernPlant size={size} /> },
+    { id: "driftwood", name: "Driftwood", price: 45, render: (size) => <Driftwood size={size} /> },
+    { id: "fish_cave", name: "Fish Cave", price: 80, render: (size) => <FishCave size={size} /> },
 ];
 
 const STORE_ITEM_MAP = Object.fromEntries(STORE_ITEMS.map((i) => [i.id, i]));
@@ -321,7 +378,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, children }) {
     const handlePointerDown = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) { }
         dragState.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, pointerId: e.pointerId };
     };
 
@@ -565,7 +622,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase 
                 position: "absolute", top: 28, left: "78%",
                 animation: `${uid}-school ${schoolDur} ease-in-out infinite`,
             }}>
-                {[{dx:0,dy:0},{dx:16,dy:-7},{dx:-8,dy:9},{dx:24,dy:3}].map((off, i) => (
+                {[{ dx: 0, dy: 0 }, { dx: 16, dy: -7 }, { dx: -8, dy: 9 }, { dx: 24, dy: 3 }].map((off, i) => (
                     <div key={i} style={{ position: "absolute", left: off.dx, top: off.dy }}>
                         <LineFish mood={mood} size={14} />
                     </div>
