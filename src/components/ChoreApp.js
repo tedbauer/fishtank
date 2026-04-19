@@ -98,8 +98,43 @@ const computeHappiness = (completions, choresWithStatus) => {
 const computeStreak = (chores, completions) => {
     if (!chores.length) return 0;
     const t = today();
+    const todayStr = formatDate(t);
     let streak = 0;
 
+    // Check today first: only counts if ALL due chores are completed today
+    const todayCompletedIds = new Set(
+        completions.filter((c) => c.completed_date === todayStr).map((c) => c.chore_id)
+    );
+    let todayCounts = true;
+    let anyActiveToday = false;
+    for (const chore of chores) {
+        const freqDays = FREQ[chore.freq]?.days || 7;
+        const choreCreated = chore.created_at ? parseDate(chore.created_at.split("T")[0]) : t;
+        if (t < choreCreated) continue;
+
+        const relevantComps = completions
+            .filter((c) => c.chore_id === chore.id && c.completed_date <= todayStr)
+            .sort((a, b) => b.completed_date.localeCompare(a.completed_date));
+        const last = relevantComps[0];
+        let daysSince;
+        if (last) {
+            daysSince = daysBetween(parseDate(last.completed_date), t);
+        } else {
+            daysSince = daysBetween(choreCreated, t);
+        }
+
+        // Is this chore due today?
+        if (daysSince >= freqDays) {
+            anyActiveToday = true;
+            if (!todayCompletedIds.has(chore.id)) {
+                todayCounts = false;
+                break;
+            }
+        }
+    }
+    if (anyActiveToday && todayCounts) streak++;
+
+    // Check past days
     for (let dayOffset = 1; dayOffset < 365; dayOffset++) {
         const checkDate = new Date(t);
         checkDate.setDate(checkDate.getDate() - dayOffset);
@@ -1267,6 +1302,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onUndo, onAssign }) {
                                 </span>
                             )}
                             {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {chore.daysOverdue}d overdue!</span>}
+                            {!isOverdue && chore.status === "due" && <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>due today</span>}
                             {chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>last: {friendlyDate(chore.lastDone.date)}</span>}
                         </>
                     )}
