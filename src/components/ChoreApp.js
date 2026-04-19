@@ -101,7 +101,7 @@ const moodTier = (h) => {
 };
 
 const moodLabel = (tier) =>
-    ({ ecstatic: "Is Thriving! ✨", happy: "Is Happy", content: "Is Vibing", meh: "Is Feeling Meh", sad: "Is Looking Blue :(", miserable: "Needs Love!!" })[tier];
+    ({ ecstatic: "Is Thriving :)", happy: "Is Happy", content: "Is Vibing", meh: "Is Feeling Meh", sad: "Is Looking Blue :(", miserable: "Needs Love!!" })[tier];
 
 // =========== REWARD TYPES PER FREQUENCY ===========
 const REWARD_MAP = {
@@ -135,12 +135,28 @@ function LineFish({ mood, size = 32 }) {
     );
 }
 
+// =========== LINE-ART SHRIMP ===========
+function LineShrimp({ color, size = 24 }) {
+    return (
+        <svg width={size} height={size * 0.5} viewBox="0 0 20 10" xmlns="http://www.w3.org/2000/svg" fill="none" stroke={color} strokeWidth="0.8" strokeLinecap="round">
+            <path d="M4 4 Q8 2 12 3 Q16 4 17 6" />
+            <path d="M3 3 Q1 2 2 5 Q1 7 3 6" />
+            <line x1="8" y1="4" x2="7" y2="7" opacity="0.5" />
+            <line x1="10" y1="4" x2="9.5" y2="7" opacity="0.5" />
+            <line x1="12" y1="4" x2="12" y2="7" opacity="0.5" />
+            <line x1="16" y1="5" x2="19" y2="2" opacity="0.6" />
+            <line x1="16" y1="5" x2="19" y2="4" opacity="0.4" />
+            <circle cx="15" cy="4" r="0.6" fill={color} stroke="none" />
+        </svg>
+    );
+}
+
 // =========== MINIMAL AQUARIUM ===========
 function Aquarium({ mood, happiness, rewardAnim }) {
-    const swimDuration = { ecstatic: "6s", happy: "8s", content: "11s", meh: "15s", sad: "20s", miserable: "26s" }[mood] || "11s";
+    const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
+    const shrimpDur = { ecstatic: "30s", happy: "35s", content: "40s", meh: "50s", sad: "60s", miserable: "80s" }[mood] || "40s";
     const uid = `aq-${mood}`;
 
-    // Single calming blue — mood just shifts brightness
     const waterColor = {
         ecstatic: "#1a3a5c", happy: "#2a2a4a", content: "#1b3345",
         meh: "#2a2a2a", sad: "#1a2e3e", miserable: "#1e2530",
@@ -150,6 +166,11 @@ function Aquarium({ mood, happiness, rewardAnim }) {
         ecstatic: "rgba(255,217,61,0.5)", happy: "rgba(255,107,157,0.45)", content: "rgba(192,132,252,0.45)",
         meh: "rgba(180,178,169,0.35)", sad: "rgba(103,232,249,0.4)", miserable: "rgba(147,197,253,0.4)",
     }[mood] || "rgba(192,132,252,0.45)";
+
+    const heartColor = {
+        ecstatic: "#FFD93D", happy: "#FF6B9D", content: "#C084FC",
+        meh: "#999", sad: "#67E8F9", miserable: "#93C5FD",
+    }[mood] || "#C084FC";
 
     return (
         <div style={{
@@ -164,20 +185,38 @@ function Aquarium({ mood, happiness, rewardAnim }) {
             <style>{`
         @keyframes ${uid}-swim {
           0%   { left: 20px;  top: 50px; transform: scaleX(-1); }
-          12%  { left: 30%;   top: 40px; transform: scaleX(-1); }
-          28%  { left: 60%;   top: 55px; transform: scaleX(-1); }
-          38%  { left: 80%;   top: 45px; transform: scaleX(-1); }
-          42%  { left: 80%;   top: 45px; transform: scaleX(1); }
-          58%  { left: 50%;   top: 58px; transform: scaleX(1); }
-          72%  { left: 18%;   top: 42px; transform: scaleX(1); }
-          84%  { left: 20px;  top: 52px; transform: scaleX(1); }
-          88%  { left: 20px;  top: 52px; transform: scaleX(-1); }
+          15%  { left: 35%;   top: 42px; transform: scaleX(-1); }
+          30%  { left: 55%;   top: 55px; transform: scaleX(-1); }
+          40%  { left: 72%;   top: 48px; transform: scaleX(-1); }
+          44%  { left: 72%;   top: 48px; transform: scaleX(1); }
+          60%  { left: 45%;   top: 56px; transform: scaleX(1); }
+          75%  { left: 20%;   top: 44px; transform: scaleX(1); }
+          86%  { left: 20px;  top: 52px; transform: scaleX(1); }
+          90%  { left: 20px;  top: 52px; transform: scaleX(-1); }
           100% { left: 20px;  top: 50px; transform: scaleX(-1); }
+        }
+        @keyframes ${uid}-shrimp {
+          0%   { left: 75%; }
+          50%  { left: 50%; }
+          100% { left: 75%; }
         }
         @keyframes ${uid}-bub {
           0% { transform: translateY(0); opacity: 0; }
           8% { opacity: 0.5; }
           100% { transform: translateY(-140px); opacity: 0; }
+        }
+        @keyframes ${uid}-heart {
+          0% { transform: translateY(0) scale(0.5); opacity: 0; }
+          15% { opacity: 0.7; transform: translateY(-5px) scale(1); }
+          100% { transform: translateY(-28px) scale(0.5); opacity: 0; }
+        }
+        @keyframes ${uid}-sway1 {
+          0%, 100% { transform: skewX(0deg); }
+          50% { transform: skewX(3deg); }
+        }
+        @keyframes ${uid}-sway2 {
+          0%, 100% { transform: skewX(0deg); }
+          50% { transform: skewX(-2.5deg); }
         }
         @keyframes reward-drop {
           0% { transform: translateY(-20px); opacity: 0; }
@@ -196,29 +235,51 @@ function Aquarium({ mood, happiness, rewardAnim }) {
         }
       `}</style>
 
-            {/* Subtle line-art seaweed */}
-            <svg style={{ position: "absolute", bottom: 16, left: 20, opacity: 0.5 }} width="16" height="44" viewBox="0 0 16 44" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
-                <path d="M8 44 Q4 32 8 22 Q12 12 8 2" />
-                <path d="M12 44 Q9 36 12 28 Q15 20 12 14" opacity="0.6" />
+            {/* === BACK LAYER — faint, far plants === */}
+            <svg style={{ position: "absolute", bottom: 14, left: "8%", opacity: 0.18, animation: `${uid}-sway2 9s ease-in-out infinite` }} width="10" height="50" viewBox="0 0 10 50" fill="none" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
+                <path d="M5 50 Q2 35 5 22 Q8 10 5 0" />
             </svg>
-            <svg style={{ position: "absolute", bottom: 16, right: 30, opacity: 0.4 }} width="12" height="32" viewBox="0 0 12 32" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
-                <path d="M6 32 Q10 22 6 14 Q2 6 6 0" />
+            <svg style={{ position: "absolute", bottom: 14, left: "45%", opacity: 0.14, animation: `${uid}-sway1 10s ease-in-out infinite` }} width="8" height="40" viewBox="0 0 8 40" fill="none" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
+                <path d="M4 40 Q7 28 4 18 Q1 8 4 0" />
             </svg>
-
-            {/* Simple line pebbles */}
-            <svg style={{ position: "absolute", bottom: 10, right: 55, opacity: 0.3 }} width="40" height="12" viewBox="0 0 40 12" fill="none" stroke={lineColor} strokeWidth="1">
-                <ellipse cx="10" cy="8" rx="8" ry="4" />
-                <ellipse cx="28" cy="9" rx="6" ry="3" />
+            <svg style={{ position: "absolute", bottom: 14, right: "15%", opacity: 0.16, animation: `${uid}-sway2 11s ease-in-out infinite` }} width="8" height="36" viewBox="0 0 8 36" fill="none" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
+                <path d="M4 36 Q1 24 4 14 Q7 4 4 0" />
             </svg>
 
-            {/* Tiny bubbles — just circles */}
-            {[18, 45, 72].map((x, i) => (
+            {/* === MID LAYER === */}
+            <svg style={{ position: "absolute", bottom: 14, left: 20, opacity: 0.4, animation: `${uid}-sway1 6s ease-in-out infinite` }} width="16" height="48" viewBox="0 0 16 48" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
+                <path d="M8 48 Q4 34 8 22 Q12 10 8 2" />
+                <path d="M12 48 Q9 38 12 28 Q15 18 12 12" opacity="0.6" />
+            </svg>
+            <svg style={{ position: "absolute", bottom: 14, left: "58%", opacity: 0.35, animation: `${uid}-sway2 7.5s ease-in-out infinite` }} width="14" height="38" viewBox="0 0 14 38" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
+                <path d="M7 38 Q3 26 7 16 Q11 6 7 0" />
+                <path d="M11 38 Q8 30 11 22 Q14 14 11 8" opacity="0.5" />
+            </svg>
+
+            {/* === FOREGROUND === */}
+            <svg style={{ position: "absolute", bottom: 14, right: 22, opacity: 0.5, animation: `${uid}-sway1 5s ease-in-out infinite` }} width="14" height="44" viewBox="0 0 14 44" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
+                <path d="M7 44 Q11 30 7 18 Q3 8 7 0" />
+                <path d="M3 44 Q6 34 3 26 Q0 18 3 12" opacity="0.6" />
+            </svg>
+
+            {/* Pebbles */}
+            <svg style={{ position: "absolute", bottom: 7, right: "28%", opacity: 0.18 }} width="50" height="10" viewBox="0 0 50 10" fill="none" stroke={lineColor} strokeWidth="0.8">
+                <ellipse cx="12" cy="7" rx="10" ry="3" />
+                <ellipse cx="35" cy="8" rx="7" ry="2.5" />
+            </svg>
+            <svg style={{ position: "absolute", bottom: 5, left: "32%", opacity: 0.3 }} width="30" height="10" viewBox="0 0 30 10" fill="none" stroke={lineColor} strokeWidth="1">
+                <ellipse cx="8" cy="7" rx="6" ry="3" />
+                <ellipse cx="22" cy="8" rx="5" ry="2" />
+            </svg>
+
+            {/* Bubbles */}
+            {[18, 50, 76].map((x, i) => (
                 <div key={i} style={{
                     position: "absolute", bottom: 20, left: `${x}%`,
                     width: "4px", height: "4px", borderRadius: "50%",
-                    border: "1px solid rgba(255,255,255,0.25)",
-                    animation: `${uid}-bub ${5 + i * 1.5}s ease-in infinite`,
-                    animationDelay: `${i * 2}s`,
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    animation: `${uid}-bub ${6 + i * 2}s ease-in infinite`,
+                    animationDelay: `${i * 2.5}s`,
                 }} />
             ))}
 
@@ -229,9 +290,25 @@ function Aquarium({ mood, happiness, rewardAnim }) {
                 background: "rgba(255,255,255,0.03)",
             }} />
 
-            {/* Fish */}
+            {/* Shrimp */}
+            <div style={{
+                position: "absolute", bottom: 16, left: "75%",
+                animation: `${uid}-shrimp ${shrimpDur} linear infinite`,
+            }}>
+                <LineShrimp color={lineColor} size={20} />
+            </div>
+
+            {/* Fish + hearts */}
             <div className={`${uid}-fish`}>
                 <LineFish mood={mood} size={32} />
+                {[0, 1, 2].map((i) => (
+                    <div key={i} style={{
+                        position: "absolute", top: -6, left: 6 + i * 7,
+                        fontSize: "8px", color: heartColor, opacity: 0,
+                        animation: `${uid}-heart ${3.5 + i * 0.8}s ease-out infinite`,
+                        animationDelay: `${i * 1.4}s`,
+                    }}>♥</div>
+                ))}
             </div>
 
             {/* Reward Animation */}
@@ -295,7 +372,6 @@ function Aquarium({ mood, happiness, rewardAnim }) {
         </div>
     );
 }
-
 // =========== MAIN APP ===========
 export default function ChoreApp({ user, profile, householdMembers }) {
     const supabase = getSupabase();
