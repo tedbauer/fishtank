@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { getSupabase } from "@/lib/supabase";
 import {
     Check,
@@ -100,7 +100,7 @@ const computeStreak = (chores, completions) => {
     const t = today();
     let streak = 0;
 
-    for (let dayOffset = 0; dayOffset < 365; dayOffset++) {
+    for (let dayOffset = 1; dayOffset < 365; dayOffset++) {
         const checkDate = new Date(t);
         checkDate.setDate(checkDate.getDate() - dayOffset);
         const checkStr = formatDate(checkDate);
@@ -439,6 +439,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [linkCopied, setLinkCopied] = useState(false);
     const [notifStatus, setNotifStatus] = useState("default"); // default | granted | denied | subscribing
     const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, overdueAlerts: true, streakWarnings: true });
+    const [streakAnim, setStreakAnim] = useState(false);
+    const prevStreakRef = useRef(null);
 
     const currentUser = {
         id: user.id,
@@ -654,6 +656,15 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const householdMood = moodTier(householdHappiness);
     const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
 
+    // Detect streak increase and animate
+    useEffect(() => {
+        if (prevStreakRef.current !== null && streak > prevStreakRef.current && streak > 0) {
+            setStreakAnim(true);
+            setTimeout(() => setStreakAnim(false), 1200);
+        }
+        prevStreakRef.current = streak;
+    }, [streak]);
+
     // Actions
     const completeChore = async (choreId) => {
         const chore = chores.find((c) => c.id === choreId);
@@ -783,11 +794,22 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
                         <StatCard label="Left Today" value={todayList.filter((c) => !c.completedToday).length} />
+                        <style>{`
+                            @keyframes streak-bounce {
+                                0% { transform: scale(1); }
+                                20% { transform: scale(1.2); }
+                                40% { transform: scale(0.95); }
+                                60% { transform: scale(1.1); }
+                                80% { transform: scale(0.98); }
+                                100% { transform: scale(1); }
+                            }
+                        `}</style>
                         <div style={{
                             padding: "12px", background: streak > 0 ? "#FEF3C7" : "white",
                             borderRadius: "12px", textAlign: "center",
                             border: "2px solid #2C2C2A",
                             boxShadow: boxShadow(streak > 0 ? "#F59E0B" : "#e8e8e8", 2, 2),
+                            animation: streakAnim ? "streak-bounce 0.6s ease" : "none",
                         }}>
                             <div style={{ fontSize: "22px", fontWeight: 800, color: streak > 0 ? "#B45309" : "#2C2C2A", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
                                 {streak > 0 && <Flame size={18} color="#F59E0B" />}
@@ -840,6 +862,41 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Coming Up This Week</div>
                     {weekList.length === 0 && <EmptyState text="Nothing for this week! 🎈" />}
                     {weekList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} variant="week" />)}
+
+                    {(() => {
+                        const weekCompletedChores = {};
+                        completions.filter((c) => {
+                            const d = parseDate(c.completed_date);
+                            return daysBetween(d, today()) < 7 && daysBetween(d, today()) >= 0;
+                        }).forEach((c) => {
+                            const chore = chores.find((ch) => ch.id === c.chore_id);
+                            if (chore) {
+                                weekCompletedChores[chore.name] = (weekCompletedChores[chore.name] || 0) + 1;
+                            }
+                        });
+                        const entries = Object.entries(weekCompletedChores);
+                        if (entries.length === 0) return null;
+                        return (
+                            <div style={{ marginTop: "1.5rem" }}>
+                                <div style={{ fontSize: "13px", color: "#888780", fontWeight: 600, marginBottom: "8px" }}>Completed This Week</div>
+                                {entries.map(([name, count]) => (
+                                    <div key={name} style={{
+                                        padding: "8px 12px", marginBottom: "4px",
+                                        background: "#E1F5EE", borderRadius: "8px",
+                                        fontSize: "13px", color: "#085041",
+                                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                                        border: "1px solid rgba(29,158,117,0.2)",
+                                    }}>
+                                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                            <Check size={12} color="#1D9E75" />
+                                            {name}
+                                        </span>
+                                        {count > 1 && <span style={{ fontWeight: 700, fontSize: "12px", color: "#1D9E75" }}>×{count}</span>}
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })()}
                 </div>
             )}
 
@@ -849,6 +906,41 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Due This Month</div>
                     {monthList.length === 0 && <EmptyState text="All clear for the month! ✨" />}
                     {monthList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} variant="month" />)}
+
+                    {(() => {
+                        const monthCompletedChores = {};
+                        completions.filter((c) => {
+                            const d = parseDate(c.completed_date);
+                            return daysBetween(d, today()) < 30 && daysBetween(d, today()) >= 0;
+                        }).forEach((c) => {
+                            const chore = chores.find((ch) => ch.id === c.chore_id);
+                            if (chore) {
+                                monthCompletedChores[chore.name] = (monthCompletedChores[chore.name] || 0) + 1;
+                            }
+                        });
+                        const entries = Object.entries(monthCompletedChores);
+                        if (entries.length === 0) return null;
+                        return (
+                            <div style={{ marginTop: "1.5rem" }}>
+                                <div style={{ fontSize: "13px", color: "#888780", fontWeight: 600, marginBottom: "8px" }}>Completed This Month</div>
+                                {entries.map(([name, count]) => (
+                                    <div key={name} style={{
+                                        padding: "8px 12px", marginBottom: "4px",
+                                        background: "#E1F5EE", borderRadius: "8px",
+                                        fontSize: "13px", color: "#085041",
+                                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                                        border: "1px solid rgba(29,158,117,0.2)",
+                                    }}>
+                                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                            <Check size={12} color="#1D9E75" />
+                                            {name}
+                                        </span>
+                                        {count > 1 && <span style={{ fontWeight: 700, fontSize: "12px", color: "#1D9E75" }}>×{count}</span>}
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })()}
                 </div>
             )}
 

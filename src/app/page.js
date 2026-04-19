@@ -18,7 +18,9 @@ export default function HomePage() {
     const init = async () => {
       const { data: { session: s } } = await supabase.auth.getSession();
       if (!s) {
-        window.location.href = "/login";
+        // Preserve join code through login redirect
+        const params = window.location.search;
+        window.location.href = `/login${params}`;
         return;
       }
       setSession(s);

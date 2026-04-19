@@ -4,10 +4,12 @@ import { createServerClient } from '@supabase/ssr';
 export async function GET(request) {
     const { searchParams, origin } = new URL(request.url);
     const code = searchParams.get('code');
+    const joinCode = searchParams.get('join');
     const next = searchParams.get('next') ?? '/';
+    const redirectPath = joinCode ? `${next}${next.includes('?') ? '&' : '?'}join=${joinCode}` : next;
 
     if (code) {
-        const response = NextResponse.redirect(`${origin}${next}`);
+        const response = NextResponse.redirect(`${origin}${redirectPath}`);
 
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL,

@@ -12,10 +12,16 @@ export default function LoginPage() {
         setLoading(true);
         setError(null);
         const supabase = getSupabase();
+        // Preserve join code through OAuth redirect
+        const params = new URLSearchParams(window.location.search);
+        const joinCode = params.get("join");
+        const redirectUrl = joinCode
+            ? `${window.location.origin}/auth/callback?join=${joinCode}`
+            : `${window.location.origin}/auth/callback`;
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
+                redirectTo: redirectUrl,
             },
         });
         if (error) {
