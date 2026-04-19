@@ -1342,7 +1342,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
     const isOverdue = chore.status === "overdue";
     const isDone = chore.completedToday;
     const [justChecked, setJustChecked] = useState(false);
-    const [justTogether, setJustTogether] = useState(false);
+    const [completeAs, setCompleteAs] = useState(chore.owner_id || "");
 
     const completedBy = isDone && !chore.doneTogetherToday && chore.lastDone
         ? users.find((u) => u.id === chore.lastDone.userId)
@@ -1350,13 +1350,18 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
 
     const handleClick = () => {
         if (isDone) { onUndo(chore.id); }
-        else { setJustChecked(true); setTimeout(() => setJustChecked(false), 600); onComplete(chore.id); }
+        else {
+            setJustChecked(true);
+            setTimeout(() => setJustChecked(false), 600);
+            if (completeAs === "together") { onCompleteTogether(chore.id); }
+            else { onComplete(chore.id); }
+        }
     };
 
-    const handleTogether = () => {
-        setJustTogether(true);
-        setTimeout(() => setJustTogether(false), 600);
-        onCompleteTogether(chore.id);
+    const handleDropdownChange = (e) => {
+        const val = e.target.value;
+        setCompleteAs(val);
+        if (val !== "together") onAssign(chore.id, val || null);
     };
 
     return (
@@ -1382,7 +1387,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                     transition: "background 0.25s ease, border 0.25s ease, transform 0.2s ease",
                     transform: justChecked ? "scale(1.2)" : "scale(1)",
                 }}
-                title={isDone ? "Undo" : "Mark complete"}
+                title={isDone ? "Undo" : completeAs === "together" ? "Mark done together" : "Mark complete"}
             >
                 <Check size={14} strokeWidth={3} color="white" style={{ opacity: isDone ? 1 : 0, transition: "opacity 0.25s ease" }} />
             </div>
@@ -1435,33 +1440,16 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                 </div>
             </div>
             {!isDone && (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "5px", flexShrink: 0 }}>
-                    {users.length > 1 && (
-                        <button
-                            onClick={handleTogether}
-                            title="We did it together"
-                            style={{
-                                fontSize: "11px", padding: "4px 8px", fontFamily: FONT, fontWeight: 700,
-                                border: "2px solid #2C2C2A", borderRadius: "6px", cursor: "pointer",
-                                background: justTogether ? "#E1F5EE" : "white",
-                                color: "#2C2C2A",
-                                transition: "background 0.2s ease, transform 0.2s ease",
-                                transform: justTogether ? "scale(1.08)" : "scale(1)",
-                                whiteSpace: "nowrap",
-                            }}
-                        >
-                            🤝 together
-                        </button>
-                    )}
-                    <select
-                        value={chore.owner_id || ""} onChange={(e) => onAssign(chore.id, e.target.value || null)}
-                        style={{ fontSize: "11px", padding: "4px 6px", border: "2px solid #2C2C2A", borderRadius: "6px", width: "auto", fontFamily: FONT, fontWeight: 600 }}
-                        title="Assign owner"
-                    >
-                        <option value="">—</option>
-                        {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
-                </div>
+                <select
+                    value={completeAs}
+                    onChange={handleDropdownChange}
+                    style={{ fontSize: "11px", padding: "4px 6px", border: "2px solid #2C2C2A", borderRadius: "6px", width: "auto", fontFamily: FONT, fontWeight: 600, flexShrink: 0 }}
+                    title="Who did it?"
+                >
+                    <option value="">—</option>
+                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    {users.length > 1 && <option value="together">Together 🤝</option>}
+                </select>
             )}
         </div>
     );
