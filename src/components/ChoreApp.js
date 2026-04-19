@@ -14,7 +14,11 @@ import {
     Trash2,
     RotateCcw,
     LogOut,
+    BarChart3,
+    Copy,
+    Link,
 } from "lucide-react";
+import HeatmapView from "@/components/HeatmapView";
 
 // Frequency in days
 const FREQ = {
@@ -94,7 +98,7 @@ const moodTier = (h) => {
 };
 
 const moodLabel = (tier) =>
-    ({ ecstatic: "is thriving! ✨", happy: "is happy ~", content: "is vibin", meh: "is feeling meh", sad: "is looking blue :(", miserable: "needs love!!" })[tier];
+    ({ ecstatic: "Is Thriving! ✨", happy: "Is Happy ~", content: "Is Vibing", meh: "Is Feeling Meh", sad: "Is Looking Blue :(", miserable: "Needs Love!!" })[tier];
 
 // =========== FUNKY FISH SVG ===========
 function Fish({ mood, size = 80 }) {
@@ -273,7 +277,7 @@ function Aquarium({ mood, happiness }) {
                 background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.3) 100%)", color: "white",
             }}>
                 <div style={{ fontSize: "14px", fontWeight: 700, marginBottom: "4px", textShadow: "1px 1px 0px rgba(0,0,0,0.4)" }}>
-                    ur fish {moodLabel(mood)}
+                    Your Fish {moodLabel(mood)}
                 </div>
                 <div style={{ height: "8px", background: "rgba(255,255,255,0.3)", borderRadius: "99px", overflow: "hidden", border: "1.5px solid rgba(255,255,255,0.5)" }}>
                     <div style={{ width: `${happiness}%`, height: "100%", background: "white", borderRadius: "99px", transition: "width 0.8s ease" }} />
@@ -293,6 +297,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [newChoreName, setNewChoreName] = useState("");
     const [newChoreFreq, setNewChoreFreq] = useState("weekly");
     const [loading, setLoading] = useState(true);
+    const [inviteCode, setInviteCode] = useState(null);
+    const [codeCopied, setCodeCopied] = useState(false);
 
     const currentUser = {
         id: user.id,
@@ -336,6 +342,20 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             .on("postgres_changes", { event: "*", schema: "public", table: "chores" }, () => loadData())
             .subscribe();
         return () => { supabase.removeChannel(channel); };
+    }, [profile?.household_id, supabase, loadData]);
+
+    // Fetch invite code for share
+    useEffect(() => {
+        if (!profile?.household_id) return;
+        const fetchCode = async () => {
+            const { data } = await supabase
+                .from("households")
+                .select("invite_code")
+                .eq("id", profile.household_id)
+                .single();
+            if (data) setInviteCode(data.invite_code);
+        };
+        fetchCode();
     }, [profile?.household_id, supabase, loadData]);
 
     const handleSignOut = async () => {
@@ -471,7 +491,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     };
 
     if (loading) {
-        return <div style={{ padding: "3rem", textAlign: "center", color: "#888780", fontFamily: FONT, fontSize: "18px" }}>loading ur chores... 🐟</div>;
+        return <div style={{ padding: "3rem", textAlign: "center", color: "#888780", fontFamily: FONT, fontSize: "18px" }}>Loading Chores... 🐟</div>;
     }
 
     return (
@@ -488,7 +508,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         {currentUser.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <div style={{ fontSize: "16px", fontWeight: 700 }}>hi {currentUser.name}!</div>
+                        <div style={{ fontSize: "16px", fontWeight: 700 }}>Hi, {currentUser.name}!</div>
                         <div style={{ fontSize: "12px", color: "#888780" }}>
                             {today().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
                         </div>
@@ -498,7 +518,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     onClick={handleSignOut}
                     style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "4px", background: "white", border: "2px solid #2C2C2A", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", color: "#2C2C2A", fontFamily: FONT, fontWeight: 600, boxShadow: boxShadow("#2C2C2A", 2, 2) }}
                 >
-                    <LogOut size={12} /> bye!
+                    <LogOut size={12} /> Sign Out
                 </button>
             </div>
 
@@ -509,11 +529,12 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 border: "2px solid #2C2C2A", boxShadow: boxShadow("#2C2C2A", 3, 3),
             }}>
                 {[
-                    { id: "today", label: "today", icon: Sparkles, accent: "#D4537E" },
-                    { id: "week", label: "this week", icon: Clock, accent: "#7F77DD" },
-                    { id: "month", label: "this month", icon: Calendar, accent: "#1D9E75" },
-                    { id: "longterm", label: "longterm", icon: RotateCcw, accent: "#BA7517" },
-                    { id: "manage", label: "manage", icon: Home, accent: "#888780" },
+                    { id: "today", label: "Today", icon: Sparkles, accent: "#D4537E" },
+                    { id: "week", label: "This Week", icon: Clock, accent: "#7F77DD" },
+                    { id: "month", label: "This Month", icon: Calendar, accent: "#1D9E75" },
+                    { id: "longterm", label: "Long-Term", icon: RotateCcw, accent: "#BA7517" },
+                    { id: "heatmap", label: "Heatmap", icon: BarChart3, accent: "#D85A30" },
+                    { id: "manage", label: "Manage", icon: Home, accent: "#888780" },
                 ].map((t) => {
                     const Icon = t.icon;
                     const active = view === t.id;
@@ -546,33 +567,33 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
-                        <StatCard label="left today" value={todayList.filter((c) => !c.completedToday).length} />
-                        <StatCard label={`${currentUser.name}'s week`} value={myCompletionsThisWeek} color={currentUser.color} />
-                        <StatCard label={`${partner?.name || "partner"}'s week`} value={partnerCompletionsThisWeek} color={partner?.color} />
+                        <StatCard label="Left Today" value={todayList.filter((c) => !c.completedToday).length} />
+                        <StatCard label={`${currentUser.name}'s Week`} value={myCompletionsThisWeek} color={currentUser.color} />
+                        <StatCard label={`${partner?.name || "Partner"}'s Week`} value={partnerCompletionsThisWeek} color={partner?.color} />
                     </div>
 
                     {todayList.length === 0 && (
                         <div style={{ textAlign: "center", padding: "2.5rem 1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
                             <div style={{ fontSize: "36px", marginBottom: "8px" }}>✨</div>
-                            <div style={{ fontWeight: 700, color: "#085041", marginBottom: "4px", fontSize: "16px" }}>all caught up!</div>
-                            <div style={{ fontSize: "13px", color: "#085041" }}>nothing due today. go enjoy ur home~</div>
+                            <div style={{ fontWeight: 700, color: "#085041", marginBottom: "4px", fontSize: "16px" }}>All Caught Up!</div>
+                            <div style={{ fontSize: "13px", color: "#085041" }}>Nothing due today. Go enjoy your home!</div>
                         </div>
                     )}
 
                     {todayList.length > 0 && todayList.every((c) => c.completedToday) && (
                         <div style={{ textAlign: "center", padding: "1.5rem 1rem", marginBottom: "1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
                             <div style={{ fontSize: "28px", marginBottom: "4px" }}>🎉</div>
-                            <div style={{ fontWeight: 700, color: "#085041", fontSize: "15px" }}>all done for today!!</div>
+                            <div style={{ fontWeight: 700, color: "#085041", fontSize: "15px" }}>All Done For Today!</div>
                         </div>
                     )}
 
                     {myChores.length > 0 && (
-                        <Section title={`ur turn, ${currentUser.name}`} accentColor={currentUser.color}>
+                        <Section title={`Your Turn, ${currentUser.name}`} accentColor={currentUser.color}>
                             {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onUndo={undoComplete} onAssign={assignOwner} />)}
                         </Section>
                     )}
                     {unassigned.length > 0 && (
-                        <Section title="up for grabs" accentColor="#888780">
+                        <Section title="Up For Grabs" accentColor="#888780">
                             {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onUndo={undoComplete} onAssign={assignOwner} />)}
                         </Section>
                     )}
@@ -587,8 +608,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             {/* THIS WEEK VIEW */}
             {view === "week" && (
                 <div>
-                    <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>coming up this week ~</div>
-                    {weekList.length === 0 && <EmptyState text="nothing for this week! 🎈" />}
+                    <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Coming Up This Week</div>
+                    {weekList.length === 0 && <EmptyState text="Nothing for this week! 🎈" />}
                     {weekList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} variant="week" />)}
                 </div>
             )}
@@ -596,8 +617,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             {/* THIS MONTH VIEW */}
             {view === "month" && (
                 <div>
-                    <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>due this month</div>
-                    {monthList.length === 0 && <EmptyState text="all clear for the month! ✨" />}
+                    <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Due This Month</div>
+                    {monthList.length === 0 && <EmptyState text="All clear for the month! ✨" />}
                     {monthList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} variant="month" />)}
                 </div>
             )}
@@ -605,16 +626,24 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             {/* LONGTERM VIEW */}
             {view === "longterm" && (
                 <div>
-                    <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>the big stuff — longer cycles 🔮</div>
-                    {longtermList.length === 0 && <EmptyState text="nothing long-term pending~" />}
+                    <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>The Big Stuff — Longer Cycles 🔮</div>
+                    {longtermList.length === 0 && <EmptyState text="Nothing long-term pending!" />}
                     {longtermList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} variant="longterm" />)}
+                </div>
+            )}
+
+            {/* HEATMAP VIEW */}
+            {view === "heatmap" && (
+                <div>
+                    <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Chore Performance Heatmap</div>
+                    <HeatmapView chores={chores} completions={completions} users={users} />
                 </div>
             )}
 
             {/* MANAGE VIEW */}
             {view === "manage" && (
                 <div>
-                    <Section title="add a chore" accentColor="#7F77DD">
+                    <Section title="Add A Chore" accentColor="#7F77DD">
                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                             <input
                                 type="text" value={newChoreName} onChange={(e) => setNewChoreName(e.target.value)}
@@ -632,22 +661,52 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 onClick={addChore}
                                 style={{ padding: "10px 16px", background: "#7F77DD", color: "white", border: "2px solid #2C2C2A", borderRadius: "10px", cursor: "pointer", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px", fontFamily: FONT, boxShadow: boxShadow("#2C2C2A", 2, 2) }}
                             >
-                                <Plus size={14} /> add!
+                                <Plus size={14} /> Add!
                             </button>
                         </div>
                     </Section>
 
-                    <Section title="household" accentColor="#D4537E">
+                    <Section title="Household" accentColor="#D4537E">
                         <div style={{
                             padding: "12px 16px", background: "#FBEAF0", borderRadius: "12px",
                             fontSize: "14px", color: "#72243E", marginBottom: "8px",
                             border: "2px solid #2C2C2A", boxShadow: boxShadow("#D4537E", 2, 2),
                         }}>
-                            <strong>members:</strong> {users.map((u) => u.name).join(", ")}
+                            <strong>Members:</strong> {users.map((u) => u.name).join(", ")}
                         </div>
+                        {inviteCode && (
+                            <div style={{
+                                padding: "12px 16px", background: "white", borderRadius: "12px",
+                                fontSize: "14px", color: "#2C2C2A",
+                                border: "2px solid #2C2C2A", boxShadow: boxShadow("#D4537E", 2, 2),
+                                display: "flex", alignItems: "center", justifyContent: "space-between",
+                                gap: "12px",
+                            }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <Link size={14} color="#D4537E" />
+                                    <div>
+                                        <div style={{ fontSize: "12px", color: "#888780", fontWeight: 600 }}>Invite Code</div>
+                                        <div style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "3px", fontFamily: "monospace" }}>{inviteCode}</div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => { navigator.clipboard.writeText(inviteCode); setCodeCopied(true); setTimeout(() => setCodeCopied(false), 2000); }}
+                                    style={{
+                                        padding: "6px 12px", border: "2px solid #2C2C2A", borderRadius: "8px",
+                                        background: codeCopied ? "#E1F5EE" : "white", cursor: "pointer",
+                                        fontFamily: FONT, fontWeight: 700, fontSize: "12px",
+                                        display: "flex", alignItems: "center", gap: "4px",
+                                        color: codeCopied ? "#059669" : "#2C2C2A",
+                                        boxShadow: boxShadow(codeCopied ? "#059669" : "#e8e8e8", 2, 2),
+                                    }}
+                                >
+                                    {codeCopied ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+                                </button>
+                            </div>
+                        )}
                     </Section>
 
-                    <Section title="all chores" accentColor="#888780">
+                    <Section title="All Chores" accentColor="#888780">
                         {Object.entries(FREQ).map(([freqKey, freqInfo]) => {
                             const list = chores.filter((c) => c.freq === freqKey);
                             if (list.length === 0) return null;
@@ -752,10 +811,10 @@ function ChoreRow({ chore, users, currentUser, onComplete, onUndo, onAssign }) {
         <div style={{
             display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px",
             marginBottom: "8px", fontFamily: FONT,
-            background: isDone ? "#F4FBF7" : "white",
+            background: isDone ? "#F4FBF7" : isOverdue ? "#FEF2F2" : "white",
             border: `2px solid ${isDone ? "#1D9E75" : isOverdue ? "#EF4444" : "#2C2C2A"}`,
             borderRadius: "12px",
-            boxShadow: isDone ? boxShadow("#1D9E75", 2, 2) : isOverdue ? boxShadow("#EF4444", 2, 2) : boxShadow("#e8e8e8", 2, 2),
+            boxShadow: isDone ? boxShadow("#1D9E75", 2, 2) : isOverdue ? boxShadow("#EF4444", 3, 3) : boxShadow("#e8e8e8", 2, 2),
             transition: "background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
         }}>
             <div
@@ -779,7 +838,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onUndo, onAssign }) {
                 <div style={{
                     fontSize: "14px", fontWeight: 700,
                     textDecoration: isDone ? "line-through" : "none",
-                    color: isDone ? "#b4b2a9" : "#2C2C2A",
+                    color: isDone ? "#b4b2a9" : isOverdue ? "#DC2626" : "#2C2C2A",
                 }}>
                     {chore.name}
                 </div>
@@ -804,7 +863,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onUndo, onAssign }) {
                                     {freqInfo.label}
                                 </span>
                             )}
-                            {isOverdue && <span style={{ fontSize: "11px", color: "#EF4444", fontWeight: 700 }}>⚠ {chore.daysOverdue}d overdue</span>}
+                            {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {chore.daysOverdue}d overdue!</span>}
                             {chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>last: {friendlyDate(chore.lastDone.date)}</span>}
                         </>
                     )}
@@ -845,14 +904,16 @@ function AnimatedCheckRow({ chore, users, onComplete, variant = "week" }) {
             ? `${chore.daysOverdue}d overdue`
             : "due now!";
 
+    const isOverdue = chore.status === "overdue" || chore.status === "due";
+
     return (
         <div style={{
             display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px",
             marginBottom: removing ? "0px" : "8px", fontFamily: FONT,
-            background: checked ? "#F4FBF7" : "white",
-            border: `2px solid ${checked ? "#1D9E75" : "#2C2C2A"}`,
+            background: checked ? "#F4FBF7" : isOverdue ? "#FEF2F2" : "white",
+            border: `2px solid ${checked ? "#1D9E75" : isOverdue ? "#EF4444" : "#2C2C2A"}`,
             borderRadius: "12px",
-            boxShadow: checked ? boxShadow("#1D9E75", 2, 2) : boxShadow("#e8e8e8", 2, 2),
+            boxShadow: checked ? boxShadow("#1D9E75", 2, 2) : isOverdue ? boxShadow("#EF4444", 3, 3) : boxShadow("#e8e8e8", 2, 2),
             maxHeight: removing ? "0px" : "80px",
             opacity: removing ? 0 : 1,
             paddingTop: removing ? "0px" : "12px", paddingBottom: removing ? "0px" : "12px",
