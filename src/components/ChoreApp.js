@@ -25,6 +25,8 @@ import {
     Flame,
     ShoppingBag,
     Coins,
+    AlarmClock,
+    X as XIcon,
 } from "lucide-react";
 import HeatmapView from "@/components/HeatmapView";
 
@@ -365,7 +367,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, children }) {
 }
 
 // =========== MINIMAL AQUARIUM ===========
-function Aquarium({ mood, happiness, rewardAnim, purchases = [], coinBalance = 0, onMovePurchase }) {
+function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase }) {
     const tankRef = useRef(null);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpDur = { ecstatic: "30s", happy: "35s", content: "40s", meh: "50s", sad: "60s", miserable: "80s" }[mood] || "40s";
@@ -639,20 +641,6 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], coinBalance = 0
                 );
             })}
 
-            {/* Coin balance chip */}
-            <div style={{
-                position: "absolute", top: 8, right: 10, zIndex: 6,
-                display: "flex", alignItems: "center", gap: "4px",
-                padding: "3px 8px", borderRadius: "10px",
-                background: "rgba(245,158,11,0.92)",
-                color: "#2C2C2A", fontSize: "11px", fontWeight: 700,
-                border: "1.5px solid #2C2C2A",
-                boxShadow: boxShadow("#2C2C2A", 1, 1),
-                pointerEvents: "none",
-            }}>
-                <Coins size={11} strokeWidth={2.5} /> {coinBalance}
-            </div>
-
             {/* Status */}
             <div style={{
                 position: "absolute", bottom: 0, left: 0, right: 0, padding: "6px 12px",
@@ -823,6 +811,9 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
     // Chore status — FIXED: daily chores due in <=1 day show as "due"
     const choreStatus = (chore) => {
+        if (chore.snoozed_until && chore.snoozed_until > todayStr) {
+            return { status: "snoozed", snoozeUntil: parseDate(chore.snoozed_until), lastDone: null };
+        }
         const last = completions
             .filter((c) => c.chore_id === chore.id)
             .sort((a, b) => new Date(b.completed_date) - new Date(a.completed_date))[0];
@@ -868,9 +859,12 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         };
     });
 
+    const snoozedList = choresWithStatus.filter((c) => c.status === "snoozed");
+
     // ===== NEW TAB LOGIC =====
     // TODAY: anything due/overdue OR completed today, AND short-cycle stuff due within 1 day
     const todayList = choresWithStatus.filter((c) => {
+        if (c.status === "snoozed") return false;
         if (c.completedToday) return true;
         if (c.status === "due" || c.status === "overdue") return true;
         // Show short-cycle chores that are due tomorrow (1 day away) in Today
@@ -988,6 +982,19 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         await supabase.from("purchases").update({ x, y }).eq("id", purchaseId);
     };
 
+    const snoozeChore = async (choreId, days) => {
+        const d = today();
+        d.setDate(d.getDate() + days);
+        const snoozedUntil = formatDate(d);
+        await supabase.from("chores").update({ snoozed_until: snoozedUntil }).eq("id", choreId);
+        setChores((prev) => prev.map((c) => c.id === choreId ? { ...c, snoozed_until: snoozedUntil } : c));
+    };
+
+    const unsnoozeChore = async (choreId) => {
+        await supabase.from("chores").update({ snoozed_until: null }).eq("id", choreId);
+        setChores((prev) => prev.map((c) => c.id === choreId ? { ...c, snoozed_until: null } : c));
+    };
+
     const sellPurchase = async (purchaseId) => {
         setPurchases((prev) => prev.filter((p) => p.id !== purchaseId));
         await supabase.from("purchases").delete().eq("id", purchaseId);
@@ -1033,6 +1040,19 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
     return (
         <div style={{ maxWidth: "720px", margin: "0 auto", padding: "1rem", fontFamily: FONT }}>
+            {/* BUBBLE TITLE */}
+            <div style={{ textAlign: "center", marginBottom: "0.75rem" }}>
+                <span style={{
+                    fontSize: "26px", fontWeight: 900, letterSpacing: "0.5px",
+                    color: "white",
+                    WebkitTextStroke: "2.5px #2C2C2A",
+                    textShadow: "3px 3px 0 #2C2C2A, -1px -1px 0 #2C2C2A, 1px -1px 0 #2C2C2A, -1px 1px 0 #2C2C2A",
+                    fontFamily: "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive",
+                }}>
+                    🐟 My Fishtank
+                </span>
+            </div>
+
             {/* HEADER */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -1109,7 +1129,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             mood={householdMood}
                             rewardAnim={rewardAnim}
                             purchases={purchases}
-                            coinBalance={coinBalance}
                             onMovePurchase={movePurchase}
                         />
                     </div>
@@ -1143,6 +1162,16 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                         <StatCard label={`${currentUser.name}'s Week`} value={myCompletionsThisWeek} color={currentUser.color} />
                         <StatCard label={`${partner?.name || "Partner"}'s Week`} value={partnerCompletionsThisWeek} color={partner?.color} />
+                        <div style={{
+                            padding: "12px", background: "#FEF3C7", borderRadius: "12px", textAlign: "center",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow("#F59E0B", 2, 2),
+                            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px",
+                        }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "22px", fontWeight: 800, color: "#2C2C2A" }}>
+                                <Coins size={18} strokeWidth={2.5} color="#B45309" /> {coinBalance}
+                            </div>
+                            <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780" }}>Coins</div>
+                        </div>
                     </div>
 
                     {todayList.length === 0 && (
@@ -1162,17 +1191,52 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
                     {myChores.length > 0 && (
                         <Section title={`Your Turn, ${currentUser.name}`} accentColor={currentUser.color}>
-                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} />)}
+                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} />)}
                         </Section>
                     )}
                     {unassigned.length > 0 && (
                         <Section title="Up For Grabs" accentColor="#888780">
-                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} />)}
+                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} />)}
                         </Section>
                     )}
                     {partnerChores.length > 0 && partner && (
                         <Section title={`${partner.name}'s turn`} accentColor={partner.color}>
-                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} />)}
+                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} />)}
+                        </Section>
+                    )}
+
+                    {snoozedList.length > 0 && (
+                        <Section title={`Snoozed (${snoozedList.length})`} accentColor="#888780">
+                            {snoozedList.map((c) => (
+                                <div key={c.id} style={{
+                                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                                    padding: "10px 14px", marginBottom: "8px",
+                                    background: "#F9F9F7", border: "2px solid #B4B2A9",
+                                    borderRadius: "12px", fontFamily: FONT, gap: "10px",
+                                }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1, minWidth: 0 }}>
+                                        <AlarmClock size={15} color="#888780" />
+                                        <div>
+                                            <div style={{ fontSize: "14px", fontWeight: 700, color: "#888780" }}>{c.name}</div>
+                                            <div style={{ fontSize: "11px", color: "#B4B2A9" }}>
+                                                back {friendlyDate(c.snoozeUntil)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => unsnoozeChore(c.id)}
+                                        title="Wake up now"
+                                        style={{
+                                            padding: "5px 10px", border: "2px solid #2C2C2A", borderRadius: "8px",
+                                            background: "white", cursor: "pointer", fontFamily: FONT,
+                                            fontSize: "11px", fontWeight: 700, color: "#2C2C2A", whiteSpace: "nowrap",
+                                            display: "flex", alignItems: "center", gap: "4px",
+                                        }}
+                                    >
+                                        <XIcon size={11} /> Un-snooze
+                                    </button>
+                                </div>
+                            ))}
                         </Section>
                     )}
                 </div>
@@ -1615,12 +1679,20 @@ function Section({ title, accentColor, children }) {
     );
 }
 
-function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign }) {
+const SNOOZE_OPTIONS = [
+    { label: "1 day", days: 1 },
+    { label: "3 days", days: 3 },
+    { label: "1 week", days: 7 },
+    { label: "2 weeks", days: 14 },
+];
+
+function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign, onSnooze }) {
     const freqInfo = FREQ[chore.freq];
     const isOverdue = chore.status === "overdue";
     const isDone = chore.completedToday;
     const [justChecked, setJustChecked] = useState(false);
     const [completeAs, setCompleteAs] = useState(chore.owner_id || "");
+    const [snoozeOpen, setSnoozeOpen] = useState(false);
 
     const completedBy = isDone && !chore.doneTogetherToday && chore.lastDone
         ? users.find((u) => u.id === chore.lastDone.userId)
@@ -1644,7 +1716,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
 
     return (
         <div style={{
-            display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px",
+            display: "flex", flexDirection: "column", padding: "12px 14px",
             marginBottom: "8px", fontFamily: FONT,
             background: isDone ? "#F4FBF7" : isOverdue ? "#FEF2F2" : "white",
             border: `2px solid ${isDone ? "#1D9E75" : isOverdue ? "#EF4444" : "#2C2C2A"}`,
@@ -1652,82 +1724,132 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
             boxShadow: isDone ? boxShadow("#1D9E75", 2, 2) : isOverdue ? boxShadow("#EF4444", 3, 3) : boxShadow("#e8e8e8", 2, 2),
             transition: "background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
         }}>
-            <div
-                onClick={handleClick} role="button" tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
-                style={{
-                    width: "28px", height: "28px", minWidth: "28px", minHeight: "28px",
-                    boxSizing: "border-box", borderRadius: "50%",
-                    border: isDone ? "2.5px solid #1D9E75" : "2.5px solid #B4B2A9",
-                    background: isDone ? "#1D9E75" : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: "pointer", flexShrink: 0,
-                    transition: "background 0.25s ease, border 0.25s ease, transform 0.2s ease",
-                    transform: justChecked ? "scale(1.2)" : "scale(1)",
-                }}
-                title={isDone ? "Undo" : completeAs === "together" ? "Mark done together" : "Mark complete"}
-            >
-                <Check size={14} strokeWidth={3} color="white" style={{ opacity: isDone ? 1 : 0, transition: "opacity 0.25s ease" }} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                    fontSize: "14px", fontWeight: 700,
-                    textDecoration: isDone ? "line-through" : "none",
-                    color: isDone ? "#b4b2a9" : isOverdue ? "#DC2626" : "#2C2C2A",
-                }}>
-                    {chore.name}
-                </div>
-                {chore.description && (
-                    <div style={{ fontSize: "12px", color: "#888780", marginTop: "2px", fontStyle: "italic" }}>{chore.description}</div>
-                )}
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px", flexWrap: "wrap" }}>
-                    {isDone && chore.doneTogetherToday ? (
-                        <span style={{
-                            fontSize: "11px", padding: "2px 8px", background: "#E1F5EE",
-                            color: "#085041", borderRadius: "6px", fontWeight: 700,
-                            display: "inline-flex", alignItems: "center", gap: "4px",
-                            border: "1.5px solid #1D9E75",
-                        }}>
-                            🤝 done together
-                        </span>
-                    ) : isDone && completedBy ? (
-                        <span style={{
-                            fontSize: "11px", padding: "2px 8px", background: "#E1F5EE",
-                            color: "#085041", borderRadius: "6px", fontWeight: 700,
-                            display: "inline-flex", alignItems: "center", gap: "4px",
-                            border: "1.5px solid #1D9E75",
-                        }}>
-                            <Check size={10} strokeWidth={3} /> done by {completedBy.name}
-                        </span>
-                    ) : (
-                        <>
-                            {freqInfo && (
-                                <span style={{
-                                    fontSize: "11px", padding: "2px 8px",
-                                    background: freqInfo.bg, color: freqInfo.text,
-                                    borderRadius: "6px", fontWeight: 700, border: "1px solid " + freqInfo.color,
-                                }}>
-                                    {freqInfo.label}
-                                </span>
-                            )}
-                            {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {chore.daysOverdue}d overdue!</span>}
-                            {!isOverdue && chore.status === "due" && <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>due today</span>}
-                            {chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>last: {friendlyDate(chore.lastDone.date)}</span>}
-                        </>
-                    )}
-                </div>
-            </div>
-            {!isDone && (
-                <select
-                    value={completeAs}
-                    onChange={handleDropdownChange}
-                    style={{ fontSize: "11px", padding: "4px 6px", border: "2px solid #2C2C2A", borderRadius: "6px", width: "auto", fontFamily: FONT, fontWeight: 600, flexShrink: 0 }}
-                    title="Who did it?"
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div
+                    onClick={handleClick} role="button" tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
+                    style={{
+                        width: "28px", height: "28px", minWidth: "28px", minHeight: "28px",
+                        boxSizing: "border-box", borderRadius: "50%",
+                        border: isDone ? "2.5px solid #1D9E75" : "2.5px solid #B4B2A9",
+                        background: isDone ? "#1D9E75" : "transparent",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: "pointer", flexShrink: 0,
+                        transition: "background 0.25s ease, border 0.25s ease, transform 0.2s ease",
+                        transform: justChecked ? "scale(1.2)" : "scale(1)",
+                    }}
+                    title={isDone ? "Undo" : completeAs === "together" ? "Mark done together" : "Mark complete"}
                 >
-                    <option value="">—</option>
-                    {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    {users.length > 1 && <option value="together">Together 🤝</option>}
-                </select>
+                    <Check size={14} strokeWidth={3} color="white" style={{ opacity: isDone ? 1 : 0, transition: "opacity 0.25s ease" }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                        fontSize: "14px", fontWeight: 700,
+                        textDecoration: isDone ? "line-through" : "none",
+                        color: isDone ? "#b4b2a9" : isOverdue ? "#DC2626" : "#2C2C2A",
+                    }}>
+                        {chore.name}
+                    </div>
+                    {chore.description && (
+                        <div style={{ fontSize: "12px", color: "#888780", marginTop: "2px", fontStyle: "italic" }}>{chore.description}</div>
+                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px", flexWrap: "wrap" }}>
+                        {isDone && chore.doneTogetherToday ? (
+                            <span style={{
+                                fontSize: "11px", padding: "2px 8px", background: "#E1F5EE",
+                                color: "#085041", borderRadius: "6px", fontWeight: 700,
+                                display: "inline-flex", alignItems: "center", gap: "4px",
+                                border: "1.5px solid #1D9E75",
+                            }}>
+                                🤝 done together
+                            </span>
+                        ) : isDone && completedBy ? (
+                            <span style={{
+                                fontSize: "11px", padding: "2px 8px", background: "#E1F5EE",
+                                color: "#085041", borderRadius: "6px", fontWeight: 700,
+                                display: "inline-flex", alignItems: "center", gap: "4px",
+                                border: "1.5px solid #1D9E75",
+                            }}>
+                                <Check size={10} strokeWidth={3} /> done by {completedBy.name}
+                            </span>
+                        ) : (
+                            <>
+                                {freqInfo && (
+                                    <span style={{
+                                        fontSize: "11px", padding: "2px 8px",
+                                        background: freqInfo.bg, color: freqInfo.text,
+                                        borderRadius: "6px", fontWeight: 700, border: "1px solid " + freqInfo.color,
+                                    }}>
+                                        {freqInfo.label}
+                                    </span>
+                                )}
+                                {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {chore.daysOverdue}d overdue!</span>}
+                                {!isOverdue && chore.status === "due" && <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>due today</span>}
+                                {chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>last: {friendlyDate(chore.lastDone.date)}</span>}
+                            </>
+                        )}
+                    </div>
+                </div>
+                {!isDone && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px", flexShrink: 0 }}>
+                        <button
+                            onClick={() => setSnoozeOpen((s) => !s)}
+                            title="Snooze"
+                            style={{
+                                padding: "5px 7px", border: "2px solid #2C2C2A", borderRadius: "8px",
+                                background: snoozeOpen ? "#E0E7FF" : "white", cursor: "pointer",
+                                display: "flex", alignItems: "center",
+                            }}
+                        >
+                            <AlarmClock size={14} strokeWidth={2} color={snoozeOpen ? "#4338CA" : "#888780"} />
+                        </button>
+                        <select
+                            value={completeAs}
+                            onChange={handleDropdownChange}
+                            style={{ fontSize: "11px", padding: "4px 6px", border: "2px solid #2C2C2A", borderRadius: "6px", width: "auto", fontFamily: FONT, fontWeight: 600 }}
+                            title="Who did it?"
+                        >
+                            <option value="">—</option>
+                            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                            {users.length > 1 && <option value="together">Together 🤝</option>}
+                        </select>
+                    </div>
+                )}
+            </div>
+            {snoozeOpen && !isDone && (
+                <div style={{
+                    marginTop: "10px", paddingTop: "10px",
+                    borderTop: "1.5px solid #e8e8e8",
+                    display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap",
+                }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#888780", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <AlarmClock size={11} /> Snooze for:
+                    </span>
+                    {SNOOZE_OPTIONS.map((opt) => (
+                        <button
+                            key={opt.days}
+                            onClick={() => { onSnooze(chore.id, opt.days); setSnoozeOpen(false); }}
+                            style={{
+                                padding: "5px 10px", border: "2px solid #2C2C2A", borderRadius: "8px",
+                                background: "white", cursor: "pointer", fontFamily: FONT,
+                                fontSize: "12px", fontWeight: 700, color: "#2C2C2A",
+                                boxShadow: boxShadow("#2C2C2A", 1, 1),
+                            }}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                    <button
+                        onClick={() => setSnoozeOpen(false)}
+                        style={{
+                            padding: "5px 8px", border: "2px solid #e8e8e8", borderRadius: "8px",
+                            background: "white", cursor: "pointer", fontFamily: FONT,
+                            fontSize: "11px", color: "#888780",
+                        }}
+                    >
+                        Cancel
+                    </button>
+                </div>
             )}
         </div>
     );

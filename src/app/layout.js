@@ -6,14 +6,21 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export const metadata = {
-  title: "ChoreTracker",
+  title: "My Fishtank",
   description: "Keep your home tidy, together. A shared household chore tracker.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "ChoreTracker",
+    title: "My Fishtank",
   },
 };
 
@@ -23,7 +30,7 @@ export default function RootLayout({ children }) {
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className={inter.variable}>
         {children}
