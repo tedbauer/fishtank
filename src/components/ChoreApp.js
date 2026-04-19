@@ -237,10 +237,41 @@ function LineShrimp({ color, size = 24 }) {
     );
 }
 
+// =========== LINE-ART SEAWEED ===========
+function LineSeaweed({ color, height = 55 }) {
+    return (
+        <svg width="18" height={height} viewBox="0 0 18 55" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round">
+            <path d="M9 55 Q6 45 9 35 Q12 25 9 15 Q6 7 9 0" />
+            <path d="M9 48 Q14 44 16 46" opacity="0.75" />
+            <path d="M9 38 Q4 34 2 36" opacity="0.7" />
+            <path d="M9 28 Q14 24 15 26" opacity="0.65" />
+            <path d="M9 18 Q4 14 3 16" opacity="0.6" />
+            <path d="M9 9 Q13 5 14 8" opacity="0.55" />
+        </svg>
+    );
+}
+
+// =========== LINE-ART SNAIL ===========
+function LineSnail({ color, size = 24 }) {
+    return (
+        <svg width={size} height={size * 0.55} viewBox="0 0 24 13" fill="none" stroke={color} strokeWidth="0.9" strokeLinecap="round">
+            <path d="M14 11 Q10 11 8 8 Q7 5 9 3 Q12 1 15 3 Q18 5 17 8 Q15 12 12 11 Q8 10 7 7" />
+            <path d="M4 11 Q8 13 16 12 Q20 11 22 10" />
+            <path d="M4 11 Q2 10 3 8" />
+            <line x1="3" y1="8" x2="1" y2="5" opacity="0.7" />
+            <line x1="4" y1="8" x2="3" y2="5" opacity="0.7" />
+            <circle cx="1" cy="4.5" r="0.5" fill={color} stroke="none" />
+            <circle cx="3" cy="4.5" r="0.5" fill={color} stroke="none" />
+        </svg>
+    );
+}
+
 // =========== MINIMAL AQUARIUM ===========
 function Aquarium({ mood, happiness, rewardAnim }) {
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpDur = { ecstatic: "30s", happy: "35s", content: "40s", meh: "50s", sad: "60s", miserable: "80s" }[mood] || "40s";
+    const schoolDur = { ecstatic: "24s", happy: "29s", content: "34s", meh: "43s", sad: "54s", miserable: "70s" }[mood] || "34s";
+    const snailDur = { ecstatic: "55s", happy: "65s", content: "75s", meh: "90s", sad: "110s", miserable: "140s" }[mood] || "75s";
     const uid = `aq-${mood}`;
 
     const waterColor = {
@@ -304,6 +335,21 @@ function Aquarium({ mood, happiness, rewardAnim }) {
           0%, 100% { transform: skewX(0deg); }
           50% { transform: skewX(-2.5deg); }
         }
+        @keyframes ${uid}-school {
+          0%   { left: 78%; top: 28px; transform: scaleX(1); }
+          22%  { left: 55%; top: 35px; transform: scaleX(1); }
+          40%  { left: 25%; top: 26px; transform: scaleX(1); }
+          44%  { left: 22%; top: 26px; transform: scaleX(-1); }
+          65%  { left: 48%; top: 34px; transform: scaleX(-1); }
+          82%  { left: 70%; top: 24px; transform: scaleX(-1); }
+          86%  { left: 76%; top: 26px; transform: scaleX(1); }
+          100% { left: 78%; top: 28px; transform: scaleX(1); }
+        }
+        @keyframes ${uid}-snail {
+          0%   { left: 15%; }
+          50%  { left: 52%; }
+          100% { left: 15%; }
+        }
         @keyframes reward-drop {
           0% { transform: translateY(-20px); opacity: 0; }
           15% { opacity: 1; }
@@ -348,6 +394,27 @@ function Aquarium({ mood, happiness, rewardAnim }) {
                 <path d="M3 44 Q6 34 3 26 Q0 18 3 12" opacity="0.6" />
             </svg>
 
+            {/* === SEAWEED === */}
+            <div style={{ position: "absolute", bottom: 14, left: "30%", opacity: 0.55, animation: `${uid}-sway2 8s ease-in-out infinite` }}>
+                <LineSeaweed color={lineColor} height={58} />
+            </div>
+            <div style={{ position: "absolute", bottom: 14, left: "65%", opacity: 0.45, animation: `${uid}-sway1 9.5s ease-in-out infinite` }}>
+                <LineSeaweed color={lineColor} height={46} />
+            </div>
+            <div style={{ position: "absolute", bottom: 14, left: "5%", opacity: 0.38, animation: `${uid}-sway2 7s ease-in-out infinite` }}>
+                <LineSeaweed color={lineColor} height={40} />
+            </div>
+
+            {/* Large Rocks */}
+            <svg style={{ position: "absolute", bottom: 7, left: "4%", opacity: 0.32 }} width="90" height="24" viewBox="0 0 90 24" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
+                <path d="M2 22 Q8 6 20 4 Q32 2 38 9 Q44 16 40 22 Z" fill={lineColor} fillOpacity="0.1" />
+                <path d="M36 22 Q44 8 58 6 Q70 5 78 12 Q84 17 80 22 Z" fill={lineColor} fillOpacity="0.08" />
+            </svg>
+            <svg style={{ position: "absolute", bottom: 7, right: "5%", opacity: 0.28 }} width="65" height="20" viewBox="0 0 65 20" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
+                <path d="M2 18 Q8 5 18 3 Q28 1 34 7 Q40 13 36 18 Z" fill={lineColor} fillOpacity="0.1" />
+                <path d="M32 18 Q40 7 50 5 Q60 5 63 11 Q64 16 60 18 Z" fill={lineColor} fillOpacity="0.08" />
+            </svg>
+
             {/* Pebbles */}
             <svg style={{ position: "absolute", bottom: 7, right: "28%", opacity: 0.18 }} width="50" height="10" viewBox="0 0 50 10" fill="none" stroke={lineColor} strokeWidth="0.8">
                 <ellipse cx="12" cy="7" rx="10" ry="3" />
@@ -382,6 +449,26 @@ function Aquarium({ mood, happiness, rewardAnim }) {
                 animation: `${uid}-shrimp ${shrimpDur} linear infinite`,
             }}>
                 <LineShrimp color={lineColor} size={20} />
+            </div>
+
+            {/* Snail */}
+            <div style={{
+                position: "absolute", bottom: 16, left: "15%",
+                animation: `${uid}-snail ${snailDur} linear infinite`,
+            }}>
+                <LineSnail color={lineColor} size={22} />
+            </div>
+
+            {/* School of fish */}
+            <div style={{
+                position: "absolute", top: 28, left: "78%",
+                animation: `${uid}-school ${schoolDur} ease-in-out infinite`,
+            }}>
+                {[{dx:0,dy:0},{dx:16,dy:-7},{dx:-8,dy:9},{dx:24,dy:3}].map((off, i) => (
+                    <div key={i} style={{ position: "absolute", left: off.dx, top: off.dy }}>
+                        <LineFish mood={mood} size={14} />
+                    </div>
+                ))}
             </div>
 
             {/* Fish + hearts */}
