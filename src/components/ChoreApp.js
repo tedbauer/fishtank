@@ -605,6 +605,8 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChang
         dragState.current = { pointerId };
         setIsDragging(true);
         onDragChange?.(true);
+        document.body.style.userSelect = "none";
+        document.body.style.webkitUserSelect = "none";
 
         const onMove = (ev) => {
             if (!dragState.current || ev.pointerId !== pointerId || !tankRef.current) return;
@@ -653,6 +655,8 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChang
             window.removeEventListener("pointermove", onMove);
             window.removeEventListener("pointerup", onUp);
             window.removeEventListener("pointercancel", onCancel);
+            document.body.style.userSelect = "";
+            document.body.style.webkitUserSelect = "";
         };
 
         window.addEventListener("pointermove", onMove);
@@ -717,6 +721,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
             position: "relative", width: "100%", height: "160px",
             overflow: "hidden", fontFamily: FONT,
             border: "2px solid #2C2C2A",
+            userSelect: "none", WebkitUserSelect: "none",
             borderRadius: "12px",
             boxShadow: boxShadow("#2C2C2A", 3, 3),
             background: waterColor,
