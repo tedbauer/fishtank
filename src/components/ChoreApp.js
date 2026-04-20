@@ -1322,18 +1322,17 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
     const addChore = async () => {
         if (!newChoreName.trim() || !profile?.household_id) return;
-        const { data, error } = await supabase
-            .from("chores")
-            .insert({
-                name: newChoreName.trim(),
-                freq: newChoreOneTime ? "weekly" : newChoreFreq,
-                description: newChoreDesc.trim() || null,
-                household_id: profile.household_id,
-                one_time: newChoreOneTime,
-                deadline: newChoreOneTime && newChoreDeadline ? newChoreDeadline : null,
-            })
-            .select().single();
-        if (!error && data) {
+        const payload = {
+            name: newChoreName.trim(),
+            freq: newChoreOneTime ? "weekly" : newChoreFreq,
+            description: newChoreDesc.trim() || null,
+            household_id: profile.household_id,
+            ...(newChoreOneTime && { one_time: true }),
+            ...(newChoreOneTime && newChoreDeadline && { deadline: newChoreDeadline }),
+        };
+        const { data, error } = await supabase.from("chores").insert(payload).select().single();
+        if (error) { alert("Couldn't add chore: " + error.message); return; }
+        if (data) {
             setChores((prev) => [...prev, data]);
             setNewChoreName(""); setNewChoreDesc("");
             setNewChoreOneTime(false); setNewChoreDeadline("");
