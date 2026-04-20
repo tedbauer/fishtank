@@ -671,6 +671,14 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChang
                 position: "absolute",
                 left: `${pos.x}%`,
                 bottom: `${pos.y}%`,
+                padding: "12px",
+                borderRadius: "50%",
+                background: isDragging
+                    ? "rgba(255,255,255,0.22)"
+                    : "rgba(255,255,255,0.12)",
+                boxShadow: isDragging
+                    ? "0 0 0 2px rgba(255,255,255,0.4)"
+                    : "0 0 0 1.5px rgba(255,255,255,0.2)",
                 transform: isDragging ? "translateX(-50%) scale(1.4)" : "translateX(-50%)",
                 cursor: isDragging ? "grabbing" : "grab",
                 zIndex: isDragging ? 20 : 4,
@@ -682,7 +690,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChang
                         ? "drop-shadow(0 8px 16px rgba(0,0,0,0.5))"
                         : "drop-shadow(0 1px 1px rgba(0,0,0,0.25))",
                 opacity: isOutside ? 0.75 : 1,
-                transition: isDragging ? "none" : "transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease",
+                transition: isDragging ? "none" : "transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease, background 0.15s ease",
             }}
         >
             {children}
@@ -1679,7 +1687,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Coming Up This Week</div>
                     {weekList.length === 0 && <EmptyState text="Nothing for this week! 🎈" />}
-                    {weekList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} variant="week" />)}
+                    {weekList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="week" />)}
 
                     {(() => {
                         const weekCompletedChores = {};
@@ -1723,7 +1731,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Due This Month</div>
                     {monthList.length === 0 && <EmptyState text="All clear for the month! ✨" />}
-                    {monthList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} variant="month" />)}
+                    {monthList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="month" />)}
 
                     {(() => {
                         const monthCompletedChores = {};
@@ -1767,7 +1775,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>The Big Stuff — Longer Cycles 🔮</div>
                     {longtermList.length === 0 && <EmptyState text="Nothing long-term pending!" />}
-                    {longtermList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} variant="longterm" />)}
+                    {longtermList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="longterm" />)}
                 </div>
             )}
 
@@ -2346,17 +2354,23 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
     );
 }
 
-function AnimatedCheckRow({ chore, users, onComplete, variant = "week" }) {
+function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week" }) {
     const freqInfo = chore.one_time ? null : FREQ[chore.freq];
-    const owner = users.find((u) => u.id === chore.owner_id);
     const [checked, setChecked] = useState(false);
     const [removing, setRemoving] = useState(false);
+    const [assignedTo, setAssignedTo] = useState(chore.owner_id || "");
 
     const handleClick = () => {
         if (checked) return;
         setChecked(true);
         setTimeout(() => setRemoving(true), 500);
         setTimeout(() => onComplete(chore.id), 900);
+    };
+
+    const handleAssign = (e) => {
+        const val = e.target.value;
+        setAssignedTo(val);
+        onAssign?.(chore.id, val || null);
     };
 
     const dueText = chore.one_time && chore.deadline
@@ -2395,9 +2409,18 @@ function AnimatedCheckRow({ chore, users, onComplete, variant = "week" }) {
                     {chore.name}
                 </div>
                 <div style={{ fontSize: "12px", color: "#888780", marginTop: "2px", fontWeight: 600 }}>
-                    {dueText}{owner && ` · ${owner.name}`}
+                    {dueText}
                 </div>
             </div>
+            <select
+                value={assignedTo}
+                onChange={handleAssign}
+                style={{ fontSize: "11px", padding: "4px 6px", border: "2px solid #2C2C2A", borderRadius: "6px", fontFamily: FONT, fontWeight: 600, flexShrink: 0, maxWidth: "100px" }}
+                title="Assign to"
+            >
+                <option value="">—</option>
+                {users.map((u) => <option key={u.id} value={u.id}>{u.name.split(" ")[0]}</option>)}
+            </select>
             <span style={{
                 fontSize: "11px", padding: "3px 8px",
                 background: chore.one_time ? "#EDE9FE" : (freqInfo?.bg || "#f5f4f1"),
