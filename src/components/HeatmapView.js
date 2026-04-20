@@ -11,7 +11,7 @@ const FREQ = {
     biweekly: { days: 14 }, monthly: { days: 30 }, quarterly: { days: 90 }, biannual: { days: 180 },
 };
 
-const formatDate = (d) => d.toISOString().split("T")[0];
+const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const parseDate = (s) => { const d = new Date(s + "T00:00:00"); d.setHours(0, 0, 0, 0); return d; };
 
 // Score a single day: returns { score: 0-1, completedChores, overdueChores, totalDue }
