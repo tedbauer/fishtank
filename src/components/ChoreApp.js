@@ -576,12 +576,13 @@ const STORE_CATEGORIES = [
 const STORE_ITEM_MAP = Object.fromEntries(STORE_ITEMS.map((i) => [i.id, i]));
 
 // =========== DRAGGABLE PURCHASE ===========
-function DraggablePurchase({ purchase, tankRef, onMoveEnd, children }) {
-    const [pos, setPos] = useState({ x: purchase.x, y: purchase.y });
+function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, children }) {
+    const [pos, setPos] = useState({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
+    const [isDragging, setIsDragging] = useState(false);
     const dragState = useRef(null);
 
     useEffect(() => {
-        if (!dragState.current) setPos({ x: purchase.x, y: purchase.y });
+        if (!dragState.current) setPos({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
     }, [purchase.x, purchase.y]);
 
     const clampPos = (rect, dx, dy, origX, origY) => ({
@@ -593,6 +594,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, children }) {
         e.preventDefault();
         e.stopPropagation();
         try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) { }
+        setIsDragging(true);
         dragState.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, pointerId: e.pointerId };
     };
 
@@ -608,10 +610,24 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, children }) {
         if (!dragState.current || !tankRef.current) return;
         if (e.pointerId !== dragState.current.pointerId) return;
         const rect = tankRef.current.getBoundingClientRect();
+        const outside = e.clientX < rect.left - 10 || e.clientX > rect.right + 10 ||
+                        e.clientY < rect.top - 10 || e.clientY > rect.bottom + 10;
         const final = clampPos(rect, e.clientX - dragState.current.startX, e.clientY - dragState.current.startY, dragState.current.origX, dragState.current.origY);
         dragState.current = null;
-        setPos(final);
-        onMoveEnd(purchase.id, Math.round(final.x), Math.round(final.y));
+        setIsDragging(false);
+        if (outside) {
+            setPos({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
+            onRemove(purchase.id);
+        } else {
+            setPos(final);
+            onMoveEnd(purchase.id, Math.round(final.x), Math.round(final.y));
+        }
+    };
+
+    const handlePointerCancel = () => {
+        dragState.current = null;
+        setIsDragging(false);
+        setPos({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
     };
 
     return (
@@ -619,17 +635,20 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, children }) {
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
             style={{
                 position: "absolute",
                 left: `${pos.x}%`,
                 bottom: `${pos.y}%`,
-                transform: "translateX(-50%)",
-                cursor: "grab",
-                zIndex: 4,
+                transform: isDragging ? "translateX(-50%) scale(1.4)" : "translateX(-50%)",
+                cursor: isDragging ? "grabbing" : "grab",
+                zIndex: isDragging ? 20 : 4,
                 touchAction: "none",
                 userSelect: "none",
-                filter: "drop-shadow(0 1px 1px rgba(0,0,0,0.25))",
+                filter: isDragging
+                    ? "drop-shadow(0 8px 16px rgba(0,0,0,0.5))"
+                    : "drop-shadow(0 1px 1px rgba(0,0,0,0.25))",
+                transition: isDragging ? "none" : "transform 0.15s ease, filter 0.15s ease",
             }}
         >
             {children}
@@ -638,7 +657,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, children }) {
 }
 
 // =========== MINIMAL AQUARIUM ===========
-function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase }) {
+function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase, onRemovePurchase }) {
     const tankRef = useRef(null);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpDur = { ecstatic: "30s", happy: "35s", content: "40s", meh: "50s", sad: "60s", miserable: "80s" }[mood] || "40s";
@@ -896,8 +915,8 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase 
                 </div>
             )}
 
-            {/* Purchased items (draggable) */}
-            {purchases.map((p) => {
+            {/* Purchased items (draggable, placed only) */}
+            {purchases.filter((p) => p.x != null).map((p) => {
                 const item = STORE_ITEM_MAP[p.item_id];
                 if (!item) return null;
                 return (
@@ -906,6 +925,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase 
                         purchase={p}
                         tankRef={tankRef}
                         onMoveEnd={onMovePurchase}
+                        onRemove={onRemovePurchase}
                     >
                         {item.render(0.75)}
                     </DraggablePurchase>
@@ -1289,6 +1309,17 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         await supabase.from("purchases").update({ x, y }).eq("id", purchaseId);
     };
 
+    const unplacePurchase = async (purchaseId) => {
+        setPurchases((prev) => prev.map((p) => (p.id === purchaseId ? { ...p, x: null, y: null } : p)));
+        await supabase.from("purchases").update({ x: null, y: null }).eq("id", purchaseId);
+    };
+
+    const placePurchase = async (purchaseId) => {
+        const x = 50, y = 20;
+        setPurchases((prev) => prev.map((p) => (p.id === purchaseId ? { ...p, x, y } : p)));
+        await supabase.from("purchases").update({ x, y }).eq("id", purchaseId);
+    };
+
     const snoozeChore = async (choreId, days) => {
         const d = today();
         d.setDate(d.getDate() + days);
@@ -1456,6 +1487,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             rewardAnim={rewardAnim}
                             purchases={purchases}
                             onMovePurchase={movePurchase}
+                            onRemovePurchase={unplacePurchase}
                         />
                     </div>
 
@@ -1488,15 +1520,20 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                         <StatCard label={`${currentUser.name}'s Week`} value={myCompletionsThisWeek} color={currentUser.color} />
                         <StatCard label={`${partner?.name || "Partner"}'s Week`} value={partnerCompletionsThisWeek} color={partner?.color} />
-                        <div style={{
-                            padding: "12px", background: "#FEF3C7", borderRadius: "12px", textAlign: "center",
-                            border: "2px solid #2C2C2A", boxShadow: boxShadow("#F59E0B", 2, 2),
-                            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px",
-                        }}>
+                        <div
+                            onClick={() => setView("store")}
+                            style={{
+                                padding: "12px", background: "#FEF3C7", borderRadius: "12px", textAlign: "center",
+                                border: "2px solid #2C2C2A", boxShadow: boxShadow("#F59E0B", 2, 2),
+                                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px",
+                                cursor: "pointer",
+                            }}
+                        >
                             <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "22px", fontWeight: 800, color: "#2C2C2A" }}>
                                 <Coins size={18} strokeWidth={2.5} color="#B45309" /> {coinBalance}
                             </div>
                             <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780" }}>Coins</div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#B45309", marginTop: "1px" }}>spend at the store →</div>
                         </div>
                     </div>
 
@@ -1741,11 +1778,12 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     {purchases.length > 0 && (
                         <Section title="Your Items" accentColor="#7F77DD">
                             <div style={{ fontSize: "12px", color: "#888780", marginBottom: "10px" }}>
-                                Drag them around the aquarium to place them.
+                                Items in tank: drag to reposition or drag outside to return to inventory. Items in inventory: tap Place to add to tank.
                             </div>
                             {purchases.map((p) => {
                                 const item = STORE_ITEM_MAP[p.item_id];
                                 if (!item) return null;
+                                const inTank = p.x != null;
                                 return (
                                     <div key={p.id} style={{
                                         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1757,19 +1795,38 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                             <div style={{ width: "28px", display: "flex", justifyContent: "center" }}>
                                                 {item.render(0.4)}
                                             </div>
-                                            <div style={{ fontSize: "13px", fontWeight: 600 }}>{item.name}</div>
+                                            <div>
+                                                <div style={{ fontSize: "13px", fontWeight: 600 }}>{item.name}</div>
+                                                <div style={{ fontSize: "11px", color: inTank ? "#22C55E" : "#888780" }}>
+                                                    {inTank ? "in tank 🐟" : "in inventory"}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <button
-                                            onClick={() => { if (confirm("Remove this item from the aquarium?")) sellPurchase(p.id); }}
-                                            style={{
-                                                padding: "4px 8px", background: "white",
-                                                border: "2px solid #2C2C2A", borderRadius: "6px",
-                                                cursor: "pointer", fontFamily: FONT,
-                                            }}
-                                            title="Remove"
-                                        >
-                                            <Trash2 size={12} />
-                                        </button>
+                                        <div style={{ display: "flex", gap: "6px" }}>
+                                            {!inTank && (
+                                                <button
+                                                    onClick={() => placePurchase(p.id)}
+                                                    style={{
+                                                        padding: "4px 10px", background: "#7F77DD", color: "white",
+                                                        border: "2px solid #2C2C2A", borderRadius: "6px",
+                                                        cursor: "pointer", fontFamily: FONT, fontSize: "12px", fontWeight: 600,
+                                                    }}
+                                                >
+                                                    Place
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => { if (confirm("Sell this item?")) sellPurchase(p.id); }}
+                                                style={{
+                                                    padding: "4px 8px", background: "white",
+                                                    border: "2px solid #2C2C2A", borderRadius: "6px",
+                                                    cursor: "pointer", fontFamily: FONT,
+                                                }}
+                                                title="Sell"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        </div>
                                     </div>
                                 );
                             })}
