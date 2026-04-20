@@ -1314,6 +1314,20 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         }).catch(() => {});
     };
 
+    const notifyPurchase = (itemName) => {
+        if (!profile?.household_id || !VAPID_PUBLIC_KEY) return;
+        fetch("/api/notify-purchase", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                householdId: profile.household_id,
+                itemName,
+                buyerName: currentUser.name,
+                excludeUserId: user.id,
+            }),
+        }).catch(() => {});
+    };
+
     // Actions
     const completeChore = async (choreId) => {
         const chore = chores.find((c) => c.id === choreId);
@@ -1371,7 +1385,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             .from("purchases")
             .insert({ household_id: profile.household_id, item_id: itemId, x: 50, y: 20 })
             .select().single();
-        if (!error && data) setPurchases((prev) => [...prev, data]);
+        if (!error && data) {
+            setPurchases((prev) => [...prev, data]);
+            notifyPurchase(item.name);
+        }
     };
 
     const movePurchase = async (purchaseId, x, y) => {
