@@ -576,7 +576,7 @@ const STORE_CATEGORIES = [
 const STORE_ITEM_MAP = Object.fromEntries(STORE_ITEMS.map((i) => [i.id, i]));
 
 // =========== DRAGGABLE PURCHASE ===========
-function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onOutsideChange, children }) {
+function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChange, onOutsideChange, children }) {
     const [pos, setPos] = useState({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
     const [isDragging, setIsDragging] = useState(false);
     const [isOutside, setIsOutside] = useState(false);
@@ -604,6 +604,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onOutsideCh
         const pointerId = e.pointerId;
         dragState.current = { pointerId };
         setIsDragging(true);
+        onDragChange?.(true);
 
         const onMove = (ev) => {
             if (!dragState.current || ev.pointerId !== pointerId || !tankRef.current) return;
@@ -622,6 +623,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onOutsideCh
             dragState.current = null;
             setIsDragging(false);
             setIsOutside(false);
+            onDragChange?.(false);
             onOutsideChange?.(false);
             if (!tankRef.current) return;
             const rect = tankRef.current.getBoundingClientRect();
@@ -642,6 +644,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onOutsideCh
             dragState.current = null;
             setIsDragging(false);
             setIsOutside(false);
+            onDragChange?.(false);
             onOutsideChange?.(false);
             setPos({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
         };
@@ -686,6 +689,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onOutsideCh
 // =========== MINIMAL AQUARIUM ===========
 function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase, onRemovePurchase }) {
     const tankRef = useRef(null);
+    const [anyDragging, setAnyDragging] = useState(false);
     const [dragOutside, setDragOutside] = useState(false);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpDur = { ecstatic: "30s", happy: "35s", content: "40s", meh: "50s", sad: "60s", miserable: "80s" }[mood] || "40s";
@@ -954,6 +958,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                         tankRef={tankRef}
                         onMoveEnd={onMovePurchase}
                         onRemove={onRemovePurchase}
+                        onDragChange={setAnyDragging}
                         onOutsideChange={setDragOutside}
                     >
                         {item.render(0.75)}
@@ -980,8 +985,8 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                 </div>
             )}
 
-            {/* Static drag hint when items are placed */}
-            {purchases.some((p) => p.x != null) && !dragOutside && (
+            {/* Drag hint — only shown while dragging inside tank */}
+            {anyDragging && !dragOutside && (
                 <div style={{
                     position: "absolute", top: "6px", right: "8px", zIndex: 6,
                     fontSize: "9px", fontWeight: 600, color: "rgba(255,255,255,0.45)",
