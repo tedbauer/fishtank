@@ -1817,21 +1817,21 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             placeholder="Optional description..."
                             style={{ width: "100%", padding: "8px 12px", border: "2px solid #e8e8e8", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, marginTop: "8px" }}
                         />
-                        <label style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", cursor: "pointer", fontSize: "13px", fontWeight: 600, color: newChoreOneTime ? "#7F77DD" : "#888780", userSelect: "none" }}>
-                            <div
-                                onClick={() => setNewChoreOneTime((v) => !v)}
-                                style={{
-                                    width: "20px", height: "20px", borderRadius: "5px",
-                                    border: "2px solid #2C2C2A", flexShrink: 0,
-                                    background: newChoreOneTime ? "#7F77DD" : "white",
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    boxShadow: boxShadow(newChoreOneTime ? "#5B51E0" : "#e8e8e8", 1, 1),
-                                }}
-                            >
+                        <div
+                            onClick={() => setNewChoreOneTime((v) => !v)}
+                            style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", cursor: "pointer", fontSize: "13px", fontWeight: 600, color: newChoreOneTime ? "#7F77DD" : "#888780", userSelect: "none" }}
+                        >
+                            <div style={{
+                                width: "20px", height: "20px", borderRadius: "5px",
+                                border: "2px solid #2C2C2A", flexShrink: 0,
+                                background: newChoreOneTime ? "#7F77DD" : "white",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                boxShadow: boxShadow(newChoreOneTime ? "#5B51E0" : "#e8e8e8", 1, 1),
+                            }}>
                                 {newChoreOneTime && <Check size={12} color="white" strokeWidth={3} />}
                             </div>
                             One-time task {newChoreOneTime && <span style={{ fontSize: "11px", color: "#888780", fontWeight: 400 }}>(won't repeat)</span>}
-                        </label>
+                        </div>
                     </Section>
 
                     <Section title="Household" accentColor="#D4537E">
@@ -2373,12 +2373,12 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                         {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                 </div>
-                <label style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 600, color: editOneTime ? "#5B21B6" : "#888780", userSelect: "none" }}>
-                    <div onClick={() => setEditOneTime((v) => !v)} style={{ width: "18px", height: "18px", borderRadius: "4px", border: "2px solid #2C2C2A", flexShrink: 0, background: editOneTime ? "#7C3AED" : "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div onClick={() => setEditOneTime((v) => !v)} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 600, color: editOneTime ? "#5B21B6" : "#888780", userSelect: "none" }}>
+                    <div style={{ width: "18px", height: "18px", borderRadius: "4px", border: "2px solid #2C2C2A", flexShrink: 0, background: editOneTime ? "#7C3AED" : "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         {editOneTime && <Check size={11} color="white" strokeWidth={3} />}
                     </div>
                     One-time task
-                </label>
+                </div>
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
                     <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#78350F", background: "#FEF3C7", padding: "6px 10px", border: "2px solid #2C2C2A", borderRadius: "6px", flex: 1, minWidth: "140px" }}>
                         <Coins size={12} strokeWidth={2.5} /> Reward
