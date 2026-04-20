@@ -588,7 +588,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChang
 
     const calcPos = (rect, clientX, clientY, startX, startY, origX, origY) => ({
         x: Math.max(2, Math.min(98, origX + ((clientX - startX) / rect.width) * 100)),
-        y: Math.max(8, Math.min(85, origY + (-(clientY - startY) / rect.height) * 100)),
+        y: Math.max(0, Math.min(85, origY + (-(clientY - startY) / rect.height) * 100)),
     });
 
     const checkOutside = (clientX, clientY, rect) =>
@@ -672,13 +672,6 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChang
                 left: `${pos.x}%`,
                 bottom: `${pos.y}%`,
                 padding: "12px",
-                borderRadius: "50%",
-                background: isDragging
-                    ? "rgba(255,255,255,0.22)"
-                    : "rgba(255,255,255,0.12)",
-                boxShadow: isDragging
-                    ? "0 0 0 2px rgba(255,255,255,0.4)"
-                    : "0 0 0 1.5px rgba(255,255,255,0.2)",
                 transform: isDragging ? "translateX(-50%) scale(1.4)" : "translateX(-50%)",
                 cursor: isDragging ? "grabbing" : "grab",
                 zIndex: isDragging ? 20 : 4,
