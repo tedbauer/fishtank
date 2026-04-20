@@ -2380,65 +2380,69 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
 
     return (
         <div style={{
-            display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px",
+            padding: "10px 14px",
             marginBottom: removing ? "0px" : "8px", fontFamily: FONT,
             background: checked ? "#F4FBF7" : isOverdue ? "#FEF2F2" : "white",
             border: `2px solid ${checked ? "#1D9E75" : isOverdue ? "#EF4444" : "#2C2C2A"}`,
             borderRadius: "12px",
             boxShadow: checked ? boxShadow("#1D9E75", 2, 2) : isOverdue ? boxShadow("#EF4444", 3, 3) : boxShadow("#e8e8e8", 2, 2),
-            maxHeight: removing ? "0px" : "80px",
+            maxHeight: removing ? "0px" : "120px",
             opacity: removing ? 0 : 1,
-            paddingTop: removing ? "0px" : "12px", paddingBottom: removing ? "0px" : "12px",
+            paddingTop: removing ? "0px" : "10px", paddingBottom: removing ? "0px" : "10px",
             overflow: "hidden",
             transition: "all 0.4s ease",
         }}>
-            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: freqInfo?.color, flexShrink: 0, border: "1.5px solid #2C2C2A" }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Row 1: dot + name + checkbox */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: freqInfo?.color, flexShrink: 0, border: "1.5px solid #2C2C2A" }} />
                 <div style={{
+                    flex: 1, minWidth: 0,
                     fontSize: "14px", fontWeight: 700,
                     textDecoration: checked ? "line-through" : "none",
                     color: checked ? "#b4b2a9" : "#2C2C2A",
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 }}>
                     {chore.name}
                 </div>
-                <div style={{ fontSize: "12px", color: "#888780", marginTop: "2px", fontWeight: 600 }}>
-                    {dueText}
+                <div
+                    onClick={handleClick} role="button" tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
+                    style={{
+                        width: "28px", height: "28px", minWidth: "28px",
+                        boxSizing: "border-box", borderRadius: "50%",
+                        border: checked ? "2.5px solid #1D9E75" : "2.5px solid #B4B2A9",
+                        background: checked ? "#1D9E75" : "transparent",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: checked ? "default" : "pointer", flexShrink: 0,
+                        transition: "background 0.25s ease, border 0.25s ease, transform 0.2s ease",
+                        transform: checked ? "scale(1.2)" : "scale(1)",
+                    }}
+                    title="mark done now"
+                >
+                    <Check size={14} strokeWidth={3} color="white" style={{ opacity: checked ? 1 : 0, transition: "opacity 0.25s ease" }} />
                 </div>
             </div>
-            <select
-                value={assignedTo}
-                onChange={handleAssign}
-                style={{ fontSize: "11px", padding: "4px 6px", border: "2px solid #2C2C2A", borderRadius: "6px", fontFamily: FONT, fontWeight: 600, flexShrink: 0, maxWidth: "100px" }}
-                title="Assign to"
-            >
-                <option value="">—</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.name.split(" ")[0]}</option>)}
-            </select>
-            <span style={{
-                fontSize: "11px", padding: "3px 8px",
-                background: chore.one_time ? "#EDE9FE" : (freqInfo?.bg || "#f5f4f1"),
-                color: chore.one_time ? "#5B21B6" : (freqInfo?.text || "#888780"),
-                borderRadius: "6px", fontWeight: 700, flexShrink: 0,
-                border: "1px solid " + (chore.one_time ? "#7C3AED" : (freqInfo?.color || "#ccc")),
-            }}>
-                {chore.one_time ? "one-time" : freqInfo?.label}
-            </span>
-            <div
-                onClick={handleClick} role="button" tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
-                style={{
-                    width: "28px", height: "28px", minWidth: "28px",
-                    boxSizing: "border-box", borderRadius: "50%",
-                    border: checked ? "2.5px solid #1D9E75" : "2.5px solid #B4B2A9",
-                    background: checked ? "#1D9E75" : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: checked ? "default" : "pointer", flexShrink: 0,
-                    transition: "background 0.25s ease, border 0.25s ease, transform 0.2s ease",
-                    transform: checked ? "scale(1.2)" : "scale(1)",
-                }}
-                title="mark done now"
-            >
-                <Check size={14} strokeWidth={3} color="white" style={{ opacity: checked ? 1 : 0, transition: "opacity 0.25s ease" }} />
+            {/* Row 2: due text + assign select + freq badge */}
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px", paddingLeft: "18px" }}>
+                <span style={{ fontSize: "11px", color: "#888780", fontWeight: 600, flex: 1 }}>{dueText}</span>
+                <select
+                    value={assignedTo}
+                    onChange={handleAssign}
+                    style={{ fontSize: "11px", padding: "3px 5px", border: "2px solid #2C2C2A", borderRadius: "6px", fontFamily: FONT, fontWeight: 600, flexShrink: 0 }}
+                    title="Assign to"
+                >
+                    <option value="">—</option>
+                    {users.map((u) => <option key={u.id} value={u.id}>{u.name.split(" ")[0]}</option>)}
+                </select>
+                <span style={{
+                    fontSize: "11px", padding: "3px 8px",
+                    background: chore.one_time ? "#EDE9FE" : (freqInfo?.bg || "#f5f4f1"),
+                    color: chore.one_time ? "#5B21B6" : (freqInfo?.text || "#888780"),
+                    borderRadius: "6px", fontWeight: 700, flexShrink: 0,
+                    border: "1px solid " + (chore.one_time ? "#7C3AED" : (freqInfo?.color || "#ccc")),
+                }}>
+                    {chore.one_time ? "one-time" : freqInfo?.label}
+                </span>
             </div>
         </div>
     );
