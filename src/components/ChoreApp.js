@@ -351,13 +351,224 @@ function FernPlant({ size = 1 }) {
     );
 }
 
+function AnubiaPlant({ size = 1 }) {
+    return (
+        <svg width={44 * size} height={50 * size} viewBox="0 0 44 50" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22 50 Q22 44 22 38" stroke="#15803D" strokeWidth="2" fill="none" strokeLinecap="round" />
+            <path d="M22 48 Q10 42 4 34 Q10 28 18 36 Q20 42 22 48" fill="#15803D" stroke="#14532D" strokeWidth="1" />
+            <path d="M22 42 Q34 36 40 28 Q34 22 26 30 Q22 36 22 42" fill="#22C55E" stroke="#15803D" strokeWidth="1" />
+            <path d="M22 36 Q10 30 4 22 Q10 16 18 24 Q20 30 22 36" fill="#16A34A" stroke="#15803D" strokeWidth="1" />
+            <path d="M22 28 Q34 22 40 14 Q34 8 26 16 Q22 22 22 28" fill="#22C55E" stroke="#15803D" strokeWidth="1" />
+            <ellipse cx="22" cy="13" rx="6" ry="9" fill="#4ADE80" stroke="#22C55E" strokeWidth="1" />
+        </svg>
+    );
+}
+
+function AmazonSword({ size = 1 }) {
+    return (
+        <svg width={34 * size} height={72 * size} viewBox="0 0 34 72" xmlns="http://www.w3.org/2000/svg">
+            <line x1="17" y1="72" x2="17" y2="4" stroke="#15803D" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M17 62 Q5 54 1 44 Q7 42 15 52 Z" fill="#22C55E" stroke="#15803D" strokeWidth="1" />
+            <path d="M17 50 Q3 42 0 30 Q8 28 15 40 Z" fill="#16A34A" stroke="#15803D" strokeWidth="1" />
+            <path d="M17 38 Q4 30 3 18 Q10 16 15 28 Z" fill="#22C55E" stroke="#15803D" strokeWidth="1" />
+            <path d="M17 57 Q29 49 33 39 Q27 37 19 47 Z" fill="#22C55E" stroke="#15803D" strokeWidth="1" />
+            <path d="M17 45 Q31 37 34 25 Q26 23 19 35 Z" fill="#16A34A" stroke="#15803D" strokeWidth="1" />
+            <path d="M17 33 Q29 24 30 12 Q22 10 18 22 Z" fill="#22C55E" stroke="#15803D" strokeWidth="1" />
+        </svg>
+    );
+}
+
+function BambooStalks({ size = 1 }) {
+    return (
+        <svg width={38 * size} height={66 * size} viewBox="0 0 38 66" xmlns="http://www.w3.org/2000/svg">
+            <rect x="8" y="10" width="6" height="56" rx="3" fill="#84CC16" stroke="#4D7C0F" strokeWidth="1.2" />
+            {[22, 34, 46, 58].map((y) => <line key={y} x1="7" y1={y} x2="15" y2={y} stroke="#4D7C0F" strokeWidth="1.5" />)}
+            <rect x="24" y="18" width="6" height="48" rx="3" fill="#65A30D" stroke="#4D7C0F" strokeWidth="1.2" />
+            {[30, 42, 54].map((y) => <line key={y} x1="23" y1={y} x2="31" y2={y} stroke="#4D7C0F" strokeWidth="1.5" />)}
+            <path d="M11 10 Q6 4 2 1" stroke="#86EFAC" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+            <path d="M11 22 Q18 16 22 14" stroke="#86EFAC" strokeWidth="1" fill="none" strokeLinecap="round" />
+            <path d="M27 18 Q32 12 36 9" stroke="#86EFAC" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+            <path d="M27 30 Q20 24 16 22" stroke="#86EFAC" strokeWidth="1" fill="none" strokeLinecap="round" />
+        </svg>
+    );
+}
+
+function PebbleCluster({ size = 1 }) {
+    return (
+        <svg width={50 * size} height={26 * size} viewBox="0 0 50 26" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="10" cy="20" rx="9" ry="6" fill="#D6D3D1" stroke="#A8A29E" strokeWidth="1.2" />
+            <ellipse cx="26" cy="22" rx="11" ry="5" fill="#E7E5E4" stroke="#A8A29E" strokeWidth="1.2" />
+            <ellipse cx="41" cy="20" rx="8" ry="5.5" fill="#D6D3D1" stroke="#A8A29E" strokeWidth="1.2" />
+            <ellipse cx="18" cy="14" rx="7" ry="5" fill="#F5F5F4" stroke="#C7C3BE" strokeWidth="1.2" />
+            <ellipse cx="34" cy="13" rx="8" ry="5" fill="#E7E5E4" stroke="#C7C3BE" strokeWidth="1.2" />
+        </svg>
+    );
+}
+
+function SlateStack({ size = 1 }) {
+    return (
+        <svg width={52 * size} height={30 * size} viewBox="0 0 52 30" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 28 L8 22 L50 23 L46 28 Z" fill="#78716C" stroke="#57534E" strokeWidth="1.2" />
+            <path d="M6 22 L14 16 L48 17 L42 22 Z" fill="#A8A29E" stroke="#78716C" strokeWidth="1.2" />
+            <path d="M12 16 L20 10 L44 11 L38 16 Z" fill="#C7C3BE" stroke="#A8A29E" strokeWidth="1.2" />
+            <path d="M20 10 L26 4 L38 5 L34 10 Z" fill="#E7E5E4" stroke="#A8A29E" strokeWidth="1" />
+        </svg>
+    );
+}
+
+function BigBoulder({ size = 1 }) {
+    return (
+        <svg width={58 * size} height={44 * size} viewBox="0 0 58 44" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 40 Q2 30 4 18 Q8 4 24 2 Q40 0 48 10 Q56 18 54 30 Q52 42 38 44 Q20 46 6 40 Z" fill="#A8A29E" stroke="#78716C" strokeWidth="1.5" />
+            <path d="M16 10 Q26 6 36 8" stroke="#78716C" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.5" />
+            <path d="M10 22 Q8 28 10 36" stroke="#78716C" strokeWidth="1" fill="none" strokeLinecap="round" opacity="0.4" />
+            <circle cx="38" cy="20" r="3.5" fill="#C7C3BE" opacity="0.6" />
+            <circle cx="22" cy="28" r="2.5" fill="#C7C3BE" opacity="0.5" />
+        </svg>
+    );
+}
+
+function CeramicPot({ size = 1 }) {
+    return (
+        <svg width={40 * size} height={54 * size} viewBox="0 0 40 54" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 52 Q4 42 6 28 Q10 14 20 12 Q30 14 34 28 Q36 42 32 52 Z" fill="#C2A671" stroke="#92400E" strokeWidth="1.5" />
+            <path d="M14 12 Q14 7 20 5 Q26 7 26 12" fill="#D4B896" stroke="#92400E" strokeWidth="1.2" />
+            <ellipse cx="20" cy="5" rx="7" ry="3" fill="#E7D5B8" stroke="#92400E" strokeWidth="1.2" />
+            <ellipse cx="20" cy="5" rx="4.5" ry="2" fill="#78350F" opacity="0.4" />
+            <path d="M8 32 Q2 30 2 36 Q2 42 8 40" fill="none" stroke="#92400E" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M32 32 Q38 30 38 36 Q38 42 32 40" fill="none" stroke="#92400E" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M8 28 Q20 32 32 28" stroke="#92400E" strokeWidth="0.8" fill="none" />
+            <path d="M8 36 Q20 40 32 36" stroke="#92400E" strokeWidth="0.8" fill="none" />
+        </svg>
+    );
+}
+
+function AncientRuins({ size = 1 }) {
+    return (
+        <svg width={62 * size} height={54 * size} viewBox="0 0 62 54" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="46" width="58" height="8" rx="2" fill="#A8A29E" stroke="#78716C" strokeWidth="1.2" />
+            <rect x="6" y="18" width="12" height="28" fill="#D6D3D1" stroke="#A8A29E" strokeWidth="1.2" />
+            <rect x="4" y="14" width="16" height="6" fill="#E7E5E4" stroke="#A8A29E" strokeWidth="1.2" />
+            <path d="M6 14 L10 6 L14 4 L18 14" fill="#E7E5E4" stroke="#A8A29E" strokeWidth="1" />
+            <rect x="26" y="28" width="10" height="18" fill="#C7C3BE" stroke="#A8A29E" strokeWidth="1.2" />
+            <rect x="24" y="24" width="14" height="6" fill="#E7E5E4" stroke="#A8A29E" strokeWidth="1.2" />
+            <rect x="44" y="22" width="12" height="24" fill="#D6D3D1" stroke="#A8A29E" strokeWidth="1.2" />
+            <rect x="42" y="18" width="16" height="6" fill="#E7E5E4" stroke="#A8A29E" strokeWidth="1.2" />
+            <path d="M44 18 L48 8 L52 6 L56 18" fill="#E7E5E4" stroke="#A8A29E" strokeWidth="1" />
+            <rect x="14" y="42" width="22" height="6" rx="2" fill="#A8A29E" stroke="#78716C" strokeWidth="1" transform="rotate(-4 25 45)" />
+        </svg>
+    );
+}
+
+function Starfish({ size = 1 }) {
+    return (
+        <svg width={42 * size} height={42 * size} viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 3 L24 17 L37 8 L26 19 L40 21 L26 23 L37 34 L24 25 L21 39 L18 25 L5 34 L16 23 L2 21 L16 19 L5 8 L18 17 Z" fill="#FB923C" stroke="#EA580C" strokeWidth="1.2" />
+            <circle cx="21" cy="21" r="4" fill="#FED7AA" stroke="#EA580C" strokeWidth="1" />
+            <circle cx="21" cy="10" r="1.5" fill="#FDBA74" />
+            <circle cx="32" cy="21" r="1.5" fill="#FDBA74" />
+            <circle cx="10" cy="21" r="1.5" fill="#FDBA74" />
+        </svg>
+    );
+}
+
+function SeaUrchin({ size = 1 }) {
+    return (
+        <svg width={38 * size} height={38 * size} viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="19" cy="19" r="11" fill="#7C3AED" stroke="#5B21B6" strokeWidth="1.3" />
+            {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => {
+                const r = (deg * Math.PI) / 180;
+                return <line key={deg} x1={19 + 11 * Math.cos(r)} y1={19 + 11 * Math.sin(r)} x2={19 + 18 * Math.cos(r)} y2={19 + 18 * Math.sin(r)} stroke="#8B5CF6" strokeWidth="1.3" strokeLinecap="round" />;
+            })}
+            <circle cx="19" cy="19" r="4" fill="#A78BFA" />
+        </svg>
+    );
+}
+
+function DecorCrab({ size = 1 }) {
+    return (
+        <svg width={46 * size} height={32 * size} viewBox="0 0 46 32" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="23" cy="20" rx="13" ry="10" fill="#EF4444" stroke="#DC2626" strokeWidth="1.2" />
+            <path d="M10 18 Q4 14 2 9 Q2 5 6 7 Q8 10 6 14 Q8 16 10 18" fill="#F87171" stroke="#DC2626" strokeWidth="1" />
+            <path d="M36 18 Q42 14 44 9 Q44 5 40 7 Q38 10 40 14 Q38 16 36 18" fill="#F87171" stroke="#DC2626" strokeWidth="1" />
+            <path d="M14 24 Q10 28 8 31" stroke="#DC2626" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+            <path d="M17 26 Q14 30 12 32" stroke="#DC2626" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+            <path d="M32 24 Q36 28 38 31" stroke="#DC2626" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+            <path d="M29 26 Q32 30 34 32" stroke="#DC2626" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+            <circle cx="17" cy="14" r="2.5" fill="white" stroke="#DC2626" strokeWidth="0.8" />
+            <circle cx="29" cy="14" r="2.5" fill="white" stroke="#DC2626" strokeWidth="0.8" />
+            <circle cx="17" cy="14" r="1" fill="#1C1917" />
+            <circle cx="29" cy="14" r="1" fill="#1C1917" />
+        </svg>
+    );
+}
+
+function TreasureChest({ size = 1 }) {
+    return (
+        <svg width={52 * size} height={42 * size} viewBox="0 0 52 42" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="22" width="44" height="20" rx="3" fill="#92400E" stroke="#78350F" strokeWidth="1.5" />
+            <path d="M4 22 Q4 10 26 8 Q48 10 48 22 Z" fill="#B45309" stroke="#78350F" strokeWidth="1.5" />
+            <line x1="4" y1="22" x2="48" y2="22" stroke="#78350F" strokeWidth="1.5" />
+            <rect x="20" y="19" width="12" height="8" rx="2" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
+            <circle cx="26" cy="23" r="2.5" fill="#FEF3C7" stroke="#D97706" strokeWidth="0.8" />
+            <circle cx="10" cy="38" r="3" fill="#FCD34D" stroke="#D97706" strokeWidth="0.8" />
+            <circle cx="19" cy="40" r="3.5" fill="#F59E0B" stroke="#D97706" strokeWidth="0.8" />
+            <circle cx="28" cy="39" r="2.5" fill="#FCD34D" stroke="#D97706" strokeWidth="0.8" />
+            <circle cx="37" cy="38" r="3" fill="#F59E0B" stroke="#D97706" strokeWidth="0.8" />
+            <rect x="4" y="22" width="6" height="20" rx="3" fill="#78350F" opacity="0.35" />
+            <rect x="42" y="22" width="6" height="20" rx="3" fill="#78350F" opacity="0.35" />
+        </svg>
+    );
+}
+
+function GoldenCastle({ size = 1 }) {
+    return (
+        <svg width={56 * size} height={64 * size} viewBox="0 0 56 64" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="30" width="36" height="34" fill="#FCD34D" stroke="#D97706" strokeWidth="1.5" />
+            <rect x="2" y="26" width="16" height="38" fill="#F59E0B" stroke="#D97706" strokeWidth="1.5" />
+            <rect x="38" y="26" width="16" height="38" fill="#F59E0B" stroke="#D97706" strokeWidth="1.5" />
+            {[2, 7, 12].map((x) => <rect key={x} x={x} y={18} width={5} height={10} rx="1" fill="#FCD34D" stroke="#D97706" strokeWidth="1" />)}
+            {[39, 44, 49].map((x) => <rect key={x} x={x} y={18} width={5} height={10} rx="1" fill="#FCD34D" stroke="#D97706" strokeWidth="1" />)}
+            {[14, 21, 28, 35].map((x) => <rect key={x} x={x} y={22} width={5} height={10} rx="1" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />)}
+            <path d="M20 64 L20 46 Q28 40 36 46 L36 64" fill="#78350F" stroke="#D97706" strokeWidth="1.2" />
+            <rect x="4" y="30" width="7" height="9" rx="3" fill="#FFFBEB" stroke="#D97706" strokeWidth="1" />
+            <rect x="45" y="30" width="7" height="9" rx="3" fill="#FFFBEB" stroke="#D97706" strokeWidth="1" />
+            <polygon points="10,18 10,10 18,10 18,18" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
+            <polygon points="38,18 38,10 46,10 46,18" fill="#F59E0B" stroke="#D97706" strokeWidth="1" />
+            <polygon points="10,10 14,4 18,10" fill="#EF4444" stroke="#DC2626" strokeWidth="0.8" />
+            <polygon points="38,10 42,4 46,10" fill="#EF4444" stroke="#DC2626" strokeWidth="0.8" />
+        </svg>
+    );
+}
+
 const STORE_ITEMS = [
     { id: "plant_frond", name: "Leafy Frond", price: 20, category: "plants", render: (size) => <PlantFrond size={size} /> },
     { id: "plant_bush", name: "Bushy Clover", price: 35, category: "plants", render: (size) => <PlantBush size={size} /> },
     { id: "moss_clump", name: "Moss Ball", price: 25, category: "plants", render: (size) => <MossClump size={size} /> },
     { id: "fern_plant", name: "Java Fern", price: 30, category: "plants", render: (size) => <FernPlant size={size} /> },
+    { id: "anubias", name: "Anubias", price: 40, category: "plants", render: (size) => <AnubiaPlant size={size} /> },
+    { id: "amazon_sword", name: "Amazon Sword", price: 50, category: "plants", render: (size) => <AmazonSword size={size} /> },
+    { id: "bamboo_stalks", name: "Bamboo", price: 45, category: "plants", render: (size) => <BambooStalks size={size} /> },
+    { id: "pebble_cluster", name: "Pebbles", price: 30, category: "rocks", render: (size) => <PebbleCluster size={size} /> },
+    { id: "slate_stack", name: "Slate Stack", price: 45, category: "rocks", render: (size) => <SlateStack size={size} /> },
+    { id: "big_boulder", name: "Big Boulder", price: 60, category: "rocks", render: (size) => <BigBoulder size={size} /> },
     { id: "driftwood", name: "Driftwood", price: 45, category: "decor", render: (size) => <Driftwood size={size} /> },
     { id: "fish_cave", name: "Fish Cave", price: 80, category: "decor", render: (size) => <FishCave size={size} /> },
+    { id: "ceramic_pot", name: "Ceramic Pot", price: 55, category: "decor", render: (size) => <CeramicPot size={size} /> },
+    { id: "ancient_ruins", name: "Ancient Ruins", price: 90, category: "decor", render: (size) => <AncientRuins size={size} /> },
+    { id: "starfish", name: "Starfish", price: 50, category: "critters", render: (size) => <Starfish size={size} /> },
+    { id: "sea_urchin", name: "Sea Urchin", price: 60, category: "critters", render: (size) => <SeaUrchin size={size} /> },
+    { id: "decor_crab", name: "Crab", price: 70, category: "critters", render: (size) => <DecorCrab size={size} /> },
+    { id: "treasure_chest", name: "Treasure Chest", price: 150, category: "rare", render: (size) => <TreasureChest size={size} /> },
+    { id: "golden_castle", name: "Golden Castle", price: 250, category: "rare", render: (size) => <GoldenCastle size={size} /> },
+];
+
+const STORE_CATEGORIES = [
+    { id: "plants", label: "Plants 🌿", accent: "#22C55E", previewBg: "#F4FBF7" },
+    { id: "rocks", label: "Rocks 🪨", accent: "#A8A29E", previewBg: "#FAF9F6" },
+    { id: "decor", label: "Decor", accent: "#78716C", previewBg: "#FAF9F6" },
+    { id: "critters", label: "Critters 🦀", accent: "#FB923C", previewBg: "#FFF7ED" },
+    { id: "rare", label: "Rare ✨", accent: "#F59E0B", previewBg: "#FFFBEB" },
 ];
 
 const STORE_ITEM_MAP = Object.fromEntries(STORE_ITEMS.map((i) => [i.id, i]));
@@ -1361,7 +1572,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                             <Check size={12} color="#1D9E75" />
                                             {name}
                                         </span>
-                                        {count > 1 && <span style={{ fontWeight: 700, fontSize: "12px", color: "#1D9E75" }}>×{count}</span>}
+                                        <span style={{ fontWeight: 700, fontSize: "12px", color: "#1D9E75" }}>×{count}</span>
                                     </div>
                                 ))}
                             </div>
@@ -1405,7 +1616,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                             <Check size={12} color="#1D9E75" />
                                             {name}
                                         </span>
-                                        {count > 1 && <span style={{ fontWeight: 700, fontSize: "12px", color: "#1D9E75" }}>×{count}</span>}
+                                        <span style={{ fontWeight: 700, fontSize: "12px", color: "#1D9E75" }}>×{count}</span>
                                     </div>
                                 ))}
                             </div>
@@ -1446,93 +1657,55 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     </div>
 
-                    <Section title="Plants" accentColor="#22C55E">
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                            {STORE_ITEMS.filter((i) => i.category === "plants").map((item) => {
-                                const canAfford = coinBalance >= item.price;
-                                return (
-                                    <div key={item.id} style={{
-                                        padding: "12px", background: "white",
-                                        border: "2px solid #2C2C2A", borderRadius: "12px",
-                                        boxShadow: boxShadow("#22C55E", 2, 2),
-                                        display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
-                                    }}>
-                                        <div style={{
-                                            width: "100%", height: "90px", display: "flex",
-                                            alignItems: "flex-end", justifyContent: "center",
-                                            background: "#F4FBF7", borderRadius: "8px",
-                                            border: "1.5px solid #e8e8e8", padding: "6px 0",
-                                        }}>
-                                            {item.render(1)}
-                                        </div>
-                                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#2C2C2A" }}>{item.name}</div>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", fontWeight: 700, color: "#78350F" }}>
-                                            <Coins size={13} strokeWidth={2.5} /> {item.price}
-                                        </div>
-                                        <button
-                                            onClick={() => purchaseItem(item.id)}
-                                            disabled={!canAfford}
-                                            style={{
-                                                width: "100%", padding: "8px 10px",
-                                                background: canAfford ? "#22C55E" : "#e8e8e8",
-                                                color: canAfford ? "white" : "#888780",
-                                                border: "2px solid #2C2C2A", borderRadius: "8px",
-                                                fontFamily: FONT, fontSize: "12px", fontWeight: 700,
-                                                cursor: canAfford ? "pointer" : "not-allowed",
-                                                boxShadow: canAfford ? boxShadow("#2C2C2A", 2, 2) : "none",
-                                            }}
-                                        >
-                                            {canAfford ? "Buy" : "Not enough"}
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </Section>
-
-                    <Section title="Decor" accentColor="#78716C">
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                            {STORE_ITEMS.filter((i) => i.category === "decor").map((item) => {
-                                const canAfford = coinBalance >= item.price;
-                                return (
-                                    <div key={item.id} style={{
-                                        padding: "12px", background: "white",
-                                        border: "2px solid #2C2C2A", borderRadius: "12px",
-                                        boxShadow: boxShadow("#78716C", 2, 2),
-                                        display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
-                                    }}>
-                                        <div style={{
-                                            width: "100%", height: "90px", display: "flex",
-                                            alignItems: "flex-end", justifyContent: "center",
-                                            background: "#FAF9F6", borderRadius: "8px",
-                                            border: "1.5px solid #e8e8e8", padding: "6px 0",
-                                        }}>
-                                            {item.render(1)}
-                                        </div>
-                                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#2C2C2A" }}>{item.name}</div>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", fontWeight: 700, color: "#78350F" }}>
-                                            <Coins size={13} strokeWidth={2.5} /> {item.price}
-                                        </div>
-                                        <button
-                                            onClick={() => purchaseItem(item.id)}
-                                            disabled={!canAfford}
-                                            style={{
-                                                width: "100%", padding: "8px 10px",
-                                                background: canAfford ? "#78716C" : "#e8e8e8",
-                                                color: canAfford ? "white" : "#888780",
-                                                border: "2px solid #2C2C2A", borderRadius: "8px",
-                                                fontFamily: FONT, fontSize: "12px", fontWeight: 700,
-                                                cursor: canAfford ? "pointer" : "not-allowed",
-                                                boxShadow: canAfford ? boxShadow("#2C2C2A", 2, 2) : "none",
-                                            }}
-                                        >
-                                            {canAfford ? "Buy" : "Not enough"}
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </Section>
+                    {STORE_CATEGORIES.map((cat) => {
+                        const catItems = STORE_ITEMS.filter((i) => i.category === cat.id);
+                        if (catItems.length === 0) return null;
+                        return (
+                            <Section key={cat.id} title={cat.label} accentColor={cat.accent}>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                                    {catItems.map((item) => {
+                                        const canAfford = coinBalance >= item.price;
+                                        return (
+                                            <div key={item.id} style={{
+                                                padding: "12px", background: "white",
+                                                border: "2px solid #2C2C2A", borderRadius: "12px",
+                                                boxShadow: boxShadow(cat.accent, 2, 2),
+                                                display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
+                                            }}>
+                                                <div style={{
+                                                    width: "100%", height: "90px", display: "flex",
+                                                    alignItems: "flex-end", justifyContent: "center",
+                                                    background: cat.previewBg, borderRadius: "8px",
+                                                    border: "1.5px solid #e8e8e8", padding: "6px 0",
+                                                }}>
+                                                    {item.render(1)}
+                                                </div>
+                                                <div style={{ fontSize: "13px", fontWeight: 700, color: "#2C2C2A" }}>{item.name}</div>
+                                                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", fontWeight: 700, color: "#78350F" }}>
+                                                    <Coins size={13} strokeWidth={2.5} /> {item.price}
+                                                </div>
+                                                <button
+                                                    onClick={() => purchaseItem(item.id)}
+                                                    disabled={!canAfford}
+                                                    style={{
+                                                        width: "100%", padding: "8px 10px",
+                                                        background: canAfford ? cat.accent : "#e8e8e8",
+                                                        color: canAfford ? "white" : "#888780",
+                                                        border: "2px solid #2C2C2A", borderRadius: "8px",
+                                                        fontFamily: FONT, fontSize: "12px", fontWeight: 700,
+                                                        cursor: canAfford ? "pointer" : "not-allowed",
+                                                        boxShadow: canAfford ? boxShadow("#2C2C2A", 2, 2) : "none",
+                                                    }}
+                                                >
+                                                    {canAfford ? "Buy" : "Not enough"}
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </Section>
+                        );
+                    })}
 
                     {purchases.length > 0 && (
                         <Section title="Your Items" accentColor="#7F77DD">
