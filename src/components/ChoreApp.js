@@ -576,66 +576,90 @@ const STORE_CATEGORIES = [
 const STORE_ITEM_MAP = Object.fromEntries(STORE_ITEMS.map((i) => [i.id, i]));
 
 // =========== DRAGGABLE PURCHASE ===========
-function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, children }) {
+function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onOutsideChange, children }) {
     const [pos, setPos] = useState({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
     const [isDragging, setIsDragging] = useState(false);
+    const [isOutside, setIsOutside] = useState(false);
     const dragState = useRef(null);
 
     useEffect(() => {
         if (!dragState.current) setPos({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
     }, [purchase.x, purchase.y]);
 
-    const clampPos = (rect, dx, dy, origX, origY) => ({
-        x: Math.max(2, Math.min(98, origX + (dx / rect.width) * 100)),
-        y: Math.max(8, Math.min(85, origY + (-dy / rect.height) * 100)),
+    const calcPos = (rect, clientX, clientY, startX, startY, origX, origY) => ({
+        x: Math.max(2, Math.min(98, origX + ((clientX - startX) / rect.width) * 100)),
+        y: Math.max(8, Math.min(85, origY + (-(clientY - startY) / rect.height) * 100)),
     });
+
+    const checkOutside = (clientX, clientY, rect) =>
+        clientX < rect.left || clientX > rect.right ||
+        clientY < rect.top || clientY > rect.bottom;
 
     const handlePointerDown = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) { }
+
+        const startX = e.clientX, startY = e.clientY;
+        const origX = pos.x, origY = pos.y;
+        const pointerId = e.pointerId;
+        dragState.current = { pointerId };
         setIsDragging(true);
-        dragState.current = { startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, pointerId: e.pointerId };
-    };
 
-    const handlePointerMove = (e) => {
-        if (!dragState.current || !tankRef.current) return;
-        if (e.pointerId !== dragState.current.pointerId) return;
-        const rect = tankRef.current.getBoundingClientRect();
-        const next = clampPos(rect, e.clientX - dragState.current.startX, e.clientY - dragState.current.startY, dragState.current.origX, dragState.current.origY);
-        setPos(next);
-    };
+        const onMove = (ev) => {
+            if (!dragState.current || ev.pointerId !== pointerId || !tankRef.current) return;
+            const rect = tankRef.current.getBoundingClientRect();
+            const outside = checkOutside(ev.clientX, ev.clientY, rect);
+            setIsOutside(outside);
+            onOutsideChange?.(outside);
+            if (!outside) {
+                setPos(calcPos(rect, ev.clientX, ev.clientY, startX, startY, origX, origY));
+            }
+        };
 
-    const handlePointerUp = (e) => {
-        if (!dragState.current || !tankRef.current) return;
-        if (e.pointerId !== dragState.current.pointerId) return;
-        const rect = tankRef.current.getBoundingClientRect();
-        const outside = e.clientX < rect.left - 10 || e.clientX > rect.right + 10 ||
-                        e.clientY < rect.top - 10 || e.clientY > rect.bottom + 10;
-        const final = clampPos(rect, e.clientX - dragState.current.startX, e.clientY - dragState.current.startY, dragState.current.origX, dragState.current.origY);
-        dragState.current = null;
-        setIsDragging(false);
-        if (outside) {
+        const onUp = (ev) => {
+            if (!dragState.current || ev.pointerId !== pointerId) return;
+            cleanup();
+            dragState.current = null;
+            setIsDragging(false);
+            setIsOutside(false);
+            onOutsideChange?.(false);
+            if (!tankRef.current) return;
+            const rect = tankRef.current.getBoundingClientRect();
+            const outside = checkOutside(ev.clientX, ev.clientY, rect);
+            if (outside) {
+                setPos({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
+                onRemove(purchase.id);
+            } else {
+                const final = calcPos(rect, ev.clientX, ev.clientY, startX, startY, origX, origY);
+                setPos(final);
+                onMoveEnd(purchase.id, Math.round(final.x), Math.round(final.y));
+            }
+        };
+
+        const onCancel = (ev) => {
+            if (!dragState.current || ev.pointerId !== pointerId) return;
+            cleanup();
+            dragState.current = null;
+            setIsDragging(false);
+            setIsOutside(false);
+            onOutsideChange?.(false);
             setPos({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
-            onRemove(purchase.id);
-        } else {
-            setPos(final);
-            onMoveEnd(purchase.id, Math.round(final.x), Math.round(final.y));
-        }
-    };
+        };
 
-    const handlePointerCancel = () => {
-        dragState.current = null;
-        setIsDragging(false);
-        setPos({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
+        const cleanup = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onCancel);
+        };
+
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onCancel);
     };
 
     return (
         <div
             onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerCancel}
             style={{
                 position: "absolute",
                 left: `${pos.x}%`,
@@ -645,10 +669,13 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, children })
                 zIndex: isDragging ? 20 : 4,
                 touchAction: "none",
                 userSelect: "none",
-                filter: isDragging
-                    ? "drop-shadow(0 8px 16px rgba(0,0,0,0.5))"
-                    : "drop-shadow(0 1px 1px rgba(0,0,0,0.25))",
-                transition: isDragging ? "none" : "transform 0.15s ease, filter 0.15s ease",
+                filter: isOutside
+                    ? "drop-shadow(0 6px 12px rgba(220,38,38,0.8)) sepia(1) saturate(3) hue-rotate(300deg)"
+                    : isDragging
+                        ? "drop-shadow(0 8px 16px rgba(0,0,0,0.5))"
+                        : "drop-shadow(0 1px 1px rgba(0,0,0,0.25))",
+                opacity: isOutside ? 0.75 : 1,
+                transition: isDragging ? "none" : "transform 0.15s ease, filter 0.15s ease, opacity 0.15s ease",
             }}
         >
             {children}
@@ -659,6 +686,7 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, children })
 // =========== MINIMAL AQUARIUM ===========
 function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase, onRemovePurchase }) {
     const tankRef = useRef(null);
+    const [dragOutside, setDragOutside] = useState(false);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpDur = { ecstatic: "30s", happy: "35s", content: "40s", meh: "50s", sad: "60s", miserable: "80s" }[mood] || "40s";
     const schoolDur = { ecstatic: "24s", happy: "29s", content: "34s", meh: "43s", sad: "54s", miserable: "70s" }[mood] || "34s";
@@ -926,11 +954,42 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                         tankRef={tankRef}
                         onMoveEnd={onMovePurchase}
                         onRemove={onRemovePurchase}
+                        onOutsideChange={setDragOutside}
                     >
                         {item.render(0.75)}
                     </DraggablePurchase>
                 );
             })}
+
+            {/* Drag-outside-to-remove overlay */}
+            {dragOutside && (
+                <div style={{
+                    position: "absolute", inset: 0, zIndex: 25,
+                    background: "rgba(220,38,38,0.35)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    pointerEvents: "none",
+                    borderRadius: "10px",
+                }}>
+                    <div style={{
+                        background: "rgba(220,38,38,0.9)", color: "white",
+                        padding: "6px 14px", borderRadius: "20px",
+                        fontSize: "13px", fontWeight: 700, fontFamily: FONT,
+                    }}>
+                        🗑️ release to remove
+                    </div>
+                </div>
+            )}
+
+            {/* Static drag hint when items are placed */}
+            {purchases.some((p) => p.x != null) && !dragOutside && (
+                <div style={{
+                    position: "absolute", top: "6px", right: "8px", zIndex: 6,
+                    fontSize: "9px", fontWeight: 600, color: "rgba(255,255,255,0.45)",
+                    pointerEvents: "none", fontFamily: FONT,
+                }}>
+                    drag out to remove
+                </div>
+            )}
 
             {/* Status */}
             <div style={{
