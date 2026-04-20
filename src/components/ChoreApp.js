@@ -113,6 +113,7 @@ const computeStreak = (chores, completions) => {
     let todayCounts = true;
     let anyActiveToday = false;
     for (const chore of chores) {
+        if (chore.one_time) continue;
         const freqDays = FREQ[chore.freq]?.days || 7;
         const choreCreated = chore.created_at ? parseDate(chore.created_at.split("T")[0]) : t;
         if (t < choreCreated) continue;
@@ -150,6 +151,7 @@ const computeStreak = (chores, completions) => {
         let anyActive = false;
 
         for (const chore of chores) {
+            if (chore.one_time) continue;
             const freqDays = FREQ[chore.freq]?.days || 7;
             const choreCreated = chore.created_at ? parseDate(chore.created_at.split("T")[0]) : t;
             if (checkDate < choreCreated) continue;
@@ -946,6 +948,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [codeCopied, setCodeCopied] = useState(false);
     const [rewardAnim, setRewardAnim] = useState(null);
     const [newChoreDesc, setNewChoreDesc] = useState("");
+    const [newChoreOneTime, setNewChoreOneTime] = useState(false);
+    const [newChoreDeadline, setNewChoreDeadline] = useState("");
     const [linkCopied, setLinkCopied] = useState(false);
     const [notifStatus, setNotifStatus] = useState("default"); // default | granted | denied | subscribing
     const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, overdueAlerts: true, streakWarnings: true, choreDoneAlerts: true });
@@ -1083,6 +1087,19 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         if (chore.snoozed_until && chore.snoozed_until > todayStr) {
             return { status: "snoozed", snoozeUntil: parseDate(chore.snoozed_until), lastDone: null };
         }
+
+        if (chore.one_time) {
+            const anyComp = completions.find((c) => c.chore_id === chore.id);
+            if (anyComp) return { status: "done", one_time_completed: true, lastDone: { date: parseDate(anyComp.completed_date), userId: anyComp.user_id } };
+            if (chore.deadline) {
+                const daysLeft = daysBetween(today(), parseDate(chore.deadline));
+                if (daysLeft < 0) return { status: "overdue", daysOverdue: -daysLeft, lastDone: null };
+                if (daysLeft === 0) return { status: "due", daysOverdue: 0, lastDone: null };
+                return { status: "done", daysUntilDue: daysLeft, lastDone: null };
+            }
+            return { status: "due", daysOverdue: 0, lastDone: null };
+        }
+
         const last = completions
             .filter((c) => c.chore_id === chore.id)
             .sort((a, b) => new Date(b.completed_date) - new Date(a.completed_date))[0];
@@ -1134,28 +1151,32 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     // TODAY: anything due/overdue OR completed today, AND short-cycle stuff due within 1 day
     const todayList = choresWithStatus.filter((c) => {
         if (c.status === "snoozed") return false;
+        if (c.one_time_completed && !c.completedToday) return false;
         if (c.completedToday) return true;
         if (c.status === "due" || c.status === "overdue") return true;
         // Show short-cycle chores that are due tomorrow (1 day away) in Today
-        if (c.status === "done" && c.daysUntilDue <= 1) return true;
+        if (!c.one_time && c.status === "done" && c.daysUntilDue <= 1) return true;
         return false;
     });
 
     // THIS WEEK: due within 7 days, not already in Today
     const weekList = choresWithStatus
         .filter((c) => !todayList.includes(c))
+        .filter((c) => !c.one_time_completed)
         .filter((c) => c.status === "done" && (c.daysUntilDue || 0) <= 7)
         .sort((a, b) => (a.daysUntilDue || 0) - (b.daysUntilDue || 0));
 
     // THIS MONTH: due within 30 days, not in Today or Week
     const monthList = choresWithStatus
         .filter((c) => !todayList.includes(c) && !weekList.includes(c))
+        .filter((c) => !c.one_time_completed)
         .filter((c) => c.status === "done" && (c.daysUntilDue || 0) <= 30)
         .sort((a, b) => (a.daysUntilDue || 0) - (b.daysUntilDue || 0));
 
     // LONGTERM: everything else
     const longtermList = choresWithStatus
         .filter((c) => !todayList.includes(c) && !weekList.includes(c) && !monthList.includes(c))
+        .filter((c) => !c.one_time_completed)
         .sort((a, b) => (FREQ[a.freq]?.days || 0) - (FREQ[b.freq]?.days || 0));
 
     const myChores = todayList.filter((c) => c.owner_id === currentUser.id);
@@ -1303,9 +1324,20 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         if (!newChoreName.trim() || !profile?.household_id) return;
         const { data, error } = await supabase
             .from("chores")
-            .insert({ name: newChoreName.trim(), freq: newChoreFreq, description: newChoreDesc.trim() || null, household_id: profile.household_id })
+            .insert({
+                name: newChoreName.trim(),
+                freq: newChoreOneTime ? "weekly" : newChoreFreq,
+                description: newChoreDesc.trim() || null,
+                household_id: profile.household_id,
+                one_time: newChoreOneTime,
+                deadline: newChoreOneTime && newChoreDeadline ? newChoreDeadline : null,
+            })
             .select().single();
-        if (!error && data) { setChores((prev) => [...prev, data]); setNewChoreName(""); setNewChoreDesc(""); }
+        if (!error && data) {
+            setChores((prev) => [...prev, data]);
+            setNewChoreName(""); setNewChoreDesc("");
+            setNewChoreOneTime(false); setNewChoreDeadline("");
+        }
     };
 
     const updateChore = async (choreId, updates) => {
@@ -1754,16 +1786,25 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                             <input
                                 type="text" value={newChoreName} onChange={(e) => setNewChoreName(e.target.value)}
-                                placeholder="water the succulents…"
+                                placeholder={newChoreOneTime ? "pick up dry cleaning…" : "water the succulents…"}
                                 onKeyDown={(e) => { if (e.key === "Enter") addChore(); }}
                                 style={{ flex: 1, minWidth: "200px", padding: "10px 12px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "14px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2) }}
                             />
-                            <select
-                                value={newChoreFreq} onChange={(e) => setNewChoreFreq(e.target.value)}
-                                style={{ minWidth: "120px", padding: "10px 8px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2) }}
-                            >
-                                {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                            </select>
+                            {newChoreOneTime ? (
+                                <input
+                                    type="date" value={newChoreDeadline}
+                                    onChange={(e) => setNewChoreDeadline(e.target.value)}
+                                    placeholder="Deadline (optional)"
+                                    style={{ padding: "10px 8px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2) }}
+                                />
+                            ) : (
+                                <select
+                                    value={newChoreFreq} onChange={(e) => setNewChoreFreq(e.target.value)}
+                                    style={{ minWidth: "120px", padding: "10px 8px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2) }}
+                                >
+                                    {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                                </select>
+                            )}
                             <button
                                 onClick={addChore}
                                 style={{ padding: "10px 16px", background: "#7F77DD", color: "white", border: "2px solid #2C2C2A", borderRadius: "10px", cursor: "pointer", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px", fontFamily: FONT, boxShadow: boxShadow("#2C2C2A", 2, 2) }}
@@ -1776,6 +1817,21 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             placeholder="Optional description..."
                             style={{ width: "100%", padding: "8px 12px", border: "2px solid #e8e8e8", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, marginTop: "8px" }}
                         />
+                        <label style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", cursor: "pointer", fontSize: "13px", fontWeight: 600, color: newChoreOneTime ? "#7F77DD" : "#888780", userSelect: "none" }}>
+                            <div
+                                onClick={() => setNewChoreOneTime((v) => !v)}
+                                style={{
+                                    width: "20px", height: "20px", borderRadius: "5px",
+                                    border: "2px solid #2C2C2A", flexShrink: 0,
+                                    background: newChoreOneTime ? "#7F77DD" : "white",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    boxShadow: boxShadow(newChoreOneTime ? "#5B51E0" : "#e8e8e8", 1, 1),
+                                }}
+                            >
+                                {newChoreOneTime && <Check size={12} color="white" strokeWidth={3} />}
+                            </div>
+                            One-time task {newChoreOneTime && <span style={{ fontSize: "11px", color: "#888780", fontWeight: 400 }}>(won't repeat)</span>}
+                        </label>
                     </Section>
 
                     <Section title="Household" accentColor="#D4537E">
@@ -2076,7 +2132,11 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                             </span>
                         ) : (
                             <>
-                                {freqInfo && (
+                                {chore.one_time ? (
+                                    <span style={{ fontSize: "11px", padding: "2px 8px", background: "#EDE9FE", color: "#5B21B6", borderRadius: "6px", fontWeight: 700, border: "1px solid #7C3AED" }}>
+                                        one-time
+                                    </span>
+                                ) : freqInfo && (
                                     <span style={{
                                         fontSize: "11px", padding: "2px 8px",
                                         background: freqInfo.bg, color: freqInfo.text,
@@ -2086,8 +2146,12 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                     </span>
                                 )}
                                 {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {chore.daysOverdue}d overdue!</span>}
-                                {!isOverdue && chore.status === "due" && <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>due today</span>}
-                                {chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>last: {friendlyDate(chore.lastDone.date)}</span>}
+                                {!isOverdue && chore.status === "due" && (
+                                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>
+                                        {chore.one_time && chore.deadline ? `due ${friendlyDate(parseDate(chore.deadline))}` : "due today"}
+                                    </span>
+                                )}
+                                {!chore.one_time && chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>last: {friendlyDate(chore.lastDone.date)}</span>}
                             </>
                         )}
                     </div>
@@ -2158,7 +2222,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
 }
 
 function AnimatedCheckRow({ chore, users, onComplete, variant = "week" }) {
-    const freqInfo = FREQ[chore.freq];
+    const freqInfo = chore.one_time ? null : FREQ[chore.freq];
     const owner = users.find((u) => u.id === chore.owner_id);
     const [checked, setChecked] = useState(false);
     const [removing, setRemoving] = useState(false);
@@ -2170,13 +2234,15 @@ function AnimatedCheckRow({ chore, users, onComplete, variant = "week" }) {
         setTimeout(() => onComplete(chore.id), 900);
     };
 
-    const dueText = chore.status === "done"
-        ? (chore.daysUntilDue > 30
-            ? `in ${Math.round(chore.daysUntilDue / 30)} months`
-            : `in ${chore.daysUntilDue} ${chore.daysUntilDue === 1 ? "day" : "days"}`)
-        : chore.status === "overdue"
-            ? `${chore.daysOverdue}d overdue`
-            : "due now!";
+    const dueText = chore.one_time && chore.deadline
+        ? `due ${friendlyDate(parseDate(chore.deadline))}`
+        : chore.status === "done"
+            ? (chore.daysUntilDue > 30
+                ? `in ${Math.round(chore.daysUntilDue / 30)} months`
+                : `in ${chore.daysUntilDue} ${chore.daysUntilDue === 1 ? "day" : "days"}`)
+            : chore.status === "overdue"
+                ? `${chore.daysOverdue}d overdue`
+                : "due now!";
 
     const isOverdue = chore.status === "overdue" || chore.status === "due";
 
@@ -2209,11 +2275,12 @@ function AnimatedCheckRow({ chore, users, onComplete, variant = "week" }) {
             </div>
             <span style={{
                 fontSize: "11px", padding: "3px 8px",
-                background: freqInfo?.bg, color: freqInfo?.text,
+                background: chore.one_time ? "#EDE9FE" : (freqInfo?.bg || "#f5f4f1"),
+                color: chore.one_time ? "#5B21B6" : (freqInfo?.text || "#888780"),
                 borderRadius: "6px", fontWeight: 700, flexShrink: 0,
-                border: "1px solid " + (freqInfo?.color || "#ccc"),
+                border: "1px solid " + (chore.one_time ? "#7C3AED" : (freqInfo?.color || "#ccc")),
             }}>
-                {freqInfo?.label}
+                {chore.one_time ? "one-time" : freqInfo?.label}
             </span>
             <div
                 onClick={handleClick} role="button" tabIndex={0}
@@ -2244,15 +2311,19 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
     const [editFreq, setEditFreq] = useState(chore.freq);
     const [editOwner, setEditOwner] = useState(chore.owner_id || "");
     const [editReward, setEditReward] = useState(String(chore.reward ?? 5));
+    const [editOneTime, setEditOneTime] = useState(chore.one_time || false);
+    const [editDeadline, setEditDeadline] = useState(chore.deadline || "");
 
     const handleSave = () => {
         const rewardNum = Math.max(0, parseInt(editReward, 10) || 0);
         onUpdate(chore.id, {
             name: editName.trim() || chore.name,
             description: editDesc.trim() || null,
-            freq: editFreq,
+            freq: editOneTime ? "weekly" : editFreq,
             owner_id: editOwner || null,
             reward: rewardNum,
+            one_time: editOneTime,
+            deadline: editOneTime && editDeadline ? editDeadline : null,
         });
         onAssign(chore.id, editOwner || null);
         setEditing(false);
@@ -2264,6 +2335,8 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
         setEditFreq(chore.freq);
         setEditOwner(chore.owner_id || "");
         setEditReward(String(chore.reward ?? 5));
+        setEditOneTime(chore.one_time || false);
+        setEditDeadline(chore.deadline || "");
         setEditing(false);
     };
 
@@ -2284,16 +2357,28 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                     style={{ width: "100%", padding: "6px 10px", border: "2px solid #e8e8e8", borderRadius: "8px", fontSize: "12px", fontFamily: FONT, marginBottom: "8px", boxSizing: "border-box" }}
                 />
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", marginBottom: "6px" }}>
-                    <select value={editFreq} onChange={(e) => setEditFreq(e.target.value)}
-                        style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1, minWidth: "100px" }}>
-                        {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                    </select>
+                    {editOneTime ? (
+                        <input type="date" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)}
+                            placeholder="Deadline (optional)"
+                            style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1 }} />
+                    ) : (
+                        <select value={editFreq} onChange={(e) => setEditFreq(e.target.value)}
+                            style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1, minWidth: "100px" }}>
+                            {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                        </select>
+                    )}
                     <select value={editOwner} onChange={(e) => setEditOwner(e.target.value)}
                         style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1, minWidth: "100px" }}>
                         <option value="">Unassigned</option>
                         {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                 </div>
+                <label style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 600, color: editOneTime ? "#5B21B6" : "#888780", userSelect: "none" }}>
+                    <div onClick={() => setEditOneTime((v) => !v)} style={{ width: "18px", height: "18px", borderRadius: "4px", border: "2px solid #2C2C2A", flexShrink: 0, background: editOneTime ? "#7C3AED" : "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {editOneTime && <Check size={11} color="white" strokeWidth={3} />}
+                    </div>
+                    One-time task
+                </label>
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
                     <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#78350F", background: "#FEF3C7", padding: "6px 10px", border: "2px solid #2C2C2A", borderRadius: "6px", flex: 1, minWidth: "140px" }}>
                         <Coins size={12} strokeWidth={2.5} /> Reward
@@ -2324,6 +2409,12 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: "14px", fontWeight: 600 }}>{chore.name}</div>
                 {chore.description && <div style={{ fontSize: "11px", color: "#888780", marginTop: "2px", fontStyle: "italic" }}>{chore.description}</div>}
+                {chore.one_time && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
+                        <span style={{ fontSize: "10px", padding: "1px 6px", background: "#EDE9FE", color: "#5B21B6", borderRadius: "4px", fontWeight: 700, border: "1px solid #7C3AED" }}>one-time</span>
+                        {chore.deadline && <span style={{ fontSize: "10px", color: "#888780" }}>due {friendlyDate(parseDate(chore.deadline))}</span>}
+                    </div>
+                )}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 700, color: "#78350F", background: "#FEF3C7", padding: "3px 7px", borderRadius: "6px", border: "1.5px solid #F59E0B", flexShrink: 0 }}>
                 <Coins size={11} strokeWidth={2.5} /> {chore.reward ?? 5}
