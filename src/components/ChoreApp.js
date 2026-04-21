@@ -1607,15 +1607,9 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             )}
             {/* BUBBLE TITLE */}
             <div style={{ textAlign: "center", marginBottom: "0.75rem" }}>
-                <span style={{
-                    fontSize: "26px", fontWeight: 900, letterSpacing: "0.5px",
-                    color: "white",
-                    WebkitTextStroke: "2.5px #2C2C2A",
-                    textShadow: "3px 3px 0 #2C2C2A, -1px -1px 0 #2C2C2A, 1px -1px 0 #2C2C2A, -1px 1px 0 #2C2C2A",
-                    fontFamily: "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive",
-                }}>
-                    🐟 My Fishtank
-                </span>
+                <span style={{ fontSize: "22px" }}>🐟</span>
+                <img src="/header.png" alt="My Fishtank" style={{ height: "32px", verticalAlign: "middle", margin: "0 4px" }} draggable={false} />
+                <span style={{ fontSize: "22px" }}>🐟</span>
             </div>
 
             {/* HEADER */}
