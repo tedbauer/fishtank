@@ -1044,7 +1044,45 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [notifStatus, setNotifStatus] = useState("default"); // default | granted | denied | subscribing
     const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, overdueAlerts: true, streakWarnings: true, choreDoneAlerts: true });
     const [streakAnim, setStreakAnim] = useState(false);
+    const [pullDelta, setPullDelta] = useState(0);
     const prevStreakRef = useRef(null);
+    const pullRef = useRef({ active: false, startY: 0, delta: 0 });
+
+    useEffect(() => {
+        const THRESHOLD = 64;
+        const onTouchStart = (e) => {
+            if (window.scrollY === 0) {
+                pullRef.current = { active: true, startY: e.touches[0].clientY, delta: 0 };
+            }
+        };
+        const onTouchMove = (e) => {
+            if (!pullRef.current.active) return;
+            const dy = e.touches[0].clientY - pullRef.current.startY;
+            if (dy > 0) {
+                pullRef.current.delta = Math.min(dy, THRESHOLD + 20);
+                setPullDelta(pullRef.current.delta);
+            } else {
+                pullRef.current.active = false;
+                setPullDelta(0);
+            }
+        };
+        const onTouchEnd = () => {
+            if (pullRef.current.active && pullRef.current.delta >= THRESHOLD) {
+                window.location.reload();
+            }
+            pullRef.current.active = false;
+            pullRef.current.delta = 0;
+            setPullDelta(0);
+        };
+        document.addEventListener("touchstart", onTouchStart, { passive: true });
+        document.addEventListener("touchmove", onTouchMove, { passive: true });
+        document.addEventListener("touchend", onTouchEnd);
+        return () => {
+            document.removeEventListener("touchstart", onTouchStart);
+            document.removeEventListener("touchmove", onTouchMove);
+            document.removeEventListener("touchend", onTouchEnd);
+        };
+    }, []);
 
     const currentUser = {
         id: user.id,
@@ -1473,8 +1511,32 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         return <div style={{ padding: "3rem", textAlign: "center", color: "#888780", fontFamily: FONT, fontSize: "18px" }}>Loading Chores... 🐟</div>;
     }
 
+    const PULL_THRESHOLD = 64;
+
     return (
         <div style={{ maxWidth: "720px", margin: "0 auto", padding: "1rem", fontFamily: FONT }}>
+            {/* PULL-TO-REFRESH INDICATOR */}
+            {pullDelta > 0 && (
+                <div style={{
+                    position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+                    display: "flex", justifyContent: "center",
+                    pointerEvents: "none",
+                }}>
+                    <div style={{
+                        marginTop: `${Math.min(pullDelta * 0.5, 28)}px`,
+                        background: pullDelta >= PULL_THRESHOLD ? "#1D9E75" : "white",
+                        color: pullDelta >= PULL_THRESHOLD ? "white" : "#2C2C2A",
+                        border: "2px solid #2C2C2A",
+                        borderRadius: "20px",
+                        padding: "5px 14px",
+                        fontSize: "12px", fontWeight: 700, fontFamily: FONT,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                        transition: "background 0.15s, color 0.15s",
+                    }}>
+                        {pullDelta >= PULL_THRESHOLD ? "↑ release to refresh" : "↓ pull to refresh"}
+                    </div>
+                </div>
+            )}
             {/* BUBBLE TITLE */}
             <div style={{ textAlign: "center", marginBottom: "0.75rem" }}>
                 <span style={{
