@@ -219,7 +219,7 @@ const REWARD_MAP = {
 //   + any store item id (plant_frond, fish_cave, golden_castle, …)
 //
 // Supported formats: png, jpg, gif, webp, svg
-const TANKIMAGES = {
+const TANK_IMAGES = {
     fish: "/tank/fish.png",
     // shrimp:         "/tank/shrimp.png",
     // snail:          "/tank/snail.png",
