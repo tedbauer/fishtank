@@ -1508,13 +1508,25 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     };
 
     if (loading) {
-        return <div style={{ padding: "3rem", textAlign: "center", color: "#888780", fontFamily: FONT, fontSize: "18px" }}>Loading Chores... 🐟</div>;
+        return (
+            <div style={{
+                minHeight: "100vh", display: "flex", alignItems: "center",
+                justifyContent: "center", background: "#f8f7f4",
+            }}>
+                <div style={{ textAlign: "center", color: "#888780", fontFamily: FONT }}>
+                    <div style={{ fontSize: "32px", marginBottom: "12px", animation: "ptr-fish-bob 1s ease-in-out infinite" }}>🐟</div>
+                    <div>Loading…</div>
+                </div>
+                <style>{`@keyframes ptr-fish-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }`}</style>
+            </div>
+        );
     }
 
     const PULL_THRESHOLD = 64;
 
     return (
-        <div style={{ maxWidth: "720px", margin: "0 auto", padding: "1rem", fontFamily: FONT }}>
+        <div style={{ maxWidth: "720px", margin: "0 auto", padding: "1rem", fontFamily: FONT, animation: "page-fade-in 0.3s ease" }}>
+            <style>{`@keyframes page-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
             {/* PULL-TO-REFRESH INDICATOR */}
             {pullDelta > 0 && (
                 <div style={{

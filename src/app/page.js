@@ -114,10 +114,11 @@ export default function HomePage() {
         minHeight: "100vh", display: "flex", alignItems: "center",
         justifyContent: "center", background: "#f8f7f4",
       }}>
-        <div style={{ textAlign: "center", color: "#888780" }}>
-          <div style={{ fontSize: "32px", marginBottom: "12px" }}>🐟</div>
+        <div style={{ textAlign: "center", color: "#888780", fontFamily: "sans-serif" }}>
+          <div style={{ fontSize: "32px", marginBottom: "12px", animation: "ptr-fish-bob 1s ease-in-out infinite" }}>🐟</div>
           <div>Loading…</div>
         </div>
+        <style>{`@keyframes ptr-fish-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }`}</style>
       </div>
     );
   }
