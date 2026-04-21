@@ -207,8 +207,52 @@ const REWARD_MAP = {
     biannual: { emoji: "🌈", label: "Rainbow!", color: "#8B5CF6" },
 };
 
+// =========== TANK IMAGE OVERRIDES ===========
+// Drop a hand-drawn image into public/tank/ and add its key here.
+// Comment a line back out to revert to the SVG drawing.
+//
+// Naming guide:
+//   fish        → the main swimming fish
+//   shrimp      → the bottom-crawling shrimp
+//   snail       → the snail
+//   seaweed     → background seaweed sprigs
+//   + any store item id (plant_frond, fish_cave, golden_castle, …)
+//
+// Supported formats: png, jpg, gif, webp, svg
+const TANK_IMAGES = {
+    // fish:           "/tank/fish.png",
+    // shrimp:         "/tank/shrimp.png",
+    // snail:          "/tank/snail.png",
+    // seaweed:        "/tank/seaweed.png",
+    // plant_frond:    "/tank/plant_frond.png",
+    // plant_bush:     "/tank/plant_bush.png",
+    // moss_clump:     "/tank/moss_clump.png",
+    // fern_plant:     "/tank/fern_plant.png",
+    // anubias:        "/tank/anubias.png",
+    // amazon_sword:   "/tank/amazon_sword.png",
+    // bamboo_stalks:  "/tank/bamboo_stalks.png",
+    // pebble_cluster: "/tank/pebble_cluster.png",
+    // slate_stack:    "/tank/slate_stack.png",
+    // big_boulder:    "/tank/big_boulder.png",
+    // driftwood:      "/tank/driftwood.png",
+    // fish_cave:      "/tank/fish_cave.png",
+    // ceramic_pot:    "/tank/ceramic_pot.png",
+    // ancient_ruins:  "/tank/ancient_ruins.png",
+    // starfish:       "/tank/starfish.png",
+    // sea_urchin:     "/tank/sea_urchin.png",
+    // decor_crab:     "/tank/decor_crab.png",
+    // treasure_chest: "/tank/treasure_chest.png",
+    // golden_castle:  "/tank/golden_castle.png",
+};
+
+// Helper: render a tank image, preserving natural aspect ratio
+function TankImg({ src, width, alt = "" }) {
+    return <img src={src} width={width} alt={alt} draggable={false} style={{ display: "block", height: "auto" }} />;
+}
+
 // =========== MINIMAL LINE-ART FISH ===========
 function LineFish({ mood, size = 32 }) {
+    if (TANK_IMAGES.fish) return <TankImg src={TANK_IMAGES.fish} width={size} alt="fish" />;
     const c = {
         ecstatic: "#FFD93D", happy: "#FF6B9D", content: "#C084FC",
         meh: "#999", sad: "#67E8F9", miserable: "#93C5FD",
@@ -230,6 +274,7 @@ function LineFish({ mood, size = 32 }) {
 
 // =========== LINE-ART SHRIMP ===========
 function LineShrimp({ color, size = 24 }) {
+    if (TANK_IMAGES.shrimp) return <TankImg src={TANK_IMAGES.shrimp} width={size} alt="shrimp" />;
     return (
         <svg width={size} height={size * 0.5} viewBox="0 0 20 10" xmlns="http://www.w3.org/2000/svg" fill="none" stroke={color} strokeWidth="0.8" strokeLinecap="round">
             <path d="M4 4 Q8 2 12 3 Q16 4 17 6" />
@@ -246,6 +291,7 @@ function LineShrimp({ color, size = 24 }) {
 
 // =========== LINE-ART SEAWEED ===========
 function LineSeaweed({ color, height = 55 }) {
+    if (TANK_IMAGES.seaweed) return <TankImg src={TANK_IMAGES.seaweed} width={18} alt="seaweed" />;
     return (
         <svg width="18" height={height} viewBox="0 0 18 55" fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round">
             <path d="M9 55 Q6 45 9 35 Q12 25 9 15 Q6 7 9 0" />
@@ -260,6 +306,7 @@ function LineSeaweed({ color, height = 55 }) {
 
 // =========== LINE-ART SNAIL ===========
 function LineSnail({ color, size = 24 }) {
+    if (TANK_IMAGES.snail) return <TankImg src={TANK_IMAGES.snail} width={size} alt="snail" />;
     return (
         <svg width={size} height={size * 0.55} viewBox="0 0 24 13" fill="none" stroke={color} strokeWidth="0.9" strokeLinecap="round">
             <path d="M14 11 Q10 11 8 8 Q7 5 9 3 Q12 1 15 3 Q18 5 17 8 Q15 12 12 11 Q8 10 7 7" />
@@ -543,26 +590,33 @@ function GoldenCastle({ size = 1 }) {
     );
 }
 
+// Each render fn checks TANK_IMAGES[id] first; falls back to SVG component.
+// To replace: drop image in public/tank/<id>.png and uncomment in TANK_IMAGES.
+const mkRender = (id, W, H, Fallback) => (size) =>
+    TANK_IMAGES[id]
+        ? <TankImg src={TANK_IMAGES[id]} width={W * size} alt={id} />
+        : <Fallback size={size} />;
+
 const STORE_ITEMS = [
-    { id: "plant_frond", name: "Leafy Frond", price: 20, category: "plants", render: (size) => <PlantFrond size={size} /> },
-    { id: "plant_bush", name: "Bushy Clover", price: 35, category: "plants", render: (size) => <PlantBush size={size} /> },
-    { id: "moss_clump", name: "Moss Ball", price: 25, category: "plants", render: (size) => <MossClump size={size} /> },
-    { id: "fern_plant", name: "Java Fern", price: 30, category: "plants", render: (size) => <FernPlant size={size} /> },
-    { id: "anubias", name: "Anubias", price: 40, category: "plants", render: (size) => <AnubiaPlant size={size} /> },
-    { id: "amazon_sword", name: "Amazon Sword", price: 50, category: "plants", render: (size) => <AmazonSword size={size} /> },
-    { id: "bamboo_stalks", name: "Bamboo", price: 45, category: "plants", render: (size) => <BambooStalks size={size} /> },
-    { id: "pebble_cluster", name: "Pebbles", price: 30, category: "rocks", render: (size) => <PebbleCluster size={size} /> },
-    { id: "slate_stack", name: "Slate Stack", price: 45, category: "rocks", render: (size) => <SlateStack size={size} /> },
-    { id: "big_boulder", name: "Big Boulder", price: 60, category: "rocks", render: (size) => <BigBoulder size={size} /> },
-    { id: "driftwood", name: "Driftwood", price: 45, category: "decor", render: (size) => <Driftwood size={size} /> },
-    { id: "fish_cave", name: "Fish Cave", price: 80, category: "decor", render: (size) => <FishCave size={size} /> },
-    { id: "ceramic_pot", name: "Ceramic Pot", price: 55, category: "decor", render: (size) => <CeramicPot size={size} /> },
-    { id: "ancient_ruins", name: "Ancient Ruins", price: 90, category: "decor", render: (size) => <AncientRuins size={size} /> },
-    { id: "starfish", name: "Starfish", price: 50, category: "critters", render: (size) => <Starfish size={size} /> },
-    { id: "sea_urchin", name: "Sea Urchin", price: 60, category: "critters", render: (size) => <SeaUrchin size={size} /> },
-    { id: "decor_crab", name: "Crab", price: 70, category: "critters", render: (size) => <DecorCrab size={size} /> },
-    { id: "treasure_chest", name: "Treasure Chest", price: 150, category: "rare", render: (size) => <TreasureChest size={size} /> },
-    { id: "golden_castle", name: "Golden Castle", price: 250, category: "rare", render: (size) => <GoldenCastle size={size} /> },
+    { id: "plant_frond",    name: "Leafy Frond",    price: 20,  category: "plants",   render: mkRender("plant_frond",    28, 64,  PlantFrond) },
+    { id: "plant_bush",     name: "Bushy Clover",   price: 35,  category: "plants",   render: mkRender("plant_bush",     38, 48,  PlantBush) },
+    { id: "moss_clump",     name: "Moss Ball",      price: 25,  category: "plants",   render: mkRender("moss_clump",     32, 22,  MossClump) },
+    { id: "fern_plant",     name: "Java Fern",      price: 30,  category: "plants",   render: mkRender("fern_plant",     30, 56,  FernPlant) },
+    { id: "anubias",        name: "Anubias",        price: 40,  category: "plants",   render: mkRender("anubias",        44, 50,  AnubiaPlant) },
+    { id: "amazon_sword",   name: "Amazon Sword",   price: 50,  category: "plants",   render: mkRender("amazon_sword",   34, 72,  AmazonSword) },
+    { id: "bamboo_stalks",  name: "Bamboo",         price: 45,  category: "plants",   render: mkRender("bamboo_stalks",  38, 66,  BambooStalks) },
+    { id: "pebble_cluster", name: "Pebbles",        price: 30,  category: "rocks",    render: mkRender("pebble_cluster", 50, 26,  PebbleCluster) },
+    { id: "slate_stack",    name: "Slate Stack",    price: 45,  category: "rocks",    render: mkRender("slate_stack",    52, 30,  SlateStack) },
+    { id: "big_boulder",    name: "Big Boulder",    price: 60,  category: "rocks",    render: mkRender("big_boulder",    58, 44,  BigBoulder) },
+    { id: "driftwood",      name: "Driftwood",      price: 45,  category: "decor",    render: mkRender("driftwood",      52, 28,  Driftwood) },
+    { id: "fish_cave",      name: "Fish Cave",      price: 80,  category: "decor",    render: mkRender("fish_cave",      56, 40,  FishCave) },
+    { id: "ceramic_pot",    name: "Ceramic Pot",    price: 55,  category: "decor",    render: mkRender("ceramic_pot",    40, 54,  CeramicPot) },
+    { id: "ancient_ruins",  name: "Ancient Ruins",  price: 90,  category: "decor",    render: mkRender("ancient_ruins",  62, 54,  AncientRuins) },
+    { id: "starfish",       name: "Starfish",       price: 50,  category: "critters", render: mkRender("starfish",       42, 42,  Starfish) },
+    { id: "sea_urchin",     name: "Sea Urchin",     price: 60,  category: "critters", render: mkRender("sea_urchin",     38, 38,  SeaUrchin) },
+    { id: "decor_crab",     name: "Crab",           price: 70,  category: "critters", render: mkRender("decor_crab",     46, 32,  DecorCrab) },
+    { id: "treasure_chest", name: "Treasure Chest", price: 150, category: "rare",     render: mkRender("treasure_chest", 52, 42,  TreasureChest) },
+    { id: "golden_castle",  name: "Golden Castle",  price: 250, category: "rare",     render: mkRender("golden_castle",  56, 64,  GoldenCastle) },
 ];
 
 const STORE_CATEGORIES = [
