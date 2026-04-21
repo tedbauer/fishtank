@@ -219,8 +219,8 @@ const REWARD_MAP = {
 //   + any store item id (plant_frond, fish_cave, golden_castle, …)
 //
 // Supported formats: png, jpg, gif, webp, svg
-const TANK_IMAGES = {
-    // fish:           "/tank/fish.png",
+const TANKIMAGES = {
+    fish: "/tank/fish.png",
     // shrimp:         "/tank/shrimp.png",
     // snail:          "/tank/snail.png",
     // seaweed:        "/tank/seaweed.png",
@@ -598,25 +598,25 @@ const mkRender = (id, W, H, Fallback) => (size) =>
         : <Fallback size={size} />;
 
 const STORE_ITEMS = [
-    { id: "plant_frond",    name: "Leafy Frond",    price: 20,  category: "plants",   render: mkRender("plant_frond",    28, 64,  PlantFrond) },
-    { id: "plant_bush",     name: "Bushy Clover",   price: 35,  category: "plants",   render: mkRender("plant_bush",     38, 48,  PlantBush) },
-    { id: "moss_clump",     name: "Moss Ball",      price: 25,  category: "plants",   render: mkRender("moss_clump",     32, 22,  MossClump) },
-    { id: "fern_plant",     name: "Java Fern",      price: 30,  category: "plants",   render: mkRender("fern_plant",     30, 56,  FernPlant) },
-    { id: "anubias",        name: "Anubias",        price: 40,  category: "plants",   render: mkRender("anubias",        44, 50,  AnubiaPlant) },
-    { id: "amazon_sword",   name: "Amazon Sword",   price: 50,  category: "plants",   render: mkRender("amazon_sword",   34, 72,  AmazonSword) },
-    { id: "bamboo_stalks",  name: "Bamboo",         price: 45,  category: "plants",   render: mkRender("bamboo_stalks",  38, 66,  BambooStalks) },
-    { id: "pebble_cluster", name: "Pebbles",        price: 30,  category: "rocks",    render: mkRender("pebble_cluster", 50, 26,  PebbleCluster) },
-    { id: "slate_stack",    name: "Slate Stack",    price: 45,  category: "rocks",    render: mkRender("slate_stack",    52, 30,  SlateStack) },
-    { id: "big_boulder",    name: "Big Boulder",    price: 60,  category: "rocks",    render: mkRender("big_boulder",    58, 44,  BigBoulder) },
-    { id: "driftwood",      name: "Driftwood",      price: 45,  category: "decor",    render: mkRender("driftwood",      52, 28,  Driftwood) },
-    { id: "fish_cave",      name: "Fish Cave",      price: 80,  category: "decor",    render: mkRender("fish_cave",      56, 40,  FishCave) },
-    { id: "ceramic_pot",    name: "Ceramic Pot",    price: 55,  category: "decor",    render: mkRender("ceramic_pot",    40, 54,  CeramicPot) },
-    { id: "ancient_ruins",  name: "Ancient Ruins",  price: 90,  category: "decor",    render: mkRender("ancient_ruins",  62, 54,  AncientRuins) },
-    { id: "starfish",       name: "Starfish",       price: 50,  category: "critters", render: mkRender("starfish",       42, 42,  Starfish) },
-    { id: "sea_urchin",     name: "Sea Urchin",     price: 60,  category: "critters", render: mkRender("sea_urchin",     38, 38,  SeaUrchin) },
-    { id: "decor_crab",     name: "Crab",           price: 70,  category: "critters", render: mkRender("decor_crab",     46, 32,  DecorCrab) },
-    { id: "treasure_chest", name: "Treasure Chest", price: 150, category: "rare",     render: mkRender("treasure_chest", 52, 42,  TreasureChest) },
-    { id: "golden_castle",  name: "Golden Castle",  price: 250, category: "rare",     render: mkRender("golden_castle",  56, 64,  GoldenCastle) },
+    { id: "plant_frond", name: "Leafy Frond", price: 20, category: "plants", render: mkRender("plant_frond", 28, 64, PlantFrond) },
+    { id: "plant_bush", name: "Bushy Clover", price: 35, category: "plants", render: mkRender("plant_bush", 38, 48, PlantBush) },
+    { id: "moss_clump", name: "Moss Ball", price: 25, category: "plants", render: mkRender("moss_clump", 32, 22, MossClump) },
+    { id: "fern_plant", name: "Java Fern", price: 30, category: "plants", render: mkRender("fern_plant", 30, 56, FernPlant) },
+    { id: "anubias", name: "Anubias", price: 40, category: "plants", render: mkRender("anubias", 44, 50, AnubiaPlant) },
+    { id: "amazon_sword", name: "Amazon Sword", price: 50, category: "plants", render: mkRender("amazon_sword", 34, 72, AmazonSword) },
+    { id: "bamboo_stalks", name: "Bamboo", price: 45, category: "plants", render: mkRender("bamboo_stalks", 38, 66, BambooStalks) },
+    { id: "pebble_cluster", name: "Pebbles", price: 30, category: "rocks", render: mkRender("pebble_cluster", 50, 26, PebbleCluster) },
+    { id: "slate_stack", name: "Slate Stack", price: 45, category: "rocks", render: mkRender("slate_stack", 52, 30, SlateStack) },
+    { id: "big_boulder", name: "Big Boulder", price: 60, category: "rocks", render: mkRender("big_boulder", 58, 44, BigBoulder) },
+    { id: "driftwood", name: "Driftwood", price: 45, category: "decor", render: mkRender("driftwood", 52, 28, Driftwood) },
+    { id: "fish_cave", name: "Fish Cave", price: 80, category: "decor", render: mkRender("fish_cave", 56, 40, FishCave) },
+    { id: "ceramic_pot", name: "Ceramic Pot", price: 55, category: "decor", render: mkRender("ceramic_pot", 40, 54, CeramicPot) },
+    { id: "ancient_ruins", name: "Ancient Ruins", price: 90, category: "decor", render: mkRender("ancient_ruins", 62, 54, AncientRuins) },
+    { id: "starfish", name: "Starfish", price: 50, category: "critters", render: mkRender("starfish", 42, 42, Starfish) },
+    { id: "sea_urchin", name: "Sea Urchin", price: 60, category: "critters", render: mkRender("sea_urchin", 38, 38, SeaUrchin) },
+    { id: "decor_crab", name: "Crab", price: 70, category: "critters", render: mkRender("decor_crab", 46, 32, DecorCrab) },
+    { id: "treasure_chest", name: "Treasure Chest", price: 150, category: "rare", render: mkRender("treasure_chest", 52, 42, TreasureChest) },
+    { id: "golden_castle", name: "Golden Castle", price: 250, category: "rare", render: mkRender("golden_castle", 56, 64, GoldenCastle) },
 ];
 
 const STORE_CATEGORIES = [
@@ -1403,7 +1403,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 excludeUserId: user.id,
                 together,
             }),
-        }).catch(() => {});
+        }).catch(() => { });
     };
 
     const notifyPurchase = (itemName) => {
@@ -1417,7 +1417,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 buyerName: currentUser.name,
                 excludeUserId: user.id,
             }),
-        }).catch(() => {});
+        }).catch(() => { });
     };
 
     // Actions
