@@ -40,16 +40,9 @@ export default function LoginPage() {
             fontFamily: FONT,
         }}>
             {/* Same header as main app */}
-            <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-                <span style={{
-                    fontSize: "26px", fontWeight: 900, letterSpacing: "0.5px",
-                    color: "white",
-                    WebkitTextStroke: "2.5px #2C2C2A",
-                    textShadow: "3px 3px 0 #2C2C2A, -1px -1px 0 #2C2C2A, 1px -1px 0 #2C2C2A, -1px 1px 0 #2C2C2A",
-                    fontFamily: "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive",
-                }}>
-                    🐟 My Fishtank
-                </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2rem" }}>
+                <span style={{ fontSize: "32px", lineHeight: 1 }}>🐟</span>
+                <img src="/header.png" alt="My Fishtank" style={{ height: "64px" }} draggable={false} />
             </div>
 
             <div style={{
