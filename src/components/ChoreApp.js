@@ -829,9 +829,11 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
           100% { left: 78%; top: 28px; transform: scaleX(1); }
         }
         @keyframes ${uid}-snail {
-          0%   { left: 15%; }
-          50%  { left: 52%; }
-          100% { left: 15%; }
+          0%   { left: 15%; transform: scaleX(1); }
+          48%  { left: 52%; transform: scaleX(1); }
+          52%  { left: 52%; transform: scaleX(-1); }
+          98%  { left: 15%; transform: scaleX(-1); }
+          100% { left: 15%; transform: scaleX(1); }
         }
         @keyframes reward-drop {
           0% { transform: translateY(-20px); opacity: 0; }
