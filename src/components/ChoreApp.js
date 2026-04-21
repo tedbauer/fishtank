@@ -1654,7 +1654,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 WebkitOverflowScrolling: "touch", scrollbarWidth: "none",
             }}>
                 {[
-                    { id: "today", label: "Today", icon: Sparkles, accent: "#D4537E" },
+                    { id: "today", label: "Today", icon: Home, accent: "#D4537E" },
                     { id: "week", label: "This Week", icon: Clock, accent: "#7F77DD" },
                     { id: "month", label: "This Month", icon: Calendar, accent: "#1D9E75" },
                     { id: "longterm", label: "Long-Term", icon: RotateCcw, accent: "#BA7517" },
