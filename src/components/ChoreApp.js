@@ -222,7 +222,7 @@ const REWARD_MAP = {
 const TANK_IMAGES = {
     fish: "/tank/fish.png",
     // shrimp:         "/tank/shrimp.png",
-    // snail:          "/tank/snail.png",
+    snail: "/tank/snail.png",
     // seaweed:        "/tank/seaweed.png",
     // plant_frond:    "/tank/plant_frond.png",
     // plant_bush:     "/tank/plant_bush.png",
