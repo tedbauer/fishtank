@@ -1508,7 +1508,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 </div>
                 <div style={{ display: "flex", gap: "6px" }}>
                     <button
-                        onClick={() => loadData()}
+                        onClick={() => window.location.reload()}
                         style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "4px", background: "white", border: "2px solid #2C2C2A", borderRadius: "8px", padding: "6px 10px", cursor: "pointer", color: "#2C2C2A", fontFamily: FONT, fontWeight: 600, boxShadow: boxShadow("#2C2C2A", 2, 2) }}
                         title="Refresh"
                     >
