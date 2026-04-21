@@ -1100,18 +1100,22 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [streakAnim, setStreakAnim] = useState(false);
     const [pullDelta, setPullDelta] = useState(0);
     const prevStreakRef = useRef(null);
-    const pullRef = useRef({ active: false, startY: 0, delta: 0 });
+    const pullRef = useRef({ active: false, startY: 0, delta: 0, id: null });
 
     useEffect(() => {
         const THRESHOLD = 64;
         const onTouchStart = (e) => {
-            if (window.scrollY === 0) {
-                pullRef.current = { active: true, startY: e.touches[0].clientY, delta: 0 };
+            if (e.target.closest("[data-no-ptr]")) return;
+            if (window.scrollY < 5) {
+                const t = e.touches[0];
+                pullRef.current = { active: true, startY: t.clientY, delta: 0, id: t.identifier };
             }
         };
         const onTouchMove = (e) => {
             if (!pullRef.current.active) return;
-            const dy = e.touches[0].clientY - pullRef.current.startY;
+            const t = Array.from(e.touches).find(x => x.identifier === pullRef.current.id);
+            if (!t) return;
+            const dy = t.clientY - pullRef.current.startY;
             if (dy > 0) {
                 pullRef.current.delta = Math.min(dy, THRESHOLD + 20);
                 setPullDelta(pullRef.current.delta);
@@ -1120,21 +1124,36 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 setPullDelta(0);
             }
         };
-        const onTouchEnd = () => {
-            if (pullRef.current.active && pullRef.current.delta >= THRESHOLD) {
+        const onTouchEnd = (e) => {
+            if (!pullRef.current.active) return;
+            const matched = Array.from(e.changedTouches).some(x => x.identifier === pullRef.current.id);
+            if (!matched) return;
+            if (pullRef.current.delta >= THRESHOLD) {
                 window.location.reload();
             }
             pullRef.current.active = false;
             pullRef.current.delta = 0;
+            pullRef.current.id = null;
+            setPullDelta(0);
+        };
+        const onTouchCancel = (e) => {
+            if (!pullRef.current.active) return;
+            const matched = Array.from(e.changedTouches).some(x => x.identifier === pullRef.current.id);
+            if (!matched) return;
+            pullRef.current.active = false;
+            pullRef.current.delta = 0;
+            pullRef.current.id = null;
             setPullDelta(0);
         };
         document.addEventListener("touchstart", onTouchStart, { passive: true });
         document.addEventListener("touchmove", onTouchMove, { passive: true });
         document.addEventListener("touchend", onTouchEnd);
+        document.addEventListener("touchcancel", onTouchCancel);
         return () => {
             document.removeEventListener("touchstart", onTouchStart);
             document.removeEventListener("touchmove", onTouchMove);
             document.removeEventListener("touchend", onTouchEnd);
+            document.removeEventListener("touchcancel", onTouchCancel);
         };
     }, []);
 
