@@ -1107,6 +1107,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     useEffect(() => {
         const THRESHOLD = 64;
         const onTouchStart = (e) => {
+            if (e.target.closest("[data-no-ptr]")) return;
             if (window.scrollY === 0) {
                 pullRef.current = { active: true, startY: e.touches[0].clientY, delta: 0 };
             }
@@ -1647,7 +1648,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             </div>
 
             {/* TAB NAV */}
-            <div style={{
+            <div data-no-ptr style={{
                 display: "flex", overflowX: "auto", gap: "4px", marginBottom: "1.25rem",
                 background: "#f5f4f1", padding: "5px", borderRadius: "12px",
                 border: "2px solid #2C2C2A", boxShadow: boxShadow("#2C2C2A", 3, 3),
@@ -1690,7 +1691,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             {/* TODAY VIEW */}
             {view === "today" && (
                 <div>
-                    <div style={{ marginBottom: "1.25rem" }}>
+                    <div data-no-ptr style={{ marginBottom: "1.25rem" }}>
                         <Aquarium
                             happiness={householdHappiness}
                             mood={householdMood}
