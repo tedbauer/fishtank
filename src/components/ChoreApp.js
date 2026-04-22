@@ -1425,6 +1425,20 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         }).catch(() => {});
     };
 
+    const notifyNewChore = (choreName) => {
+        if (!profile?.household_id || !VAPID_PUBLIC_KEY) return;
+        fetch("/api/notify-new-chore", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                householdId: profile.household_id,
+                choreName,
+                addedByName: currentUser.name,
+                excludeUserId: user.id,
+            }),
+        }).catch(() => {});
+    };
+
     const notifyPurchase = (itemName) => {
         if (!profile?.household_id || !VAPID_PUBLIC_KEY) return;
         fetch("/api/notify-purchase", {
@@ -1563,6 +1577,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         if (error) { alert("Couldn't add chore: " + error.message); return; }
         if (data) {
             setChores((prev) => [...prev, data]);
+            notifyNewChore(data.name);
             setNewChoreName(""); setNewChoreDesc("");
             setNewChoreOneTime(false); setNewChoreDeadline("");
         }
