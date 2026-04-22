@@ -1,9 +1,10 @@
-import { Inter } from "next/font/google";
+import { Comic_Neue } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const comicNeue = Comic_Neue({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400", "700"],
+  variable: "--font-comic-neue",
 });
 
 export const viewport = {
@@ -32,7 +33,7 @@ export default function RootLayout({ children }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
-      <body className={inter.variable}>
+      <body className={comicNeue.variable}>
         {children}
         <script
           dangerouslySetInnerHTML={{

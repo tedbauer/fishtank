@@ -5,7 +5,7 @@
 }
 
 body {
-  font-family: 'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive;
+  font-family: var(--font-comic-neue), 'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive;
   background: #f8f7f4;
   color: #2C2C2A;
   -webkit-font-smoothing: antialiased;
