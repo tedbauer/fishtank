@@ -1779,7 +1779,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             <div style={{ fontSize: "20px", fontWeight: 800, color: "#2C2C2A" }}>
                                 {todayList.filter((c) => !c.completedToday).length}
                             </div>
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>Left Today</div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>Chores Left</div>
                         </div>
                         {/* Row 2: My Week, Partner's Week, Coins */}
                         <div style={{
@@ -1789,7 +1789,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             <div style={{ fontSize: "20px", fontWeight: 800, color: currentUser.color || "#2C2C2A" }}>
                                 {myCompletionsThisWeek}
                             </div>
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{currentUser.name?.split(" ")[0]}'s Week</div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{currentUser.name?.split(" ")[0]} Did</div>
                         </div>
                         <div style={{
                             padding: "10px 8px", background: "white", borderRadius: "12px", textAlign: "center",
@@ -1798,7 +1798,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             <div style={{ fontSize: "20px", fontWeight: 800, color: partner?.color || "#2C2C2A" }}>
                                 {partnerCompletionsThisWeek}
                             </div>
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{partner?.name?.split(" ")[0] || "Partner"}'s Week</div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{partner?.name?.split(" ")[0] || "Partner"} Did</div>
                         </div>
                         <div
                             onClick={() => setView("store")}
