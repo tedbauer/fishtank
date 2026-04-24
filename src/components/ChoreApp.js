@@ -801,40 +801,15 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
           100% { left: 20px;  top: 50px; transform: scaleX(-1); }
         }
         ${ownedShrimp.map((s, i) => {
-                // Pseudo-random per shrimp using index for varied paths
-                const seed = (i * 7 + 3) % 11;
-                const startPct = 5 + (i * 23 + seed) % 55;
-                const range = 18 + (seed % 3) * 8;
-                const endPct = Math.min(startPct + range, 85);
-                const midPct = startPct + Math.round((endPct - startPct) * (0.4 + (seed % 3) * 0.15));
-                // Vary jump heights per shrimp
-                const hop1 = 40 + (seed % 4) * 10;
-                const hop2 = 50 + ((seed + 2) % 5) * 8;
-                const hop3 = 35 + ((seed + 1) % 3) * 12;
-                const hop4 = 45 + (seed % 3) * 10;
-                // Vary timing offsets slightly
-                const t1 = 7 + (seed % 3);
-                const t2 = 9 + (seed % 4);
-                const t3 = 13 + (seed % 3);
+                const startPct = 15 + (i * 20) % 60;
+                const endPct = startPct + 25;
                 return `
         @keyframes ${uid}-shrimp-${i} {
-          0%   { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
-          ${t1}%   { left: ${startPct + 4 + seed % 3}%; bottom: 16px; transform: scaleX(-1); }
-          ${t2}%   { left: ${startPct + 6 + seed % 4}%; bottom: ${hop1}px; transform: scaleX(-1); }
-          ${t3}%   { left: ${startPct + 9 + seed % 3}%; bottom: 16px; transform: scaleX(-1); }
-          ${22 + seed % 4}%  { left: ${midPct}%; bottom: 16px; transform: scaleX(-1); }
-          ${25 + seed % 3}%  { left: ${midPct + 2}%; bottom: ${hop2}px; transform: scaleX(-1); }
-          ${29 + seed % 3}%  { left: ${midPct + 4 + seed % 3}%; bottom: 16px; transform: scaleX(-1); }
-          48%  { left: ${endPct}%; bottom: 16px; transform: scaleX(-1); }
-          52%  { left: ${endPct}%; bottom: 16px; transform: scaleX(1); }
-          ${58 + seed % 3}%  { left: ${endPct - 4 - seed % 3}%; bottom: 16px; transform: scaleX(1); }
-          ${61 + seed % 3}%  { left: ${endPct - 6 - seed % 4}%; bottom: ${hop3}px; transform: scaleX(1); }
-          ${65 + seed % 3}%  { left: ${endPct - 9 - seed % 3}%; bottom: 16px; transform: scaleX(1); }
-          ${76 + seed % 4}%  { left: ${midPct}%; bottom: 16px; transform: scaleX(1); }
-          ${79 + seed % 3}%  { left: ${midPct - 2}%; bottom: ${hop4}px; transform: scaleX(1); }
-          ${83 + seed % 3}%  { left: ${midPct - 4 - seed % 3}%; bottom: 16px; transform: scaleX(1); }
-          98%  { left: ${startPct}%; bottom: 16px; transform: scaleX(1); }
-          100% { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
+          0%   { left: ${startPct}%; transform: scaleX(-1); }
+          48%  { left: ${endPct}%; transform: scaleX(-1); }
+          52%  { left: ${endPct}%; transform: scaleX(1); }
+          98%  { left: ${startPct}%; transform: scaleX(1); }
+          100% { left: ${startPct}%; transform: scaleX(-1); }
         }`;
             }).join("\n")}
         @keyframes ${uid}-bub {
@@ -973,7 +948,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                 return (
                     <div key={s.id} style={{
                         position: "absolute", bottom: 16, left: "15%",
-                        animation: `${uid}-shrimp-${i} ${dur}s ease-in-out infinite`,
+                        animation: `${uid}-shrimp-${i} ${dur}s linear infinite`,
                     }}>
                         <TankImg src={`/tank/${s.item_id}.png`} width={24} alt={item.name} />
                     </div>
