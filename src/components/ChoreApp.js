@@ -1109,6 +1109,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [newChoreName, setNewChoreName] = useState("");
     const [newChoreFreq, setNewChoreFreq] = useState("weekly");
     const [loading, setLoading] = useState(true);
+    const loadingShrimp = useMemo(() => ["cherry", "jade", "jelly", "sunkissed"][Math.floor(Math.random() * 4)], []);
     const [inviteCode, setInviteCode] = useState(null);
     const [codeCopied, setCodeCopied] = useState(false);
     const [rewardAnim, setRewardAnim] = useState(null);
@@ -1590,7 +1591,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 justifyContent: "center", background: "#f8f7f4",
             }}>
                 <div style={{ textAlign: "center", color: "#888780", fontFamily: FONT }}>
-                    <div style={{ fontSize: "32px", marginBottom: "12px", animation: "ptr-fish-bob 1s ease-in-out infinite" }}>🐟</div>
+                    <img src={`/tank/shrimp_${loadingShrimp}.png`} alt="shrimp" width={48} style={{ marginBottom: "12px", animation: "ptr-fish-bob 1s ease-in-out infinite" }} />
                     <div>Loading…</div>
                 </div>
                 <style>{`@keyframes ptr-fish-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }`}</style>
