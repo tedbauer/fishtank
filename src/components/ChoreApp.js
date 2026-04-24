@@ -1499,16 +1499,18 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
     const purchaseItem = async (itemId) => {
         const item = STORE_ITEM_MAP[itemId];
-        if (!item || !profile?.household_id) { console.log("purchase blocked: no item or no household"); return; }
-        if (coinBalance < item.price) { console.log("purchase blocked: need", item.price, "have", coinBalance); return; }
+        if (!item || !profile?.household_id) { alert("DEBUG: no item or no household"); return; }
+        if (coinBalance < item.price) { alert(`DEBUG: need ${item.price} have ${coinBalance}`); return; }
+        alert(`DEBUG: attempting insert for ${itemId}, household=${profile.household_id}`);
         const { data, error } = await supabase
             .from("purchases")
             .insert({ household_id: profile.household_id, item_id: itemId, x: null, y: null })
             .select().single();
-        if (error) { console.error("purchase insert error:", error); return; }
+        if (error) { alert(`DEBUG insert error: ${JSON.stringify(error)}`); return; }
         if (data) {
             setPurchases((prev) => [...prev, data]);
             notifyPurchase(item.name);
+            alert("DEBUG: purchase success!");
         }
     };
 
