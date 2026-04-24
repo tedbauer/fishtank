@@ -1734,37 +1734,20 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             onRemovePurchase={unplacePurchase}
                         />
                     </div>
-                    <div style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "10px 14px", marginBottom: "1.25rem",
-                        background: "white", border: "2px solid #2C2C2A", borderRadius: "12px",
-                        boxShadow: boxShadow(moodColor(householdHappiness), 2, 2),
-                    }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <div style={{
-                                width: "36px", height: "36px", borderRadius: "50%",
-                                background: moodColor(householdHappiness),
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                fontSize: "13px", fontWeight: 800, color: "white",
-                                transition: "background 0.5s ease",
-                            }}>{householdHappiness}</div>
-                            <div>
-                                <div style={{ fontSize: "14px", fontWeight: 700, color: "#2C2C2A" }}>Tank {moodLabel(householdMood)}</div>
-                                <div style={{ fontSize: "11px", color: "#888780" }}>Keep doing chores to thrive!</div>
-                            </div>
-                        </div>
-                        <div style={{
-                            width: "60px", height: "6px", background: "#e8e8e8", borderRadius: "3px", overflow: "hidden",
-                        }}>
-                            <div style={{
-                                width: `${householdHappiness}%`, height: "100%",
-                                background: moodColor(householdHappiness),
-                                borderRadius: "3px", transition: "width 0.8s ease, background 0.5s ease",
-                            }} />
-                        </div>
-                    </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
+                        <div style={{
+                            padding: "12px", background: "white", borderRadius: "12px", textAlign: "center",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow(moodColor(householdHappiness), 2, 2),
+                        }}>
+                            <div style={{
+                                fontSize: "22px", fontWeight: 800, color: moodColor(householdHappiness),
+                                transition: "color 0.5s ease",
+                            }}>{householdHappiness}</div>
+                            <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
+                                {moodLabel(householdMood)}
+                            </div>
+                        </div>
                         <StatCard label="Left Today" value={todayList.filter((c) => !c.completedToday).length} />
                         <style>{`
                             @keyframes streak-bounce {
