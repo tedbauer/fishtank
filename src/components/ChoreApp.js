@@ -955,7 +955,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
 
             {/* Seafloor */}
             <div style={{
-                position: "absolute", bottom: 0, left: 0, right: 0, height: "36px",
+                position: "absolute", bottom: 0, left: 0, right: 0, height: "42px",
                 backgroundImage: "url(/tank/seafloor.png)",
                 backgroundRepeat: "repeat-x",
                 backgroundSize: "auto 100%",
