@@ -55,10 +55,6 @@ export default function LoginPage() {
                 border: "2px solid #2C2C2A",
                 boxShadow: "4px 4px 0 #2C2C2A",
             }}>
-                <p style={{ margin: "0 0 1.5rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>
-                    Keep your home tidy, together.
-                </p>
-
                 <button
                     onClick={handleGoogleLogin}
                     disabled={loading}
