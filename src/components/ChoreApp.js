@@ -805,10 +805,12 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
     }[mood] || "#C084FC";
 
     return (
-        <div ref={viewportRef} style={{
+        <div ref={viewportRef} className="aq-viewport" style={{
             position: "relative", width: "100%", height: "160px",
             overflowX: expansions > 0 ? "auto" : "hidden",
             overflowY: "hidden",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
             fontFamily: FONT,
             border: "2px solid #2C2C2A",
             userSelect: "none", WebkitUserSelect: "none",
@@ -907,6 +909,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
           position: absolute; top: 50px; left: 20px;
           animation: ${uid}-swim ${swimDuration} ease-in-out infinite;
         }
+        .aq-viewport::-webkit-scrollbar { display: none; width: 0; height: 0; }
       `}</style>
 
             {/* === BACK LAYER — faint, far plants === */}
