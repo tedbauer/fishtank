@@ -194,7 +194,14 @@ const moodTier = (h) => {
 };
 
 const moodLabel = (tier) =>
-    ({ ecstatic: "Is Thriving :)", happy: "Is Happy", content: "Is Vibing", meh: "Is Feeling Meh", sad: "Is Looking Blue :(", miserable: "Needs Love!!" })[tier];
+    ({ ecstatic: "Flourishing", happy: "Thriving", content: "Managing", meh: "Managing", sad: "Struggling", miserable: "Struggling" })[tier];
+
+const moodColor = (h) => {
+    if (h >= 80) return "#16A34A";
+    if (h >= 55) return "#22C55E";
+    if (h >= 30) return "#F59E0B";
+    return "#EF4444";
+};
 
 // =========== REWARD TYPES PER FREQUENCY ===========
 const REWARD_MAP = {
@@ -1077,24 +1084,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                 </div>
             )}
 
-            {/* Status */}
-            <div style={{
-                position: "absolute", bottom: 0, left: 0, right: 0, padding: "6px 12px",
-                background: "linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.35) 100%)",
-                color: "rgba(255,255,255,0.7)", zIndex: 5,
-            }}>
-                <div style={{ fontSize: "11px", fontWeight: 600, marginBottom: "2px" }}>
-                    {moodLabel(mood)}
-                </div>
-                <div style={{ height: "4px", background: "rgba(255,255,255,0.15)", borderRadius: "2px", overflow: "hidden" }}>
-                    <div style={{
-                        width: `${happiness}%`, height: "100%",
-                        background: "rgba(255,255,255,0.5)",
-                        borderRadius: "2px",
-                        transition: "width 0.8s ease",
-                    }} />
-                </div>
-            </div>
+
         </div>
     );
 }
@@ -1113,6 +1103,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [inviteCode, setInviteCode] = useState(null);
     const [codeCopied, setCodeCopied] = useState(false);
     const [rewardAnim, setRewardAnim] = useState(null);
+    const [happinessOffset, setHappinessOffset] = useState(0);
     const [newChoreDesc, setNewChoreDesc] = useState("");
     const [newChoreOneTime, setNewChoreOneTime] = useState(false);
     const [newChoreDeadline, setNewChoreDeadline] = useState("");
@@ -1400,7 +1391,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         }).length
         : 0;
 
-    const householdHappiness = computeHappiness(completions, choresWithStatus);
+    const rawHappiness = computeHappiness(completions, choresWithStatus);
+    const householdHappiness = Math.max(0, Math.min(100, rawHappiness + happinessOffset));
     const householdMood = moodTier(householdHappiness);
     const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
 
@@ -1742,6 +1734,35 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             onRemovePurchase={unplacePurchase}
                         />
                     </div>
+                    <div style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "10px 14px", marginBottom: "1.25rem",
+                        background: "white", border: "2px solid #2C2C2A", borderRadius: "12px",
+                        boxShadow: boxShadow(moodColor(householdHappiness), 2, 2),
+                    }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <div style={{
+                                width: "36px", height: "36px", borderRadius: "50%",
+                                background: moodColor(householdHappiness),
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: "13px", fontWeight: 800, color: "white",
+                                transition: "background 0.5s ease",
+                            }}>{householdHappiness}</div>
+                            <div>
+                                <div style={{ fontSize: "14px", fontWeight: 700, color: "#2C2C2A" }}>Tank {moodLabel(householdMood)}</div>
+                                <div style={{ fontSize: "11px", color: "#888780" }}>Keep doing chores to thrive!</div>
+                            </div>
+                        </div>
+                        <div style={{
+                            width: "60px", height: "6px", background: "#e8e8e8", borderRadius: "3px", overflow: "hidden",
+                        }}>
+                            <div style={{
+                                width: `${householdHappiness}%`, height: "100%",
+                                background: moodColor(householdHappiness),
+                                borderRadius: "3px", transition: "width 0.8s ease, background 0.5s ease",
+                            }} />
+                        </div>
+                    </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
                         <StatCard label="Left Today" value={todayList.filter((c) => !c.completedToday).length} />
@@ -1997,6 +2018,21 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     background: "#EF4444", color: "white", border: "2px solid #2C2C2A",
                                     borderRadius: "6px", cursor: "pointer",
                                 }}>-{n}</button>
+                            ))}
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#991B1B", margin: "0 6px 0 8px" }}>🎭</span>
+                            {[10, 25].map((n) => (
+                                <button key={`h+${n}`} onClick={() => setHappinessOffset((o) => Math.min(100, o + n))} style={{
+                                    padding: "4px 10px", fontSize: "12px", fontWeight: 700, fontFamily: FONT,
+                                    background: "#22C55E", color: "white", border: "2px solid #2C2C2A",
+                                    borderRadius: "6px", cursor: "pointer",
+                                }}>+{n}❤️</button>
+                            ))}
+                            {[10, 25].map((n) => (
+                                <button key={`h-${n}`} onClick={() => setHappinessOffset((o) => Math.max(-100, o - n))} style={{
+                                    padding: "4px 10px", fontSize: "12px", fontWeight: 700, fontFamily: FONT,
+                                    background: "#EF4444", color: "white", border: "2px solid #2C2C2A",
+                                    borderRadius: "6px", cursor: "pointer",
+                                }}>-{n}❤️</button>
                             ))}
                         </div>
                     )}
