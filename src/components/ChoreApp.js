@@ -612,6 +612,7 @@ const STORE_ITEMS = [
     { id: "anubias", name: "Anubias", price: 40, category: "plants", render: mkRender("anubias", 44, 50, AnubiaPlant) },
     { id: "amazon_sword", name: "Amazon Sword", price: 50, category: "plants", render: mkRender("amazon_sword", 34, 72, AmazonSword) },
     { id: "bamboo_stalks", name: "Bamboo", price: 45, category: "plants", render: mkRender("bamboo_stalks", 38, 66, BambooStalks) },
+    { id: "cryptocoryne", name: "Cryptocoryne", price: 55, category: "plants", render: (size) => <TankImg src="/tank/cryptocoryne.png" width={40 * size} alt="Cryptocoryne" /> },
     { id: "pebble_cluster", name: "Pebbles", price: 30, category: "rocks", render: mkRender("pebble_cluster", 50, 26, PebbleCluster) },
     { id: "slate_stack", name: "Slate Stack", price: 45, category: "rocks", render: mkRender("slate_stack", 52, 30, SlateStack) },
     { id: "big_boulder", name: "Big Boulder", price: 60, category: "rocks", render: mkRender("big_boulder", 58, 44, BigBoulder) },
