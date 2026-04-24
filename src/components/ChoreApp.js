@@ -612,6 +612,10 @@ const STORE_ITEMS = [
     { id: "fish_cave", name: "Fish Cave", price: 80, category: "decor", render: mkRender("fish_cave", 56, 40, FishCave) },
     { id: "ceramic_pot", name: "Ceramic Pot", price: 55, category: "decor", render: mkRender("ceramic_pot", 40, 54, CeramicPot) },
     { id: "ancient_ruins", name: "Ancient Ruins", price: 90, category: "decor", render: mkRender("ancient_ruins", 62, 54, AncientRuins) },
+    { id: "shrimp_cherry", name: "Cherry Shrimp", price: 40, category: "critters", render: (size) => <TankImg src="/tank/shrimp_cherry.png" width={30 * size} alt="Cherry Shrimp" /> },
+    { id: "shrimp_sunkissed", name: "Sunkissed Shrimp", price: 75, category: "critters", render: (size) => <TankImg src="/tank/shrimp_sunkissed.png" width={30 * size} alt="Sunkissed Shrimp" /> },
+    { id: "shrimp_jelly", name: "Jelly Shrimp", price: 75, category: "critters", render: (size) => <TankImg src="/tank/shrimp_jelly.png" width={30 * size} alt="Jelly Shrimp" /> },
+    { id: "shrimp_jade", name: "Jade Shrimp", price: 120, category: "critters", render: (size) => <TankImg src="/tank/shrimp_jade.png" width={30 * size} alt="Jade Shrimp" /> },
     { id: "starfish", name: "Starfish", price: 50, category: "critters", render: mkRender("starfish", 42, 42, Starfish) },
     { id: "sea_urchin", name: "Sea Urchin", price: 60, category: "critters", render: mkRender("sea_urchin", 38, 38, SeaUrchin) },
     { id: "decor_crab", name: "Crab", price: 70, category: "critters", render: mkRender("decor_crab", 46, 32, DecorCrab) },
@@ -751,7 +755,8 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
     const [anyDragging, setAnyDragging] = useState(false);
     const [dragOutside, setDragOutside] = useState(false);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
-    const shrimpDur = { ecstatic: "30s", happy: "35s", content: "40s", meh: "50s", sad: "60s", miserable: "80s" }[mood] || "40s";
+    const shrimpBaseDur = { ecstatic: 30, happy: 35, content: 40, meh: 50, sad: 60, miserable: 80 }[mood] || 40;
+    const ownedShrimp = purchases.filter((p) => p.item_id?.startsWith("shrimp_"));
     const schoolDur = { ecstatic: "24s", happy: "29s", content: "34s", meh: "43s", sad: "54s", miserable: "70s" }[mood] || "34s";
     const snailDur = { ecstatic: "55s", happy: "65s", content: "75s", meh: "90s", sad: "110s", miserable: "140s" }[mood] || "75s";
     const uid = `aq-${mood}`;
@@ -795,11 +800,18 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
           90%  { left: 20px;  top: 52px; transform: scaleX(-1); }
           100% { left: 20px;  top: 50px; transform: scaleX(-1); }
         }
-        @keyframes ${uid}-shrimp {
-          0%   { left: 75%; }
-          50%  { left: 50%; }
-          100% { left: 75%; }
-        }
+        ${ownedShrimp.map((s, i) => {
+                const startPct = 15 + (i * 20) % 60;
+                const endPct = startPct + 25;
+                return `
+        @keyframes ${uid}-shrimp-${i} {
+          0%   { left: ${startPct}%; transform: scaleX(1); }
+          48%  { left: ${endPct}%; transform: scaleX(1); }
+          52%  { left: ${endPct}%; transform: scaleX(-1); }
+          98%  { left: ${startPct}%; transform: scaleX(-1); }
+          100% { left: ${startPct}%; transform: scaleX(1); }
+        }`;
+            }).join("\n")}
         @keyframes ${uid}-bub {
           0% { transform: translateY(0); opacity: 0; }
           8% { opacity: 0.5; }
@@ -928,13 +940,20 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                 background: "rgba(255,255,255,0.03)",
             }} />
 
-            {/* Shrimp */}
-            <div style={{
-                position: "absolute", bottom: 16, left: "75%",
-                animation: `${uid}-shrimp ${shrimpDur} linear infinite`,
-            }}>
-                <LineShrimp color={lineColor} size={20} />
-            </div>
+            {/* Purchased Shrimp */}
+            {ownedShrimp.map((s, i) => {
+                const item = STORE_ITEM_MAP[s.item_id];
+                if (!item) return null;
+                const dur = shrimpBaseDur + i * 5;
+                return (
+                    <div key={s.id} style={{
+                        position: "absolute", bottom: 16, left: "15%",
+                        animation: `${uid}-shrimp-${i} ${dur}s linear infinite`,
+                    }}>
+                        <TankImg src={`/tank/${s.item_id}.png`} width={24} alt={item.name} />
+                    </div>
+                );
+            })}
 
             {/* Snail */}
             <div style={{
@@ -1009,8 +1028,8 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                 </div>
             )}
 
-            {/* Purchased items (draggable, placed only) */}
-            {purchases.filter((p) => p.x != null).map((p) => {
+            {/* Purchased items (draggable, placed only — shrimp excluded, they crawl) */}
+            {purchases.filter((p) => p.x != null && !p.item_id?.startsWith("shrimp_")).map((p) => {
                 const item = STORE_ITEM_MAP[p.item_id];
                 if (!item) return null;
                 return (
@@ -1994,7 +2013,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             {purchases.map((p) => {
                                 const item = STORE_ITEM_MAP[p.item_id];
                                 if (!item) return null;
-                                const inTank = p.x != null;
+                                const isShrimp = p.item_id?.startsWith("shrimp_");
+                                const inTank = isShrimp || p.x != null;
                                 return (
                                     <div key={p.id} style={{
                                         display: "flex", alignItems: "center", justifyContent: "space-between",
