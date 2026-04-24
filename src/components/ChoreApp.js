@@ -1540,6 +1540,27 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         await supabase.from("purchases").delete().eq("id", purchaseId);
     };
 
+    // =========== DEBUG COIN TOOLS (staging only) ===========
+    const isDebug = process.env.NEXT_PUBLIC_ENABLE_DEBUG === "true";
+    const debugAddCoins = async (amount) => {
+        if (!profile?.household_id || !chores.length) return;
+        const choreId = chores[0].id;
+        const count = Math.ceil(amount / (choreRewardMap[choreId] ?? 5));
+        const inserts = Array.from({ length: count }, () => ({
+            chore_id: choreId, user_id: user.id, completed_date: "2000-01-01",
+        }));
+        const { data } = await supabase.from("completions").insert(inserts).select();
+        if (data) setCompletions((prev) => [...prev, ...data]);
+    };
+    const debugRemoveCoins = async (amount) => {
+        const debugComps = completions.filter((c) => c.completed_date === "2000-01-01");
+        const toRemove = debugComps.slice(0, Math.ceil(amount / 5));
+        if (!toRemove.length) return;
+        for (const c of toRemove) await supabase.from("completions").delete().eq("id", c.id);
+        const ids = new Set(toRemove.map((c) => c.id));
+        setCompletions((prev) => prev.filter((c) => !ids.has(c.id)));
+    };
+
     const undoComplete = async (choreId) => {
         const toDelete = completions.filter((c) => c.chore_id === choreId && c.completed_date === todayStr);
         for (const comp of toDelete) {
@@ -1955,6 +1976,30 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             <Coins size={20} strokeWidth={2.5} /> {coinBalance}
                         </div>
                     </div>
+
+                    {isDebug && (
+                        <div style={{
+                            display: "flex", alignItems: "center", gap: "6px", padding: "10px 14px",
+                            marginBottom: "1.25rem", background: "#FEE2E2", border: "2px dashed #EF4444",
+                            borderRadius: "10px", flexWrap: "wrap",
+                        }}>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#991B1B", marginRight: "4px" }}>🛠 DEBUG</span>
+                            {[10, 50, 100].map((n) => (
+                                <button key={`+${n}`} onClick={() => debugAddCoins(n)} style={{
+                                    padding: "4px 10px", fontSize: "12px", fontWeight: 700, fontFamily: FONT,
+                                    background: "#22C55E", color: "white", border: "2px solid #2C2C2A",
+                                    borderRadius: "6px", cursor: "pointer",
+                                }}>+{n}</button>
+                            ))}
+                            {[10, 50].map((n) => (
+                                <button key={`-${n}`} onClick={() => debugRemoveCoins(n)} style={{
+                                    padding: "4px 10px", fontSize: "12px", fontWeight: 700, fontFamily: FONT,
+                                    background: "#EF4444", color: "white", border: "2px solid #2C2C2A",
+                                    borderRadius: "6px", cursor: "pointer",
+                                }}>-{n}</button>
+                            ))}
+                        </div>
+                    )}
 
                     {STORE_CATEGORIES.map((cat) => {
                         const catItems = STORE_ITEMS.filter((i) => i.category === cat.id);
