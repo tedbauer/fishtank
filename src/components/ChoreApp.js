@@ -1134,6 +1134,60 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
         </div>
     );
 }
+// =========== TOAST SYSTEM ===========
+function ToastStack({ toasts }) {
+    return (
+        <div style={{
+            position: "fixed", top: "14px", left: 0, right: 0, zIndex: 200,
+            display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
+            pointerEvents: "none", padding: "0 12px",
+        }}>
+            <style>{`
+                @keyframes toast-in {
+                    0% { opacity: 0; transform: translateY(-18px) scale(0.95); }
+                    60% { opacity: 1; transform: translateY(2px) scale(1.02); }
+                    100% { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                @keyframes toast-out {
+                    0% { opacity: 1; transform: translateY(0) scale(1); }
+                    100% { opacity: 0; transform: translateY(-10px) scale(0.96); }
+                }
+            `}</style>
+            {toasts.map((t) => (
+                <div key={t.id} style={{
+                    animation: t.leaving ? "toast-out 0.3s ease forwards" : "toast-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1.05)",
+                    background: "white", border: "2px solid #2C2C2A",
+                    borderRadius: "14px", boxShadow: boxShadow(t.color || "#2C2C2A", 3, 3),
+                    padding: "10px 14px", fontFamily: FONT,
+                    display: "flex", alignItems: "center", gap: "10px",
+                    minWidth: "220px", maxWidth: "360px",
+                    pointerEvents: "auto",
+                }}>
+                    <div style={{
+                        width: "34px", height: "34px", flexShrink: 0,
+                        background: t.color || "#2C2C2A",
+                        color: "white", borderRadius: "50%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "17px", fontWeight: 700,
+                    }}>
+                        {t.icon}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#2C2C2A", lineHeight: 1.2 }}>
+                            {t.title}
+                        </div>
+                        {t.subtitle && (
+                            <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
+                                {t.subtitle}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 // =========== MAIN APP ===========
 export default function ChoreApp({ user, profile, householdMembers }) {
     const supabase = getSupabase();
@@ -1158,8 +1212,21 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, overdueAlerts: true, streakWarnings: true, choreDoneAlerts: true });
     const [streakAnim, setStreakAnim] = useState(false);
     const [pullDelta, setPullDelta] = useState(0);
+    const [toasts, setToasts] = useState([]);
     const prevStreakRef = useRef(null);
     const pullRef = useRef({ active: false, startY: 0, delta: 0 });
+    const toastIdRef = useRef(0);
+
+    const pushToast = useCallback(({ title, subtitle, color, icon }) => {
+        const id = ++toastIdRef.current;
+        setToasts((prev) => [...prev, { id, title, subtitle, color, icon, leaving: false }]);
+        setTimeout(() => {
+            setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+            setTimeout(() => {
+                setToasts((prev) => prev.filter((t) => t.id !== id));
+            }, 300);
+        }, 2500);
+    }, []);
 
     useEffect(() => {
         const THRESHOLD = 64;
@@ -1495,6 +1562,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 setTimeout(() => setRewardAnim(null), 2500);
             }
             notifyChoreComplete(chore?.name || "a chore");
+            const reward = chore?.reward ?? 5;
+            pushToast({
+                title: `Done: ${chore?.name || "chore"}`,
+                subtitle: `+${reward} coins`,
+                color: FREQ[chore?.freq]?.color || "#22C55E",
+                icon: <Check size={18} strokeWidth={3} />,
+            });
         }
     };
 
@@ -1509,6 +1583,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 setTimeout(() => setRewardAnim(null), 2500);
             }
             notifyChoreComplete(chore?.name || "a chore", true);
+            const reward = (chore?.reward ?? 5) * users.length;
+            pushToast({
+                title: `Together: ${chore?.name || "chore"}`,
+                subtitle: `+${reward} coins`,
+                color: FREQ[chore?.freq]?.color || "#22C55E",
+                icon: <Check size={18} strokeWidth={3} />,
+            });
         }
     };
 
@@ -1546,6 +1627,12 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         if (!error && data) {
             setPurchases((prev) => [...prev, data]);
             notifyPurchase(item.name);
+            pushToast({
+                title: `Bought: ${item.name}`,
+                subtitle: `−${item.price} coins`,
+                color: "#F59E0B",
+                icon: <ShoppingBag size={18} strokeWidth={2.5} />,
+            });
         }
     };
 
@@ -1579,8 +1666,18 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     };
 
     const sellPurchase = async (purchaseId) => {
+        const sold = purchases.find((p) => p.id === purchaseId);
+        const item = sold ? STORE_ITEM_MAP[sold.item_id] : null;
         setPurchases((prev) => prev.filter((p) => p.id !== purchaseId));
         await supabase.from("purchases").delete().eq("id", purchaseId);
+        if (item) {
+            pushToast({
+                title: `Sold: ${item.name}`,
+                subtitle: `+${item.price} coins`,
+                color: "#7F77DD",
+                icon: <Trash2 size={16} strokeWidth={2.5} />,
+            });
+        }
     };
 
     // =========== DEBUG COIN TOOLS (staging only) ===========
@@ -1605,11 +1702,19 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     };
 
     const undoComplete = async (choreId) => {
+        const chore = chores.find((c) => c.id === choreId);
         const toDelete = completions.filter((c) => c.chore_id === choreId && c.completed_date === todayStr);
         for (const comp of toDelete) {
             await supabase.from("completions").delete().eq("id", comp.id);
         }
         setCompletions((prev) => prev.filter((c) => !(c.chore_id === choreId && c.completed_date === todayStr)));
+        if (toDelete.length > 0) {
+            pushToast({
+                title: `Undone: ${chore?.name || "chore"}`,
+                color: "#888780",
+                icon: <RotateCcw size={16} strokeWidth={2.5} />,
+            });
+        }
     };
 
     const assignOwner = async (choreId, userId) => {
@@ -1655,6 +1760,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     return (
         <div style={{ maxWidth: "720px", margin: "0 auto", padding: "1rem", fontFamily: FONT, animation: "page-fade-in 0.3s ease" }}>
             <style>{`@keyframes page-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+            <ToastStack toasts={toasts} />
             {/* PULL-TO-REFRESH INDICATOR */}
             {pullDelta > 0 && (
                 <div style={{
