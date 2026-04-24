@@ -803,13 +803,26 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
         ${ownedShrimp.map((s, i) => {
                 const startPct = 15 + (i * 20) % 60;
                 const endPct = startPct + 25;
+                const midPct = startPct + Math.round((endPct - startPct) * 0.6);
                 return `
         @keyframes ${uid}-shrimp-${i} {
-          0%   { left: ${startPct}%; transform: scaleX(1); }
-          48%  { left: ${endPct}%; transform: scaleX(1); }
-          52%  { left: ${endPct}%; transform: scaleX(-1); }
-          98%  { left: ${startPct}%; transform: scaleX(-1); }
-          100% { left: ${startPct}%; transform: scaleX(1); }
+          0%   { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
+          8%   { left: ${startPct + 5}%; bottom: 16px; transform: scaleX(-1); }
+          10%  { left: ${startPct + 7}%; bottom: 32px; transform: scaleX(-1); }
+          14%  { left: ${startPct + 10}%; bottom: 16px; transform: scaleX(-1); }
+          24%  { left: ${midPct}%; bottom: 16px; transform: scaleX(-1); }
+          26%  { left: ${midPct + 2}%; bottom: 28px; transform: scaleX(-1); }
+          30%  { left: ${midPct + 5}%; bottom: 16px; transform: scaleX(-1); }
+          48%  { left: ${endPct}%; bottom: 16px; transform: scaleX(-1); }
+          52%  { left: ${endPct}%; bottom: 16px; transform: scaleX(1); }
+          60%  { left: ${endPct - 5}%; bottom: 16px; transform: scaleX(1); }
+          62%  { left: ${endPct - 7}%; bottom: 30px; transform: scaleX(1); }
+          66%  { left: ${endPct - 10}%; bottom: 16px; transform: scaleX(1); }
+          78%  { left: ${midPct}%; bottom: 16px; transform: scaleX(1); }
+          80%  { left: ${midPct - 2}%; bottom: 26px; transform: scaleX(1); }
+          84%  { left: ${midPct - 5}%; bottom: 16px; transform: scaleX(1); }
+          98%  { left: ${startPct}%; bottom: 16px; transform: scaleX(1); }
+          100% { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
         }`;
             }).join("\n")}
         @keyframes ${uid}-bub {
@@ -948,7 +961,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                 return (
                     <div key={s.id} style={{
                         position: "absolute", bottom: 16, left: "15%",
-                        animation: `${uid}-shrimp-${i} ${dur}s linear infinite`,
+                        animation: `${uid}-shrimp-${i} ${dur}s ease-in-out infinite`,
                     }}>
                         <TankImg src={`/tank/${s.item_id}.png`} width={24} alt={item.name} />
                     </div>
