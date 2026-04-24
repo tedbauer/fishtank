@@ -28,6 +28,7 @@ import {
     Coins,
     AlarmClock,
     X as XIcon,
+    Package,
 } from "lucide-react";
 import HeatmapView from "@/components/HeatmapView";
 
@@ -1110,6 +1111,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [completions, setCompletions] = useState([]);
     const [purchases, setPurchases] = useState([]);
     const [view, setView] = useState("today");
+    const [showInventory, setShowInventory] = useState(false);
     const [calMonth, setCalMonth] = useState(today());
     const [newChoreName, setNewChoreName] = useState("");
     const [newChoreFreq, setNewChoreFreq] = useState("weekly");
@@ -1504,7 +1506,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         if (coinBalance < item.price) return;
         const { data, error } = await supabase
             .from("purchases")
-            .insert({ household_id: profile.household_id, item_id: itemId, x: 50, y: 20 })
+            .insert({ household_id: profile.household_id, item_id: itemId, x: null, y: null })
             .select().single();
         if (!error && data) {
             setPurchases((prev) => [...prev, data]);
@@ -1735,6 +1737,59 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             onRemovePurchase={unplacePurchase}
                         />
                     </div>
+                    {(() => {
+                        const inventoryItems = purchases.filter((p) => p.x == null && !p.item_id?.startsWith("shrimp_"));
+                        return inventoryItems.length > 0 && (
+                            <div style={{ marginBottom: "1rem" }}>
+                                <button
+                                    onClick={() => setShowInventory(!showInventory)}
+                                    style={{
+                                        display: "flex", alignItems: "center", gap: "6px",
+                                        padding: "6px 12px", fontSize: "12px", fontWeight: 700,
+                                        fontFamily: FONT, color: "#555", background: "#f1efe8",
+                                        border: "2px solid #2C2C2A", borderRadius: "8px",
+                                        cursor: "pointer", boxShadow: boxShadow("#d4d3cd", 2, 2),
+                                    }}
+                                >
+                                    <Package size={14} />
+                                    Inventory ({inventoryItems.length})
+                                    <span style={{ fontSize: "10px" }}>{showInventory ? "▲" : "▼"}</span>
+                                </button>
+                                {showInventory && (
+                                    <div style={{
+                                        marginTop: "8px", padding: "10px",
+                                        background: "#f8f7f4", border: "2px solid #2C2C2A",
+                                        borderRadius: "12px", boxShadow: boxShadow("#d4d3cd", 2, 2),
+                                    }}>
+                                        <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginBottom: "8px" }}>Tap to place in tank</div>
+                                        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                                            {inventoryItems.map((p) => {
+                                                const item = STORE_ITEM_MAP[p.item_id];
+                                                if (!item) return null;
+                                                return (
+                                                    <div
+                                                        key={p.id}
+                                                        onClick={() => placePurchase(p.id)}
+                                                        style={{
+                                                            width: "52px", height: "52px",
+                                                            background: "white", border: "2px solid #2C2C2A",
+                                                            borderRadius: "10px", display: "flex",
+                                                            alignItems: "center", justifyContent: "center",
+                                                            cursor: "pointer",
+                                                            boxShadow: boxShadow("#e8e8e8", 2, 2),
+                                                        }}
+                                                        title={item.name}
+                                                    >
+                                                        {item.render(0.5)}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })()}
 
                     <style>{`
                         @keyframes streak-bounce {
