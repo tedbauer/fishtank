@@ -813,11 +813,23 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                 const endPct = startPct + 25;
                 return `
         @keyframes ${uid}-shrimp-${i} {
-          0%   { left: ${startPct}%; transform: scaleX(-1); }
-          48%  { left: ${endPct}%; transform: scaleX(-1); }
-          52%  { left: ${endPct}%; transform: scaleX(1); }
-          98%  { left: ${startPct}%; transform: scaleX(1); }
-          100% { left: ${startPct}%; transform: scaleX(-1); }
+          0%   { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
+          12%  { left: ${startPct + 8}%; bottom: 16px; transform: scaleX(-1); }
+          15%  { left: ${startPct + 10}%; bottom: 30px; transform: scaleX(-1); }
+          18%  { left: ${startPct + 13}%; bottom: 16px; transform: scaleX(-1); }
+          35%  { left: ${endPct - 5}%; bottom: 16px; transform: scaleX(-1); }
+          38%  { left: ${endPct - 3}%; bottom: 28px; transform: scaleX(-1); }
+          41%  { left: ${endPct}%; bottom: 16px; transform: scaleX(-1); }
+          48%  { left: ${endPct}%; bottom: 16px; transform: scaleX(-1); }
+          52%  { left: ${endPct}%; bottom: 16px; transform: scaleX(1); }
+          62%  { left: ${endPct - 8}%; bottom: 16px; transform: scaleX(1); }
+          65%  { left: ${endPct - 10}%; bottom: 30px; transform: scaleX(1); }
+          68%  { left: ${endPct - 13}%; bottom: 16px; transform: scaleX(1); }
+          85%  { left: ${startPct + 5}%; bottom: 16px; transform: scaleX(1); }
+          88%  { left: ${startPct + 3}%; bottom: 28px; transform: scaleX(1); }
+          91%  { left: ${startPct}%; bottom: 16px; transform: scaleX(1); }
+          98%  { left: ${startPct}%; bottom: 16px; transform: scaleX(1); }
+          100% { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
         }`;
             }).join("\n")}
         @keyframes ${uid}-bub {
