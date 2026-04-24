@@ -940,11 +940,13 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                 }} />
             ))}
 
-            {/* Sand line */}
+            {/* Seafloor */}
             <div style={{
-                position: "absolute", bottom: 0, left: 0, right: 0, height: "14px",
-                borderTop: `1px solid ${lineColor}`,
-                background: "rgba(255,255,255,0.03)",
+                position: "absolute", bottom: 0, left: 0, right: 0, height: "18px",
+                backgroundImage: "url(/tank/seafloor.png)",
+                backgroundRepeat: "repeat-x",
+                backgroundSize: "auto 100%",
+                imageRendering: "pixelated",
             }} />
 
             {/* Purchased Shrimp */}
