@@ -1736,6 +1736,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
+                        {/* Tank Quality */}
                         <div style={{
                             padding: "12px", background: "white", borderRadius: "12px", textAlign: "center",
                             border: "2px solid #2C2C2A", boxShadow: boxShadow(moodColor(householdHappiness), 2, 2),
@@ -1745,10 +1746,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 transition: "color 0.5s ease",
                             }}>{householdHappiness}</div>
                             <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
-                                {moodLabel(householdMood)}
+                                Tank Quality
                             </div>
                         </div>
-                        <StatCard label="Left Today" value={todayList.filter((c) => !c.completedToday).length} />
+                        {/* Streak */}
                         <style>{`
                             @keyframes streak-bounce {
                                 0% { transform: scale(1); }
@@ -1771,11 +1772,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 {streak}
                             </div>
                             <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
-                                {streak === 0 ? "No Streak" : streak === 1 ? "Day Streak" : "Day Streak"}
+                                {streak === 0 ? "No Streak" : "Day Streak"}
                             </div>
                         </div>
+                        {/* My Week & Partner's Week */}
                         <StatCard label={`${currentUser.name}'s Week`} value={myCompletionsThisWeek} color={currentUser.color} />
                         <StatCard label={`${partner?.name || "Partner"}'s Week`} value={partnerCompletionsThisWeek} color={partner?.color} />
+                        {/* Coins */}
                         <div
                             onClick={() => setView("store")}
                             style={{
@@ -1791,6 +1794,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780" }}>Coins</div>
                             <div style={{ fontSize: "10px", fontWeight: 600, color: "#B45309", marginTop: "1px" }}>spend at the store →</div>
                         </div>
+                        {/* Left Today */}
+                        <StatCard label="Left Today" value={todayList.filter((c) => !c.completedToday).length} />
                     </div>
 
                     {todayList.length === 0 && (
