@@ -627,6 +627,19 @@ const STORE_ITEMS = [
     { id: "shrimp_jade", name: "Jade Shrimp", price: 120, category: "critters", render: (size) => <TankImg src="/tank/shrimp_jade.png" width={30 * size} alt="Jade Shrimp" /> },
     { id: "treasure_chest", name: "Treasure Chest", price: 150, category: "rare", render: mkRender("treasure_chest", 52, 42, TreasureChest) },
     { id: "golden_castle", name: "Golden Castle", price: 250, category: "rare", render: mkRender("golden_castle", 56, 64, GoldenCastle) },
+    {
+        id: "tank_expand", name: "Larger Tank", price: 200, category: "upgrades",
+        render: (size) => (
+            <svg width={56 * size} height={40 * size} viewBox="0 0 56 40" fill="none" stroke="#2C2C2A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="8" width="50" height="26" rx="3" fill="#BFDBFE" fillOpacity="0.5" />
+                <path d="M10 20 Q12 18 14 20 T18 20" stroke="#3B82F6" strokeWidth="1.2" />
+                <path d="M38 24 Q40 22 42 24 T46 24" stroke="#3B82F6" strokeWidth="1.2" />
+                <path d="M3 18 L0 18 M53 18 L56 18" stroke="#2C2C2A" />
+                <path d="M0 16 L0 20 M56 16 L56 20" stroke="#2C2C2A" />
+                <path d="M2 14 L0 16 M2 22 L0 20 M54 14 L56 16 M54 22 L56 20" strokeWidth="1.5" />
+            </svg>
+        ),
+    },
 ];
 
 const STORE_CATEGORIES = [
@@ -635,12 +648,17 @@ const STORE_CATEGORIES = [
     { id: "decor", label: "Decor", accent: "#78716C", previewBg: "#FAF9F6" },
     { id: "critters", label: "Critters 🦀", accent: "#FB923C", previewBg: "#FFF7ED" },
     { id: "rare", label: "Rare ✨", accent: "#F59E0B", previewBg: "#FFFBEB" },
+    { id: "upgrades", label: "Upgrades 🔧", accent: "#3B82F6", previewBg: "#EFF6FF" },
 ];
+
+const TANK_EXPAND_ID = "tank_expand";
+const TANK_EXPAND_STEP = 0.5;
 
 const STORE_ITEM_MAP = Object.fromEntries(STORE_ITEMS.map((i) => [i.id, i]));
 
 // =========== DRAGGABLE PURCHASE ===========
-function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChange, onOutsideChange, children }) {
+function DraggablePurchase({ purchase, tankRef, boundsRef, onMoveEnd, onRemove, onDragChange, onOutsideChange, children }) {
+    const outsideRef = boundsRef || tankRef;
     const [pos, setPos] = useState({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
     const [isDragging, setIsDragging] = useState(false);
     const [isOutside, setIsOutside] = useState(false);
@@ -675,7 +693,8 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChang
         const onMove = (ev) => {
             if (!dragState.current || ev.pointerId !== pointerId || !tankRef.current) return;
             const rect = tankRef.current.getBoundingClientRect();
-            const outside = checkOutside(ev.clientX, ev.clientY, rect);
+            const bounds = (outsideRef.current || tankRef.current).getBoundingClientRect();
+            const outside = checkOutside(ev.clientX, ev.clientY, bounds);
             setIsOutside(outside);
             onOutsideChange?.(outside);
             if (!outside) {
@@ -693,7 +712,8 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChang
             onOutsideChange?.(false);
             if (!tankRef.current) return;
             const rect = tankRef.current.getBoundingClientRect();
-            const outside = checkOutside(ev.clientX, ev.clientY, rect);
+            const bounds = (outsideRef.current || tankRef.current).getBoundingClientRect();
+            const outside = checkOutside(ev.clientX, ev.clientY, bounds);
             if (outside) {
                 setPos({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
                 onRemove(purchase.id);
@@ -756,10 +776,12 @@ function DraggablePurchase({ purchase, tankRef, onMoveEnd, onRemove, onDragChang
 }
 
 // =========== MINIMAL AQUARIUM ===========
-function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase, onRemovePurchase }) {
+function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0, onMovePurchase, onRemovePurchase }) {
     const tankRef = useRef(null);
+    const viewportRef = useRef(null);
     const [anyDragging, setAnyDragging] = useState(false);
     const [dragOutside, setDragOutside] = useState(false);
+    const tankWidthPct = 100 * (1 + TANK_EXPAND_STEP * expansions);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpBaseDur = { ecstatic: 30, happy: 35, content: 40, meh: 50, sad: 60, miserable: 80 }[mood] || 40;
     const ownedShrimp = purchases.filter((p) => p.item_id?.startsWith("shrimp_"));
@@ -783,15 +805,20 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
     }[mood] || "#C084FC";
 
     return (
-        <div ref={tankRef} style={{
+        <div ref={viewportRef} style={{
             position: "relative", width: "100%", height: "160px",
-            overflow: "hidden", fontFamily: FONT,
+            overflowX: expansions > 0 ? "auto" : "hidden",
+            overflowY: "hidden",
+            fontFamily: FONT,
             border: "2px solid #2C2C2A",
             userSelect: "none", WebkitUserSelect: "none",
             borderRadius: "12px",
             boxShadow: boxShadow("#2C2C2A", 3, 3),
             background: waterColor,
             transition: "background 1s ease",
+        }}>
+        <div ref={tankRef} style={{
+            position: "relative", width: `${tankWidthPct}%`, height: "100%",
         }}>
             <style>{`
         @keyframes ${uid}-swim {
@@ -1048,8 +1075,8 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                 </div>
             )}
 
-            {/* Purchased items (draggable, placed only — shrimp excluded, they crawl) */}
-            {purchases.filter((p) => p.x >= 0 && !p.item_id?.startsWith("shrimp_")).map((p) => {
+            {/* Purchased items (draggable, placed only — shrimp excluded (they crawl), tank upgrades excluded (not placeable)) */}
+            {purchases.filter((p) => p.x >= 0 && !p.item_id?.startsWith("shrimp_") && p.item_id !== TANK_EXPAND_ID).map((p) => {
                 const item = STORE_ITEM_MAP[p.item_id];
                 if (!item) return null;
                 return (
@@ -1057,6 +1084,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                         key={p.id}
                         purchase={p}
                         tankRef={tankRef}
+                        boundsRef={viewportRef}
                         onMoveEnd={onMovePurchase}
                         onRemove={onRemovePurchase}
                         onDragChange={setAnyDragging}
@@ -1066,6 +1094,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
                     </DraggablePurchase>
                 );
             })}
+        </div>
 
             {/* Drag-outside-to-remove overlay */}
             {dragOutside && (
@@ -1497,6 +1526,11 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
     const coinBalance = coinsEarned - coinsSpent;
 
+    const tankExpansions = useMemo(
+        () => purchases.filter((p) => p.item_id === TANK_EXPAND_ID).length,
+        [purchases]
+    );
+
     const purchaseItem = async (itemId) => {
         const item = STORE_ITEM_MAP[itemId];
         if (!item || !profile?.household_id) return;
@@ -1730,12 +1764,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             mood={householdMood}
                             rewardAnim={rewardAnim}
                             purchases={purchases}
+                            expansions={tankExpansions}
                             onMovePurchase={movePurchase}
                             onRemovePurchase={unplacePurchase}
                         />
                     </div>
                     {(() => {
-                        const inventoryItems = purchases.filter((p) => p.x < 0 && !p.item_id?.startsWith("shrimp_"));
+                        const inventoryItems = purchases.filter((p) => p.x < 0 && !p.item_id?.startsWith("shrimp_") && p.item_id !== TANK_EXPAND_ID);
                         return inventoryItems.length > 0 && (
                             <div style={{ marginBottom: "1rem" }}>
                                 <button
@@ -2153,7 +2188,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 const item = STORE_ITEM_MAP[p.item_id];
                                 if (!item) return null;
                                 const isShrimp = p.item_id?.startsWith("shrimp_");
-                                const inTank = isShrimp || p.x >= 0;
+                                const isUpgrade = p.item_id === TANK_EXPAND_ID;
+                                const inTank = isShrimp || isUpgrade || p.x >= 0;
                                 return (
                                     <div key={p.id} style={{
                                         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -2168,7 +2204,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                             <div>
                                                 <div style={{ fontSize: "13px", fontWeight: 600 }}>{item.name}</div>
                                                 <div style={{ fontSize: "11px", color: inTank ? "#22C55E" : "#888780" }}>
-                                                    {inTank ? "in tank 🐟" : "in inventory"}
+                                                    {isUpgrade ? "active upgrade ✨" : inTank ? "in tank 🐟" : "in inventory"}
                                                 </div>
                                             </div>
                                         </div>
