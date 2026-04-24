@@ -1736,67 +1736,83 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         />
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
-                        {/* Tank Quality */}
+                    <style>{`
+                        @keyframes streak-bounce {
+                            0% { transform: scale(1); }
+                            20% { transform: scale(1.2); }
+                            40% { transform: scale(0.95); }
+                            60% { transform: scale(1.1); }
+                            80% { transform: scale(0.98); }
+                            100% { transform: scale(1); }
+                        }
+                    `}</style>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
+                        {/* Row 1: Tank Quality, Streak, Left Today */}
                         <div style={{
-                            padding: "12px", background: "white", borderRadius: "12px", textAlign: "center",
+                            padding: "10px 8px", background: "white", borderRadius: "12px", textAlign: "center",
                             border: "2px solid #2C2C2A", boxShadow: boxShadow(moodColor(householdHappiness), 2, 2),
                         }}>
-                            <div style={{
-                                fontSize: "22px", fontWeight: 800, color: moodColor(householdHappiness),
-                                transition: "color 0.5s ease",
-                            }}>{householdHappiness}</div>
-                            <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
-                                Tank Quality
+                            <div style={{ fontSize: "20px", fontWeight: 800, color: moodColor(householdHappiness), transition: "color 0.5s ease" }}>
+                                {householdHappiness}
                             </div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>Tank Quality</div>
                         </div>
-                        {/* Streak */}
-                        <style>{`
-                            @keyframes streak-bounce {
-                                0% { transform: scale(1); }
-                                20% { transform: scale(1.2); }
-                                40% { transform: scale(0.95); }
-                                60% { transform: scale(1.1); }
-                                80% { transform: scale(0.98); }
-                                100% { transform: scale(1); }
-                            }
-                        `}</style>
                         <div style={{
-                            padding: "12px", background: streak > 0 ? "#FEF3C7" : "white",
+                            padding: "10px 8px", background: streak > 0 ? "#FEF3C7" : "white",
                             borderRadius: "12px", textAlign: "center",
                             border: "2px solid #2C2C2A",
                             boxShadow: boxShadow(streak > 0 ? "#F59E0B" : "#e8e8e8", 2, 2),
                             animation: streakAnim ? "streak-bounce 0.6s ease" : "none",
                         }}>
-                            <div style={{ fontSize: "22px", fontWeight: 800, color: streak > 0 ? "#B45309" : "#2C2C2A", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
-                                {streak > 0 && <Flame size={18} color="#F59E0B" />}
+                            <div style={{ fontSize: "20px", fontWeight: 800, color: streak > 0 ? "#B45309" : "#2C2C2A", display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}>
+                                {streak > 0 && <Flame size={16} color="#F59E0B" />}
                                 {streak}
                             </div>
-                            <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
                                 {streak === 0 ? "No Streak" : "Day Streak"}
                             </div>
                         </div>
-                        {/* My Week & Partner's Week */}
-                        <StatCard label={`${currentUser.name}'s Week`} value={myCompletionsThisWeek} color={currentUser.color} />
-                        <StatCard label={`${partner?.name || "Partner"}'s Week`} value={partnerCompletionsThisWeek} color={partner?.color} />
-                        {/* Coins */}
+                        <div style={{
+                            padding: "10px 8px", background: "white", borderRadius: "12px", textAlign: "center",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow("#e8e8e8", 2, 2),
+                        }}>
+                            <div style={{ fontSize: "20px", fontWeight: 800, color: "#2C2C2A" }}>
+                                {todayList.filter((c) => !c.completedToday).length}
+                            </div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>Left Today</div>
+                        </div>
+                        {/* Row 2: My Week, Partner's Week, Coins */}
+                        <div style={{
+                            padding: "10px 8px", background: "white", borderRadius: "12px", textAlign: "center",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow(currentUser.color || "#e8e8e8", 2, 2),
+                        }}>
+                            <div style={{ fontSize: "20px", fontWeight: 800, color: currentUser.color || "#2C2C2A" }}>
+                                {myCompletionsThisWeek}
+                            </div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{currentUser.name?.split(" ")[0]}'s Week</div>
+                        </div>
+                        <div style={{
+                            padding: "10px 8px", background: "white", borderRadius: "12px", textAlign: "center",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow(partner?.color || "#e8e8e8", 2, 2),
+                        }}>
+                            <div style={{ fontSize: "20px", fontWeight: 800, color: partner?.color || "#2C2C2A" }}>
+                                {partnerCompletionsThisWeek}
+                            </div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{partner?.name?.split(" ")[0] || "Partner"}'s Week</div>
+                        </div>
                         <div
                             onClick={() => setView("store")}
                             style={{
-                                padding: "12px", background: "#FEF3C7", borderRadius: "12px", textAlign: "center",
+                                padding: "10px 8px", background: "#FEF3C7", borderRadius: "12px", textAlign: "center",
                                 border: "2px solid #2C2C2A", boxShadow: boxShadow("#F59E0B", 2, 2),
-                                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px",
                                 cursor: "pointer",
                             }}
                         >
-                            <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "22px", fontWeight: 800, color: "#2C2C2A" }}>
-                                <Coins size={18} strokeWidth={2.5} color="#B45309" /> {coinBalance}
+                            <div style={{ fontSize: "20px", fontWeight: 800, color: "#B45309", display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}>
+                                <Coins size={16} strokeWidth={2.5} color="#B45309" /> {coinBalance}
                             </div>
-                            <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780" }}>Coins</div>
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#B45309", marginTop: "1px" }}>spend at the store →</div>
+                            <div style={{ fontSize: "10px", fontWeight: 700, color: "#B45309", marginTop: "2px" }}>Shop →</div>
                         </div>
-                        {/* Left Today */}
-                        <StatCard label="Left Today" value={todayList.filter((c) => !c.completedToday).length} />
                     </div>
 
                     {todayList.length === 0 && (
