@@ -1049,7 +1049,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], onMovePurchase,
             )}
 
             {/* Purchased items (draggable, placed only — shrimp excluded, they crawl) */}
-            {purchases.filter((p) => p.x != null && !p.item_id?.startsWith("shrimp_")).map((p) => {
+            {purchases.filter((p) => p.x >= 0 && !p.item_id?.startsWith("shrimp_")).map((p) => {
                 const item = STORE_ITEM_MAP[p.item_id];
                 if (!item) return null;
                 return (
@@ -1499,18 +1499,15 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
     const purchaseItem = async (itemId) => {
         const item = STORE_ITEM_MAP[itemId];
-        if (!item || !profile?.household_id) { alert("DEBUG: no item or no household"); return; }
-        if (coinBalance < item.price) { alert(`DEBUG: need ${item.price} have ${coinBalance}`); return; }
-        alert(`DEBUG: attempting insert for ${itemId}, household=${profile.household_id}`);
+        if (!item || !profile?.household_id) return;
+        if (coinBalance < item.price) return;
         const { data, error } = await supabase
             .from("purchases")
-            .insert({ household_id: profile.household_id, item_id: itemId, x: null, y: null })
+            .insert({ household_id: profile.household_id, item_id: itemId, x: -1, y: -1 })
             .select().single();
-        if (error) { alert(`DEBUG insert error: ${JSON.stringify(error)}`); return; }
-        if (data) {
+        if (!error && data) {
             setPurchases((prev) => [...prev, data]);
             notifyPurchase(item.name);
-            alert("DEBUG: purchase success!");
         }
     };
 
@@ -1520,8 +1517,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     };
 
     const unplacePurchase = async (purchaseId) => {
-        setPurchases((prev) => prev.map((p) => (p.id === purchaseId ? { ...p, x: null, y: null } : p)));
-        await supabase.from("purchases").update({ x: null, y: null }).eq("id", purchaseId);
+        setPurchases((prev) => prev.map((p) => (p.id === purchaseId ? { ...p, x: -1, y: -1 } : p)));
+        await supabase.from("purchases").update({ x: -1, y: -1 }).eq("id", purchaseId);
     };
 
     const placePurchase = async (purchaseId) => {
@@ -1738,7 +1735,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         />
                     </div>
                     {(() => {
-                        const inventoryItems = purchases.filter((p) => p.x == null && !p.item_id?.startsWith("shrimp_"));
+                        const inventoryItems = purchases.filter((p) => p.x < 0 && !p.item_id?.startsWith("shrimp_"));
                         return inventoryItems.length > 0 && (
                             <div style={{ marginBottom: "1rem" }}>
                                 <button
@@ -2156,7 +2153,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 const item = STORE_ITEM_MAP[p.item_id];
                                 if (!item) return null;
                                 const isShrimp = p.item_id?.startsWith("shrimp_");
-                                const inTank = isShrimp || p.x != null;
+                                const inTank = isShrimp || p.x >= 0;
                                 return (
                                     <div key={p.id} style={{
                                         display: "flex", alignItems: "center", justifyContent: "space-between",
