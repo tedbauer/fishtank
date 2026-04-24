@@ -6,6 +6,8 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const isDev = process.env.NEXT_PUBLIC_ENABLE_DEBUG === "true";
+
 export const viewport = {
   width: "device-width",
   initialScale: 1,
@@ -14,19 +16,19 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: "My Fishtank",
+  title: isDev ? "My Fishtank [DEV]" : "My Fishtank",
   description: "Keep your home tidy, together. A shared household chore tracker.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "My Fishtank",
+    title: isDev ? "My Fishtank [DEV]" : "My Fishtank",
   },
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" data-dev={isDev ? "true" : undefined}>
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
