@@ -625,9 +625,6 @@ const STORE_ITEMS = [
     { id: "shrimp_sunkissed", name: "Sunkissed Shrimp", price: 75, category: "critters", render: (size) => <TankImg src="/tank/shrimp_sunkissed.png" width={30 * size} alt="Sunkissed Shrimp" /> },
     { id: "shrimp_jelly", name: "Jelly Shrimp", price: 75, category: "critters", render: (size) => <TankImg src="/tank/shrimp_jelly.png" width={30 * size} alt="Jelly Shrimp" /> },
     { id: "shrimp_jade", name: "Jade Shrimp", price: 120, category: "critters", render: (size) => <TankImg src="/tank/shrimp_jade.png" width={30 * size} alt="Jade Shrimp" /> },
-    { id: "starfish", name: "Starfish", price: 50, category: "critters", render: mkRender("starfish", 42, 42, Starfish) },
-    { id: "sea_urchin", name: "Sea Urchin", price: 60, category: "critters", render: mkRender("sea_urchin", 38, 38, SeaUrchin) },
-    { id: "decor_crab", name: "Crab", price: 70, category: "critters", render: mkRender("decor_crab", 46, 32, DecorCrab) },
     { id: "treasure_chest", name: "Treasure Chest", price: 150, category: "rare", render: mkRender("treasure_chest", 52, 42, TreasureChest) },
     { id: "golden_castle", name: "Golden Castle", price: 250, category: "rare", render: mkRender("golden_castle", 56, 64, GoldenCastle) },
 ];
