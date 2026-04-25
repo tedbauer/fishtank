@@ -845,29 +845,38 @@ function DraggableCritter({ purchase, boundsRef, onRemove, onDragChange, onOutsi
     return (
         <>
             <div
-                onPointerDown={handlePointerDown}
                 style={{
                     ...animationStyle,
                     animationPlayState: isDragging ? "paused" : "running",
                     opacity: isDragging ? 0 : 1,
-                    cursor: isDragging ? "grabbing" : "grab",
-                    touchAction: "none",
-                    userSelect: "none",
                 }}
             >
-                {children}
+                <div
+                    onPointerDown={handlePointerDown}
+                    style={{
+                        padding: "16px",
+                        margin: "-16px",
+                        cursor: isDragging ? "grabbing" : "grab",
+                        touchAction: "none",
+                        userSelect: "none",
+                        WebkitUserSelect: "none",
+                    }}
+                >
+                    {children}
+                </div>
             </div>
             {isDragging && (
                 <div style={{
                     position: "fixed",
                     left: pointer.x, top: pointer.y,
-                    transform: "translate(-50%, -50%) scale(1.4)",
+                    transform: "translate(-50%, -50%) scale(1.6)",
                     pointerEvents: "none",
                     zIndex: 100,
                     filter: isOutside
                         ? "drop-shadow(0 6px 12px rgba(220,38,38,0.8)) sepia(1) saturate(3) hue-rotate(300deg)"
                         : "drop-shadow(0 8px 16px rgba(0,0,0,0.5))",
                     opacity: isOutside ? 0.75 : 1,
+                    transition: "transform 0.12s ease",
                 }}>
                     {children}
                 </div>
