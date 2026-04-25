@@ -775,6 +775,107 @@ function DraggablePurchase({ purchase, tankRef, boundsRef, onMoveEnd, onRemove, 
     );
 }
 
+// =========== DRAGGABLE CRITTER ===========
+// Crawls via keyframe animation by default; pointerdown grabs it,
+// drag-out releases to inventory. Releasing inside tank resumes crawling.
+function DraggableCritter({ purchase, boundsRef, onRemove, onDragChange, onOutsideChange, children, animationStyle }) {
+    const [isDragging, setIsDragging] = useState(false);
+    const [isOutside, setIsOutside] = useState(false);
+    const [pointer, setPointer] = useState({ x: 0, y: 0 });
+    const dragState = useRef(null);
+
+    const checkOutside = (clientX, clientY, rect) =>
+        clientX < rect.left || clientX > rect.right ||
+        clientY < rect.top || clientY > rect.bottom;
+
+    const handlePointerDown = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const pointerId = e.pointerId;
+        dragState.current = { pointerId };
+        setIsDragging(true);
+        setPointer({ x: e.clientX, y: e.clientY });
+        onDragChange?.(true);
+        document.body.style.userSelect = "none";
+        document.body.style.webkitUserSelect = "none";
+
+        const onMove = (ev) => {
+            if (!dragState.current || ev.pointerId !== pointerId) return;
+            const bounds = boundsRef?.current?.getBoundingClientRect();
+            if (bounds) {
+                const outside = checkOutside(ev.clientX, ev.clientY, bounds);
+                setIsOutside(outside);
+                onOutsideChange?.(outside);
+            }
+            setPointer({ x: ev.clientX, y: ev.clientY });
+        };
+        const onUp = (ev) => {
+            if (!dragState.current || ev.pointerId !== pointerId) return;
+            cleanup();
+            const bounds = boundsRef?.current?.getBoundingClientRect();
+            const outside = bounds ? checkOutside(ev.clientX, ev.clientY, bounds) : false;
+            dragState.current = null;
+            setIsDragging(false);
+            setIsOutside(false);
+            onDragChange?.(false);
+            onOutsideChange?.(false);
+            if (outside) onRemove(purchase.id);
+        };
+        const onCancel = (ev) => {
+            if (!dragState.current || ev.pointerId !== pointerId) return;
+            cleanup();
+            dragState.current = null;
+            setIsDragging(false);
+            setIsOutside(false);
+            onDragChange?.(false);
+            onOutsideChange?.(false);
+        };
+        const cleanup = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onCancel);
+            document.body.style.userSelect = "";
+            document.body.style.webkitUserSelect = "";
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onCancel);
+    };
+
+    return (
+        <>
+            <div
+                onPointerDown={handlePointerDown}
+                style={{
+                    ...animationStyle,
+                    animationPlayState: isDragging ? "paused" : "running",
+                    opacity: isDragging ? 0 : 1,
+                    cursor: isDragging ? "grabbing" : "grab",
+                    touchAction: "none",
+                    userSelect: "none",
+                }}
+            >
+                {children}
+            </div>
+            {isDragging && (
+                <div style={{
+                    position: "fixed",
+                    left: pointer.x, top: pointer.y,
+                    transform: "translate(-50%, -50%) scale(1.4)",
+                    pointerEvents: "none",
+                    zIndex: 100,
+                    filter: isOutside
+                        ? "drop-shadow(0 6px 12px rgba(220,38,38,0.8)) sepia(1) saturate(3) hue-rotate(300deg)"
+                        : "drop-shadow(0 8px 16px rgba(0,0,0,0.5))",
+                    opacity: isOutside ? 0.75 : 1,
+                }}>
+                    {children}
+                </div>
+            )}
+        </>
+    );
+}
+
 // =========== MINIMAL AQUARIUM ===========
 function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0, onMovePurchase, onRemovePurchase }) {
     const tankRef = useRef(null);
@@ -784,7 +885,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
     const tankWidthPct = 100 * (1 + TANK_EXPAND_STEP * expansions);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpBaseDur = { ecstatic: 30, happy: 35, content: 40, meh: 50, sad: 60, miserable: 80 }[mood] || 40;
-    const ownedShrimp = purchases.filter((p) => p.item_id?.startsWith("shrimp_"));
+    const placedShrimp = purchases.filter((p) => p.item_id?.startsWith("shrimp_") && p.x >= 0);
     const schoolDur = { ecstatic: "24s", happy: "29s", content: "34s", meh: "43s", sad: "54s", miserable: "70s" }[mood] || "34s";
     const snailDur = { ecstatic: "55s", happy: "65s", content: "75s", meh: "90s", sad: "110s", miserable: "140s" }[mood] || "75s";
     const uid = `aq-${mood}`;
@@ -836,7 +937,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
           90%  { left: 20px;  top: 52px; transform: scaleX(-1); }
           100% { left: 20px;  top: 50px; transform: scaleX(-1); }
         }
-        ${ownedShrimp.map((s, i) => {
+        ${placedShrimp.map((s, i) => {
                 const startPct = 15 + (i * 20) % 60;
                 const endPct = startPct + 25;
                 return `
@@ -991,18 +1092,27 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                 imageRendering: "pixelated",
             }} />
 
-            {/* Purchased Shrimp */}
-            {ownedShrimp.map((s, i) => {
+            {/* Placed Shrimp — crawl by default, draggable to remove */}
+            {placedShrimp.map((s, i) => {
                 const item = STORE_ITEM_MAP[s.item_id];
                 if (!item) return null;
                 const dur = shrimpBaseDur + i * 5;
                 return (
-                    <div key={s.id} style={{
-                        position: "absolute", bottom: 16, left: "15%",
-                        animation: `${uid}-shrimp-${i} ${dur}s linear infinite`,
-                    }}>
+                    <DraggableCritter
+                        key={s.id}
+                        purchase={s}
+                        boundsRef={viewportRef}
+                        onRemove={onRemovePurchase}
+                        onDragChange={setAnyDragging}
+                        onOutsideChange={setDragOutside}
+                        animationStyle={{
+                            position: "absolute", bottom: 16, left: "15%",
+                            animation: `${uid}-shrimp-${i} ${dur}s linear infinite`,
+                            zIndex: 5,
+                        }}
+                    >
                         <TankImg src={`/tank/${s.item_id}.png`} width={24} alt={item.name} />
-                    </div>
+                    </DraggableCritter>
                 );
             })}
 
@@ -1079,7 +1189,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                 </div>
             )}
 
-            {/* Purchased items (draggable, placed only — shrimp excluded (they crawl), tank upgrades excluded (not placeable)) */}
+            {/* Purchased items (draggable, placed only — shrimp use DraggableCritter, tank upgrades aren't placeable) */}
             {purchases.filter((p) => p.x >= 0 && !p.item_id?.startsWith("shrimp_") && p.item_id !== TANK_EXPAND_ID).map((p) => {
                 const item = STORE_ITEM_MAP[p.item_id];
                 if (!item) return null;
@@ -1880,7 +1990,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         />
                     </div>
                     {(() => {
-                        const inventoryItems = purchases.filter((p) => p.x < 0 && !p.item_id?.startsWith("shrimp_") && p.item_id !== TANK_EXPAND_ID);
+                        const inventoryItems = purchases.filter((p) => p.x < 0 && p.item_id !== TANK_EXPAND_ID);
                         return inventoryItems.length > 0 && (
                             <div style={{ marginBottom: "1rem" }}>
                                 <button
@@ -2297,9 +2407,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             {purchases.map((p) => {
                                 const item = STORE_ITEM_MAP[p.item_id];
                                 if (!item) return null;
-                                const isShrimp = p.item_id?.startsWith("shrimp_");
                                 const isUpgrade = p.item_id === TANK_EXPAND_ID;
-                                const inTank = isShrimp || isUpgrade || p.x >= 0;
+                                const inTank = isUpgrade || p.x >= 0;
                                 return (
                                     <div key={p.id} style={{
                                         display: "flex", alignItems: "center", justifyContent: "space-between",
