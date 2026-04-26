@@ -776,12 +776,13 @@ function DraggablePurchase({ purchase, tankRef, boundsRef, onMoveEnd, onRemove, 
 }
 
 // =========== DRAGGABLE CRITTER ===========
-// Crawls via keyframe animation by default; pointerdown grabs it,
-// drag-out releases to inventory. Releasing inside tank resumes crawling.
-function DraggableCritter({ purchase, boundsRef, onRemove, onDragChange, onOutsideChange, children, animationStyle }) {
-    const [isDragging, setIsDragging] = useState(false);
+// Crawls/swims via keyframe by default; pointerdown grabs it,
+// drag-out releases to inventory, drop in tank → falls to seafloor then resumes animation.
+function DraggableCritter({ purchase, boundsRef, tankInnerRef, floorBottom = 16, fallMs = 850, removable = true, onRemove, onDragChange, onOutsideChange, children, animationStyle }) {
+    const [mode, setMode] = useState("idle"); // idle | dragging | falling
     const [isOutside, setIsOutside] = useState(false);
     const [pointer, setPointer] = useState({ x: 0, y: 0 });
+    const [fallPos, setFallPos] = useState({ left: 0, bottom: 0, settle: false });
     const dragState = useRef(null);
 
     const checkOutside = (clientX, clientY, rect) =>
@@ -789,11 +790,12 @@ function DraggableCritter({ purchase, boundsRef, onRemove, onDragChange, onOutsi
         clientY < rect.top || clientY > rect.bottom;
 
     const handlePointerDown = (e) => {
+        if (mode === "falling") return;
         e.preventDefault();
         e.stopPropagation();
         const pointerId = e.pointerId;
         dragState.current = { pointerId };
-        setIsDragging(true);
+        setMode("dragging");
         setPointer({ x: e.clientX, y: e.clientY });
         onDragChange?.(true);
         document.body.style.userSelect = "none";
@@ -801,11 +803,13 @@ function DraggableCritter({ purchase, boundsRef, onRemove, onDragChange, onOutsi
 
         const onMove = (ev) => {
             if (!dragState.current || ev.pointerId !== pointerId) return;
-            const bounds = boundsRef?.current?.getBoundingClientRect();
-            if (bounds) {
-                const outside = checkOutside(ev.clientX, ev.clientY, bounds);
-                setIsOutside(outside);
-                onOutsideChange?.(outside);
+            if (removable) {
+                const bounds = boundsRef?.current?.getBoundingClientRect();
+                if (bounds) {
+                    const outside = checkOutside(ev.clientX, ev.clientY, bounds);
+                    setIsOutside(outside);
+                    onOutsideChange?.(outside);
+                }
             }
             setPointer({ x: ev.clientX, y: ev.clientY });
         };
@@ -813,19 +817,41 @@ function DraggableCritter({ purchase, boundsRef, onRemove, onDragChange, onOutsi
             if (!dragState.current || ev.pointerId !== pointerId) return;
             cleanup();
             const bounds = boundsRef?.current?.getBoundingClientRect();
-            const outside = bounds ? checkOutside(ev.clientX, ev.clientY, bounds) : false;
+            const outside = removable && bounds
+                ? checkOutside(ev.clientX, ev.clientY, bounds)
+                : false;
             dragState.current = null;
-            setIsDragging(false);
-            setIsOutside(false);
             onDragChange?.(false);
             onOutsideChange?.(false);
-            if (outside) onRemove(purchase.id);
+            setIsOutside(false);
+            if (outside) {
+                setMode("idle");
+                onRemove?.(purchase.id);
+                return;
+            }
+            // Drop inside tank (or anywhere if not removable) → fall from drop point to floor.
+            const inner = tankInnerRef?.current?.getBoundingClientRect();
+            if (!inner) {
+                setMode("idle");
+                return;
+            }
+            // Clamp to tank when not removable so the critter can't end up outside.
+            const clampedX = removable
+                ? ev.clientX
+                : Math.max(inner.left + 8, Math.min(inner.right - 8, ev.clientX));
+            const clampedY = removable
+                ? ev.clientY
+                : Math.max(inner.top + 8, Math.min(inner.bottom - 8, ev.clientY));
+            const left = clampedX - inner.left;
+            const bottom = Math.max(floorBottom, inner.bottom - clampedY);
+            setFallPos({ left, bottom, settle: false });
+            setMode("falling");
         };
         const onCancel = (ev) => {
             if (!dragState.current || ev.pointerId !== pointerId) return;
             cleanup();
             dragState.current = null;
-            setIsDragging(false);
+            setMode("idle");
             setIsOutside(false);
             onDragChange?.(false);
             onOutsideChange?.(false);
@@ -842,13 +868,41 @@ function DraggableCritter({ purchase, boundsRef, onRemove, onDragChange, onOutsi
         window.addEventListener("pointercancel", onCancel);
     };
 
+    useEffect(() => {
+        if (mode !== "falling") return;
+        let raf1, raf2;
+        raf1 = requestAnimationFrame(() => {
+            raf2 = requestAnimationFrame(() => {
+                setFallPos((p) => ({ ...p, bottom: floorBottom, settle: true }));
+            });
+        });
+        const t = setTimeout(() => setMode("idle"), fallMs);
+        return () => {
+            cancelAnimationFrame(raf1);
+            cancelAnimationFrame(raf2);
+            clearTimeout(t);
+        };
+    }, [mode, floorBottom, fallMs]);
+
+    const isDragging = mode === "dragging";
+    const isFalling = mode === "falling";
+
     return (
         <>
             <div
                 style={{
                     ...animationStyle,
+                    animation: isFalling ? "none" : animationStyle?.animation,
                     animationPlayState: isDragging ? "paused" : "running",
                     opacity: isDragging ? 0 : 1,
+                    ...(isFalling ? {
+                        left: `${fallPos.left}px`,
+                        bottom: `${fallPos.bottom}px`,
+                        top: "auto",
+                        transition: fallPos.settle
+                            ? `bottom ${fallMs}ms cubic-bezier(0.5, 0, 0.85, 0.4)`
+                            : "none",
+                    } : {}),
                 }}
             >
                 <div
@@ -1111,6 +1165,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                         key={s.id}
                         purchase={s}
                         boundsRef={viewportRef}
+                        tankInnerRef={tankRef}
                         onRemove={onRemovePurchase}
                         onDragChange={setAnyDragging}
                         onOutsideChange={setDragOutside}
@@ -1146,17 +1201,31 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
             </div>
 
             {/* Fish + hearts */}
-            <div className={`${uid}-fish`}>
-                <LineFish mood={mood} size={32} />
-                {[0, 1, 2].map((i) => (
-                    <div key={i} style={{
-                        position: "absolute", top: -6, left: 6 + i * 7,
-                        fontSize: "8px", color: heartColor, opacity: 0,
-                        animation: `${uid}-heart ${3.5 + i * 0.8}s ease-out infinite`,
-                        animationDelay: `${i * 1.4}s`,
-                    }}>♥</div>
-                ))}
-            </div>
+            <DraggableCritter
+                purchase={{ id: "main-fish" }}
+                boundsRef={viewportRef}
+                tankInnerRef={tankRef}
+                removable={false}
+                onDragChange={setAnyDragging}
+                onOutsideChange={setDragOutside}
+                animationStyle={{
+                    position: "absolute", top: 50, left: 20,
+                    animation: `${uid}-swim ${swimDuration} ease-in-out infinite`,
+                    zIndex: 5,
+                }}
+            >
+                <div style={{ position: "relative" }}>
+                    <LineFish mood={mood} size={32} />
+                    {[0, 1, 2].map((i) => (
+                        <div key={i} style={{
+                            position: "absolute", top: -6, left: 6 + i * 7,
+                            fontSize: "8px", color: heartColor, opacity: 0,
+                            animation: `${uid}-heart ${3.5 + i * 0.8}s ease-out infinite`,
+                            animationDelay: `${i * 1.4}s`,
+                        }}>♥</div>
+                    ))}
+                </div>
+            </DraggableCritter>
 
             {/* Reward Animation */}
             {rewardAnim && (
