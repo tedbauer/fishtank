@@ -942,13 +942,18 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
     const viewportRef = useRef(null);
     const [anyDragging, setAnyDragging] = useState(false);
     const [dragOutside, setDragOutside] = useState(false);
-    const [fishHome, setFishHome] = useState(null);
+    const [fishState, setFishState] = useState({ visible: true, home: null });
+    const [snailState, setSnailState] = useState({ visible: true, home: null });
+    const [schoolState, setSchoolState] = useState({ visible: true, home: null });
     const tankWidthPct = 100 * (1 + TANK_EXPAND_STEP * expansions);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpBaseDur = { ecstatic: 30, happy: 35, content: 40, meh: 50, sad: 60, miserable: 80 }[mood] || 40;
     const placedShrimp = purchases.filter((p) => p.item_id?.startsWith("shrimp_") && p.x >= 0);
     const schoolDur = { ecstatic: "24s", happy: "29s", content: "34s", meh: "43s", sad: "54s", miserable: "70s" }[mood] || "34s";
     const snailDur = { ecstatic: "55s", happy: "65s", content: "75s", meh: "90s", sad: "110s", miserable: "140s" }[mood] || "75s";
+    const localSwimDuration = `${Math.max(6, parseFloat(swimDuration) * 0.4).toFixed(1)}s`;
+    const localSnailDuration = `${Math.max(20, parseFloat(snailDur) * 0.45).toFixed(1)}s`;
+    const localSchoolDuration = `${Math.max(8, parseFloat(schoolDur) * 0.4).toFixed(1)}s`;
     const uid = `aq-${mood}`;
 
     const waterColor = {
@@ -998,8 +1003,8 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
           90%  { left: 20px;  top: 52px; transform: scaleX(-1); }
           100% { left: 20px;  top: 50px; transform: scaleX(-1); }
         }
-        ${fishHome ? `
-        @keyframes ${uid}-swim-local-${Math.round(fishHome.leftPx)}_${Math.round(fishHome.topPx)} {
+        ${fishState.home ? `
+        @keyframes ${uid}-swim-local-${Math.round(fishState.home.leftPx)}_${Math.round(fishState.home.topPx)} {
           0%   { transform: translate(0px, 0px) scaleX(-1); }
           22%  { transform: translate(40px, -5px) scaleX(-1); }
           42%  { transform: translate(70px, 4px) scaleX(-1); }
@@ -1008,6 +1013,25 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
           84%  { transform: translate(-50px, 5px) scaleX(1); }
           88%  { transform: translate(-50px, 5px) scaleX(-1); }
           100% { transform: translate(0px, 0px) scaleX(-1); }
+        }` : ''}
+        ${snailState.home ? `
+        @keyframes ${uid}-snail-local-${Math.round(snailState.home.leftPx)} {
+          0%   { transform: translate(0px, 0) scaleX(1); }
+          48%  { transform: translate(60px, 0) scaleX(1); }
+          52%  { transform: translate(60px, 0) scaleX(-1); }
+          98%  { transform: translate(-30px, 0) scaleX(-1); }
+          100% { transform: translate(0px, 0) scaleX(1); }
+        }` : ''}
+        ${schoolState.home ? `
+        @keyframes ${uid}-school-local-${Math.round(schoolState.home.leftPx)}_${Math.round(schoolState.home.topPx)} {
+          0%   { transform: translate(0px, 0px) scaleX(1); }
+          22%  { transform: translate(-50px, 6px) scaleX(1); }
+          42%  { transform: translate(-90px, -4px) scaleX(1); }
+          46%  { transform: translate(-90px, -4px) scaleX(-1); }
+          66%  { transform: translate(-30px, 5px) scaleX(-1); }
+          84%  { transform: translate(40px, -6px) scaleX(-1); }
+          88%  { transform: translate(40px, -6px) scaleX(1); }
+          100% { transform: translate(0px, 0px) scaleX(1); }
         }` : ''}
         ${placedShrimp.map((s) => {
                 const homeRaw = typeof s.x === "number" ? s.x : 30;
@@ -1194,63 +1218,157 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
             })}
 
             {/* Snail */}
-            <div style={{
-                position: "absolute", bottom: 16, left: "15%",
-                animation: `${uid}-snail ${snailDur} linear infinite`,
-            }}>
-                <LineSnail color={lineColor} size={22} />
-            </div>
+            {snailState.visible && (
+                <DraggableCritter
+                    purchase={{ id: "main-snail" }}
+                    boundsRef={viewportRef}
+                    tankInnerRef={tankRef}
+                    onRemove={() => setSnailState({ visible: false, home: null })}
+                    onDrop={({ leftPx }) => setSnailState((s) => ({ ...s, home: { leftPx, bottomPx: 16 } }))}
+                    onDragChange={setAnyDragging}
+                    onOutsideChange={setDragOutside}
+                    animationStyle={
+                        snailState.home
+                            ? {
+                                position: "absolute",
+                                left: `${snailState.home.leftPx}px`,
+                                bottom: `${snailState.home.bottomPx}px`,
+                                animation: `${uid}-snail-local-${Math.round(snailState.home.leftPx)} ${localSnailDuration} linear infinite`,
+                                zIndex: 5,
+                            }
+                            : {
+                                position: "absolute", bottom: 16, left: "15%",
+                                animation: `${uid}-snail ${snailDur} linear infinite`,
+                                zIndex: 5,
+                            }
+                    }
+                >
+                    <LineSnail color={lineColor} size={22} />
+                </DraggableCritter>
+            )}
 
             {/* School of fish */}
-            <div style={{
-                position: "absolute", top: 28, left: "78%",
-                animation: `${uid}-school ${schoolDur} ease-in-out infinite`,
-            }}>
-                {[{ dx: 0, dy: 0 }, { dx: 16, dy: -7 }, { dx: -8, dy: 9 }, { dx: 24, dy: 3 }].map((off, i) => (
-                    <div key={i} style={{ position: "absolute", left: off.dx, top: off.dy }}>
-                        <LineFish mood={mood} size={14} />
+            {schoolState.visible && (
+                <DraggableCritter
+                    purchase={{ id: "main-school" }}
+                    boundsRef={viewportRef}
+                    tankInnerRef={tankRef}
+                    gravity={false}
+                    onRemove={() => setSchoolState({ visible: false, home: null })}
+                    onDrop={({ leftPx, topPx }) => setSchoolState((s) => ({ ...s, home: { leftPx, topPx } }))}
+                    onDragChange={setAnyDragging}
+                    onOutsideChange={setDragOutside}
+                    animationStyle={
+                        schoolState.home
+                            ? {
+                                position: "absolute",
+                                left: `${schoolState.home.leftPx}px`,
+                                top: `${schoolState.home.topPx}px`,
+                                animation: `${uid}-school-local-${Math.round(schoolState.home.leftPx)}_${Math.round(schoolState.home.topPx)} ${localSchoolDuration} ease-in-out infinite`,
+                                zIndex: 5,
+                            }
+                            : {
+                                position: "absolute", top: 28, left: "78%",
+                                animation: `${uid}-school ${schoolDur} ease-in-out infinite`,
+                                zIndex: 5,
+                            }
+                    }
+                >
+                    <div style={{ position: "relative", width: 40, height: 24 }}>
+                        {[{ dx: 0, dy: 0 }, { dx: 16, dy: -7 }, { dx: -8, dy: 9 }, { dx: 24, dy: 3 }].map((off, i) => (
+                            <div key={i} style={{ position: "absolute", left: off.dx, top: off.dy }}>
+                                <LineFish mood={mood} size={14} />
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
+                </DraggableCritter>
+            )}
 
             {/* Fish + hearts */}
-            <DraggableCritter
-                purchase={{ id: "main-fish" }}
-                boundsRef={viewportRef}
-                tankInnerRef={tankRef}
-                removable={false}
-                gravity={false}
-                onDrop={({ leftPx, topPx }) => setFishHome({ leftPx, topPx })}
-                onDragChange={setAnyDragging}
-                onOutsideChange={setDragOutside}
-                animationStyle={
-                    fishHome
-                        ? {
-                            position: "absolute",
-                            left: `${fishHome.leftPx}px`,
-                            top: `${fishHome.topPx}px`,
-                            animation: `${uid}-swim-local-${Math.round(fishHome.leftPx)}_${Math.round(fishHome.topPx)} ${swimDuration} ease-in-out infinite`,
-                            zIndex: 5,
-                        }
-                        : {
-                            position: "absolute", top: 50, left: 20,
-                            animation: `${uid}-swim ${swimDuration} ease-in-out infinite`,
-                            zIndex: 5,
-                        }
-                }
-            >
-                <div style={{ position: "relative" }}>
-                    <LineFish mood={mood} size={32} />
-                    {[0, 1, 2].map((i) => (
-                        <div key={i} style={{
-                            position: "absolute", top: -6, left: 6 + i * 7,
-                            fontSize: "8px", color: heartColor, opacity: 0,
-                            animation: `${uid}-heart ${3.5 + i * 0.8}s ease-out infinite`,
-                            animationDelay: `${i * 1.4}s`,
-                        }}>♥</div>
-                    ))}
+            {fishState.visible && (
+                <DraggableCritter
+                    purchase={{ id: "main-fish" }}
+                    boundsRef={viewportRef}
+                    tankInnerRef={tankRef}
+                    gravity={false}
+                    onRemove={() => setFishState({ visible: false, home: null })}
+                    onDrop={({ leftPx, topPx }) => setFishState((s) => ({ ...s, home: { leftPx, topPx } }))}
+                    onDragChange={setAnyDragging}
+                    onOutsideChange={setDragOutside}
+                    animationStyle={
+                        fishState.home
+                            ? {
+                                position: "absolute",
+                                left: `${fishState.home.leftPx}px`,
+                                top: `${fishState.home.topPx}px`,
+                                animation: `${uid}-swim-local-${Math.round(fishState.home.leftPx)}_${Math.round(fishState.home.topPx)} ${localSwimDuration} ease-in-out infinite`,
+                                zIndex: 5,
+                            }
+                            : {
+                                position: "absolute", top: 50, left: 20,
+                                animation: `${uid}-swim ${swimDuration} ease-in-out infinite`,
+                                zIndex: 5,
+                            }
+                    }
+                >
+                    <div style={{ position: "relative" }}>
+                        <LineFish mood={mood} size={32} />
+                        {[0, 1, 2].map((i) => (
+                            <div key={i} style={{
+                                position: "absolute", top: -6, left: 6 + i * 7,
+                                fontSize: "8px", color: heartColor, opacity: 0,
+                                animation: `${uid}-heart ${3.5 + i * 0.8}s ease-out infinite`,
+                                animationDelay: `${i * 1.4}s`,
+                            }}>♥</div>
+                        ))}
+                    </div>
+                </DraggableCritter>
+            )}
+
+            {/* Bring-back panel for hidden critters */}
+            {(!fishState.visible || !snailState.visible || !schoolState.visible) && (
+                <div style={{
+                    position: "absolute", top: 8, right: 8, zIndex: 6,
+                    display: "flex", gap: "6px", pointerEvents: "auto",
+                }}>
+                    {!fishState.visible && (
+                        <button
+                            onClick={() => setFishState({ visible: true, home: null })}
+                            title="Bring back fish"
+                            style={{
+                                background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
+                                borderRadius: "8px", padding: "3px 8px",
+                                fontFamily: FONT, fontSize: "11px", fontWeight: 700,
+                                cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
+                            }}
+                        >🐟 +</button>
+                    )}
+                    {!snailState.visible && (
+                        <button
+                            onClick={() => setSnailState({ visible: true, home: null })}
+                            title="Bring back snail"
+                            style={{
+                                background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
+                                borderRadius: "8px", padding: "3px 8px",
+                                fontFamily: FONT, fontSize: "11px", fontWeight: 700,
+                                cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
+                            }}
+                        >🐌 +</button>
+                    )}
+                    {!schoolState.visible && (
+                        <button
+                            onClick={() => setSchoolState({ visible: true, home: null })}
+                            title="Bring back school"
+                            style={{
+                                background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
+                                borderRadius: "8px", padding: "3px 8px",
+                                fontFamily: FONT, fontSize: "11px", fontWeight: 700,
+                                cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
+                            }}
+                        >🐠 +</button>
+                    )}
                 </div>
-            </DraggableCritter>
+            )}
 
             {/* Reward Animation */}
             {rewardAnim && (
