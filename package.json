@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "build": "node scripts/check-i18n.mjs && next build",
+    "start": "next start",
+    "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
