@@ -15,6 +15,7 @@ const ENTRIES = [
             "🏖️ New pixel-art seafloor replaces the old line drawing at the bottom of the tank.",
             "📊 Stats tiles reorganized into a cleaner 3-column grid layout.",
             "🐛 Fixed a bug where purchases would fail silently.",
+            "🌍 Language support — switch between English, Japanese, Korean, Spanish, French, and more in the Manage tab.",
         ],
     },
 ];
@@ -65,9 +66,6 @@ export default function DevlogPage() {
                 </div>
             ))}
 
-            <div style={{ textAlign: "center", fontSize: "11px", color: "#888780", padding: "1rem 0" }}>
-                Made with 🤍
-            </div>
         </div>
     );
 }

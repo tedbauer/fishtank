@@ -660,8 +660,8 @@ function DraggablePurchase({ purchase, tankRef, boundsRef, onMoveEnd, onRemove, 
     }, [purchase.x, purchase.y]);
 
     const calcPos = (rect, clientX, clientY, startX, startY, origX, origY) => ({
-        x: Math.max(2, Math.min(98, origX + ((clientX - startX) / rect.width) * 100)),
-        y: Math.max(0, Math.min(85, origY + (-(clientY - startY) / rect.height) * 100)),
+        x: origX + ((clientX - startX) / rect.width) * 100,
+        y: origY + (-(clientY - startY) / rect.height) * 100,
     });
 
     const checkOutside = (clientX, clientY, rect) =>
@@ -688,9 +688,7 @@ function DraggablePurchase({ purchase, tankRef, boundsRef, onMoveEnd, onRemove, 
             const outside = checkOutside(ev.clientX, ev.clientY, bounds);
             setIsOutside(outside);
             onOutsideChange?.(outside);
-            if (!outside) {
-                setPos(calcPos(rect, ev.clientX, ev.clientY, startX, startY, origX, origY));
-            }
+            setPos(calcPos(rect, ev.clientX, ev.clientY, startX, startY, origX, origY));
         };
 
         const onUp = (ev) => {
@@ -709,7 +707,8 @@ function DraggablePurchase({ purchase, tankRef, boundsRef, onMoveEnd, onRemove, 
                 setPos({ x: purchase.x ?? 50, y: purchase.y ?? 20 });
                 onRemove(purchase.id);
             } else {
-                const final = calcPos(rect, ev.clientX, ev.clientY, startX, startY, origX, origY);
+                const raw = calcPos(rect, ev.clientX, ev.clientY, startX, startY, origX, origY);
+                const final = { x: Math.max(2, Math.min(98, raw.x)), y: Math.max(0, Math.min(85, raw.y)) };
                 setPos(final);
                 onMoveEnd(purchase.id, Math.round(final.x), Math.round(final.y));
             }
