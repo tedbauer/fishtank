@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { getSupabase } from "@/lib/supabase";
 import ChoreApp from "@/components/ChoreApp";
 import HouseholdSetup from "@/components/HouseholdSetup";
+import LanguagePicker from "@/components/LanguagePicker";
 
 export default function HomePage() {
   const [session, setSession] = useState(null);
@@ -11,6 +12,7 @@ export default function HomePage() {
   const [householdMembers, setHouseholdMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [needsHousehold, setNeedsHousehold] = useState(false);
+  const [needsLanguage, setNeedsLanguage] = useState(false);
   const loadingShrimp = useMemo(() => ["cherry", "jade", "jelly", "sunkissed"][Math.floor(Math.random() * 4)], []);
 
   const supabase = getSupabase();
@@ -49,12 +51,18 @@ export default function HomePage() {
           .select()
           .single();
         setProfile(newProf);
-        setNeedsHousehold(true);
+        setNeedsLanguage(true);
         setLoading(false);
         return;
       }
 
       setProfile(prof);
+
+      if (!prof.language) {
+        setNeedsLanguage(true);
+        setLoading(false);
+        return;
+      }
 
       if (!prof.household_id) {
         setNeedsHousehold(true);
@@ -89,6 +97,14 @@ export default function HomePage() {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
+  const handleLanguageComplete = (language) => {
+    setProfile((p) => (p ? { ...p, language } : p));
+    setNeedsLanguage(false);
+    if (!profile?.household_id) {
+      setNeedsHousehold(true);
+    }
+  };
+
   const handleHouseholdComplete = async () => {
     // Reload profile and members
     const { data: prof } = await supabase
@@ -121,6 +137,16 @@ export default function HomePage() {
         </div>
         <style>{`@keyframes ptr-fish-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }`}</style>
       </div>
+    );
+  }
+
+  if (needsLanguage) {
+    return (
+      <LanguagePicker
+        user={session.user}
+        profile={profile}
+        onComplete={handleLanguageComplete}
+      />
     );
   }
 
