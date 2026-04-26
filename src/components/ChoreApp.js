@@ -1406,6 +1406,12 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const supabase = getSupabase();
     const [language, setLanguage] = useState(profile?.language || "en");
     const lang = language;
+    // Keep lang in sync if the profile prop changes (e.g. after first-time picker save)
+    useEffect(() => {
+        if (profile?.language && profile.language !== language) {
+            setLanguage(profile.language);
+        }
+    }, [profile?.language]);
     const [chores, setChores] = useState([]);
     const [completions, setCompletions] = useState([]);
     const [purchases, setPurchases] = useState([]);
@@ -2230,15 +2236,15 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     {todayList.length === 0 && (
                         <div style={{ textAlign: "center", padding: "2.5rem 1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
                             <div style={{ fontSize: "36px", marginBottom: "8px" }}>✨</div>
-                            <div style={{ fontWeight: 700, color: "#085041", marginBottom: "4px", fontSize: "16px" }}>All Caught Up!</div>
-                            <div style={{ fontSize: "13px", color: "#085041" }}>Nothing due today. Go enjoy your home!</div>
+                            <div style={{ fontWeight: 700, color: "#085041", marginBottom: "4px", fontSize: "16px" }}>{t("allCaughtUp", lang)}</div>
+                            <div style={{ fontSize: "13px", color: "#085041" }}>{t("nothingDue", lang)}</div>
                         </div>
                     )}
 
                     {todayList.length > 0 && todayList.every((c) => c.completedToday) && (
                         <div style={{ textAlign: "center", padding: "1.5rem 1rem", marginBottom: "1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
                             <div style={{ fontSize: "28px", marginBottom: "4px" }}>🎉</div>
-                            <div style={{ fontWeight: 700, color: "#085041", fontSize: "15px" }}>All Done For Today!</div>
+                            <div style={{ fontWeight: 700, color: "#085041", fontSize: "15px" }}>{t("allDoneForToday", lang)}</div>
                         </div>
                     )}
 
@@ -2272,7 +2278,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                         <div>
                                             <div style={{ fontSize: "14px", fontWeight: 700, color: "#888780" }}>{c.name}</div>
                                             <div style={{ fontSize: "11px", color: "#B4B2A9" }}>
-                                                back {friendlyDate(c.snoozeUntil, lang)}
+                                                {t("back_text", lang)} {friendlyDate(c.snoozeUntil, lang)}
                                             </div>
                                         </div>
                                     </div>
@@ -2568,11 +2574,43 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             {/* MANAGE VIEW */}
             {view === "manage" && (
                 <div>
+                    <Section title={t("lang_section", lang)} accentColor="#7F77DD">
+                        <div style={{
+                            padding: "12px 16px", background: "white", borderRadius: "12px",
+                            fontSize: "14px", color: "#2C2C2A",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow("#7F77DD", 2, 2),
+                        }}>
+                            <div style={{ fontSize: "12px", color: "#888780", marginBottom: "8px" }}>
+                                {t("lang_settingDesc", lang)}
+                            </div>
+                            <select
+                                value={lang}
+                                onChange={async (e) => {
+                                    const newLang = e.target.value;
+                                    setLanguage(newLang);
+                                    await supabase.from("profiles").update({ language: newLang }).eq("id", user.id);
+                                }}
+                                style={{
+                                    width: "100%", padding: "10px 12px", border: "2px solid #2C2C2A",
+                                    borderRadius: "10px", fontSize: "14px", fontFamily: FONT,
+                                    fontWeight: 600, background: "white",
+                                    boxShadow: boxShadow("#7F77DD", 2, 2),
+                                }}
+                            >
+                                {LANGUAGES.map((l) => (
+                                    <option key={l.code} value={l.code}>
+                                        {l.native} ({l.label})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </Section>
+
                     <Section title={t("section_addChore", lang)} accentColor="#7F77DD">
                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                             <input
                                 type="text" value={newChoreName} onChange={(e) => setNewChoreName(e.target.value)}
-                                placeholder={newChoreOneTime ? "pick up dry cleaning…" : "water the succulents…"}
+                                placeholder={newChoreOneTime ? t("oneTimePlaceholder", lang) : t("choreNamePlaceholder", lang)}
                                 onKeyDown={(e) => { if (e.key === "Enter") addChore(); }}
                                 style={{ flex: 1, minWidth: "200px", padding: "10px 12px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "14px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2) }}
                             />
@@ -2580,7 +2618,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 <input
                                     type="date" value={newChoreDeadline}
                                     onChange={(e) => setNewChoreDeadline(e.target.value)}
-                                    placeholder="Deadline (optional)"
+                                    placeholder={t("deadlinePlaceholder", lang)}
                                     style={{ padding: "10px 8px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2) }}
                                 />
                             ) : (
@@ -2595,7 +2633,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 onClick={addChore}
                                 style={{ padding: "10px 16px", background: "#7F77DD", color: "white", border: "2px solid #2C2C2A", borderRadius: "10px", cursor: "pointer", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px", fontFamily: FONT, boxShadow: boxShadow("#2C2C2A", 2, 2) }}
                             >
-                                <Plus size={14} /> Add!
+                                <Plus size={14} /> {t("addButton", lang)}
                             </button>
                         </div>
                         <input
@@ -2756,38 +2794,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     </Section>
 
-                    <Section title={t("lang_section", lang)} accentColor="#7F77DD">
-                        <div style={{
-                            padding: "12px 16px", background: "white", borderRadius: "12px",
-                            fontSize: "14px", color: "#2C2C2A",
-                            border: "2px solid #2C2C2A", boxShadow: boxShadow("#7F77DD", 2, 2),
-                        }}>
-                            <div style={{ fontSize: "12px", color: "#888780", marginBottom: "8px" }}>
-                                {t("lang_settingDesc", lang)}
-                            </div>
-                            <select
-                                value={lang}
-                                onChange={async (e) => {
-                                    const newLang = e.target.value;
-                                    setLanguage(newLang);
-                                    await supabase.from("profiles").update({ language: newLang }).eq("id", user.id);
-                                }}
-                                style={{
-                                    width: "100%", padding: "10px 12px", border: "2px solid #2C2C2A",
-                                    borderRadius: "10px", fontSize: "14px", fontFamily: FONT,
-                                    fontWeight: 600, background: "white",
-                                    boxShadow: boxShadow("#7F77DD", 2, 2),
-                                }}
-                            >
-                                {LANGUAGES.map((l) => (
-                                    <option key={l.code} value={l.code}>
-                                        {l.native} ({l.label})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </Section>
-
                     <Section title={t("section_allChores", lang)} accentColor="#888780">
                         {Object.entries(FREQ).map(([freqKey, freqInfo]) => {
                             const list = chores.filter((c) => c.freq === freqKey);
@@ -2937,7 +2943,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                 display: "inline-flex", alignItems: "center", gap: "4px",
                                 border: "1.5px solid #1D9E75",
                             }}>
-                                🤝 done together
+                                🤝 {t("doneTogether", lang)}
                             </span>
                         ) : isDone && completedBy ? (
                             <span style={{
@@ -2946,13 +2952,13 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                 display: "inline-flex", alignItems: "center", gap: "4px",
                                 border: "1.5px solid #1D9E75",
                             }}>
-                                <Check size={10} strokeWidth={3} /> done by {completedBy.name}
+                                <Check size={10} strokeWidth={3} /> {t("doneBy", lang, { name: completedBy.name })}
                             </span>
                         ) : (
                             <>
                                 {chore.one_time ? (
                                     <span style={{ fontSize: "11px", padding: "2px 8px", background: "#EDE9FE", color: "#5B21B6", borderRadius: "6px", fontWeight: 700, border: "1px solid #7C3AED" }}>
-                                        one-time
+                                        {t("oneTime", lang)}
                                     </span>
                                 ) : freqInfo && (
                                     <span style={{
@@ -2963,13 +2969,13 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                         {t(freqInfo.labelKey, lang)}
                                     </span>
                                 )}
-                                {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {chore.daysOverdue}d overdue!</span>}
+                                {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {t("overdueShort", lang, { n: chore.daysOverdue })}</span>}
                                 {!isOverdue && chore.status === "due" && (
                                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>
-                                        {chore.one_time && chore.deadline ? `due ${friendlyDate(parseDate(chore.deadline), lang)}` : "due today"}
+                                        {chore.one_time && chore.deadline ? `${t("due", lang)} ${friendlyDate(parseDate(chore.deadline), lang)}` : t("dueToday", lang)}
                                     </span>
                                 )}
-                                {!chore.one_time && chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>last: {friendlyDate(chore.lastDone.date, lang)}</span>}
+                                {!chore.one_time && chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>{t("last", lang)} {friendlyDate(chore.lastDone.date, lang)}</span>}
                             </>
                         )}
                     </div>
@@ -3059,14 +3065,16 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
     };
 
     const dueText = chore.one_time && chore.deadline
-        ? `due ${friendlyDate(parseDate(chore.deadline), lang)}`
+        ? `${t("due", lang)} ${friendlyDate(parseDate(chore.deadline), lang)}`
         : chore.status === "done"
             ? (chore.daysUntilDue > 30
-                ? `in ${Math.round(chore.daysUntilDue / 30)} months`
-                : `in ${chore.daysUntilDue} ${chore.daysUntilDue === 1 ? "day" : "days"}`)
+                ? t("inMonths", lang, { n: Math.round(chore.daysUntilDue / 30) })
+                : chore.daysUntilDue === 1
+                    ? t("inOneDay", lang)
+                    : t("inDays", lang, { n: chore.daysUntilDue }))
             : chore.status === "overdue"
-                ? `${chore.daysOverdue}d overdue`
-                : "due now!";
+                ? t("overdueShort2", lang, { n: chore.daysOverdue })
+                : t("dueNow", lang);
 
     const isOverdue = chore.status === "overdue" || chore.status === "due";
 
@@ -3133,7 +3141,7 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
                     borderRadius: "6px", fontWeight: 700, flexShrink: 0,
                     border: "1px solid " + (chore.one_time ? "#7C3AED" : (freqInfo?.color || "#ccc")),
                 }}>
-                    {chore.one_time ? "one-time" : (freqInfo ? t(freqInfo.labelKey, lang) : "")}
+                    {chore.one_time ? t("oneTime", lang) : (freqInfo ? t(freqInfo.labelKey, lang) : "")}
                 </span>
             </div>
         </div>
@@ -3190,13 +3198,13 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
                 />
                 <input
                     value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
-                    placeholder="Description (optional)"
+                    placeholder={t("descriptionPlaceholder", lang)}
                     style={{ width: "100%", padding: "6px 10px", border: "2px solid #e8e8e8", borderRadius: "8px", fontSize: "12px", fontFamily: FONT, marginBottom: "8px", boxSizing: "border-box" }}
                 />
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", marginBottom: "6px" }}>
                     {editOneTime ? (
                         <input type="date" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)}
-                            placeholder="Deadline (optional)"
+                            placeholder={t("deadlinePlaceholder", lang)}
                             style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1 }} />
                     ) : (
                         <select value={editFreq} onChange={(e) => setEditFreq(e.target.value)}
@@ -3206,7 +3214,7 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
                     )}
                     <select value={editOwner} onChange={(e) => setEditOwner(e.target.value)}
                         style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1, minWidth: "100px" }}>
-                        <option value="">Unassigned</option>
+                        <option value="">{t("unassigned", lang)}</option>
                         {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                 </div>
@@ -3218,7 +3226,7 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
                 </div>
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
                     <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#78350F", background: "#FEF3C7", padding: "6px 10px", border: "2px solid #2C2C2A", borderRadius: "6px", flex: 1, minWidth: "140px" }}>
-                        <Coins size={12} strokeWidth={2.5} /> Reward
+                        <Coins size={12} strokeWidth={2.5} /> {t("rewardLabel", lang)}
                         <input
                             type="number" min="0" value={editReward}
                             onChange={(e) => setEditReward(e.target.value)}
@@ -3226,10 +3234,10 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
                         />
                     </label>
                     <button onClick={handleSave} style={{ padding: "6px 12px", background: "#1D9E75", color: "white", border: "2px solid #2C2C2A", borderRadius: "6px", cursor: "pointer", fontWeight: 700, fontSize: "12px", fontFamily: FONT, display: "flex", alignItems: "center", gap: "4px" }}>
-                        <Save size={12} /> Save
+                        <Save size={12} /> {t("save", lang)}
                     </button>
                     <button onClick={handleCancel} style={{ padding: "6px 12px", background: "white", border: "2px solid #2C2C2A", borderRadius: "6px", cursor: "pointer", fontWeight: 700, fontSize: "12px", fontFamily: FONT, display: "flex", alignItems: "center", gap: "4px" }}>
-                        <X size={12} /> Cancel
+                        <X size={12} /> {t("cancel", lang)}
                     </button>
                 </div>
             </div>
@@ -3248,8 +3256,8 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
                 {chore.description && <div style={{ fontSize: "11px", color: "#888780", marginTop: "2px", fontStyle: "italic" }}>{chore.description}</div>}
                 {chore.one_time && (
                     <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
-                        <span style={{ fontSize: "10px", padding: "1px 6px", background: "#EDE9FE", color: "#5B21B6", borderRadius: "4px", fontWeight: 700, border: "1px solid #7C3AED" }}>one-time</span>
-                        {chore.deadline && <span style={{ fontSize: "10px", color: "#888780" }}>due {friendlyDate(parseDate(chore.deadline), lang)}</span>}
+                        <span style={{ fontSize: "10px", padding: "1px 6px", background: "#EDE9FE", color: "#5B21B6", borderRadius: "4px", fontWeight: 700, border: "1px solid #7C3AED" }}>{t("oneTime", lang)}</span>
+                        {chore.deadline && <span style={{ fontSize: "10px", color: "#888780" }}>{t("due", lang)} {friendlyDate(parseDate(chore.deadline), lang)}</span>}
                     </div>
                 )}
             </div>

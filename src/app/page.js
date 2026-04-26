@@ -97,12 +97,24 @@ export default function HomePage() {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  const handleLanguageComplete = (language) => {
-    setProfile((p) => (p ? { ...p, language } : p));
+  const handleLanguageComplete = async (language) => {
     setNeedsLanguage(false);
-    if (!profile?.household_id) {
+    // Reload fresh profile + members from DB so downstream components see the new language
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .single();
+    setProfile(prof);
+    if (!prof?.household_id) {
       setNeedsHousehold(true);
+      return;
     }
+    const { data: members } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("household_id", prof.household_id);
+    setHouseholdMembers(members || []);
   };
 
   const handleHouseholdComplete = async () => {
