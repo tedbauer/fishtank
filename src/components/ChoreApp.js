@@ -3010,7 +3010,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 textAlign: "center", padding: "2rem 0 1rem", fontSize: "11px",
                 color: "#888780", fontWeight: 600,
             }}>
-                <a href="/devlog" style={{ color: "#888780", textDecoration: "underline" }}>devlog</a>
+                <a href="/devlog" style={{ color: "#888780", textDecoration: "underline" }}>news</a>
             </div>
         </div >
     );
