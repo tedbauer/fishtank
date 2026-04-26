@@ -987,10 +987,10 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
             background: waterColor,
             transition: "background 1s ease",
         }}>
-        <div ref={tankRef} style={{
-            position: "relative", width: `${tankWidthPct}%`, height: "100%",
-        }}>
-            <style>{`
+            <div ref={tankRef} style={{
+                position: "relative", width: `${tankWidthPct}%`, height: "100%",
+            }}>
+                <style>{`
         @keyframes ${uid}-swim {
           0%   { left: 20px;  top: 50px; transform: scaleX(-1); }
           15%  { left: 35%;   top: 42px; transform: scaleX(-1); }
@@ -1034,10 +1034,10 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
           100% { transform: translate(0px, 0px) scaleX(1); }
         }` : ''}
         ${placedShrimp.map((s) => {
-                const homeRaw = typeof s.x === "number" ? s.x : 30;
-                const startPct = Math.max(2, Math.min(85, homeRaw));
-                const endPct = Math.min(98, startPct + 14);
-                return `
+                    const homeRaw = typeof s.x === "number" ? s.x : 30;
+                    const startPct = Math.max(2, Math.min(85, homeRaw));
+                    const endPct = Math.min(98, startPct + 14);
+                    return `
         @keyframes ${uid}-shrimp-${s.id}-${Math.round(startPct)} {
           0%   { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
           12%  { left: ${startPct + 5}%; bottom: 16px; transform: scaleX(-1); }
@@ -1057,7 +1057,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
           98%  { left: ${startPct}%; bottom: 16px; transform: scaleX(1); }
           100% { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
         }`;
-            }).join("\n")}
+                }).join("\n")}
         @keyframes ${uid}-bub {
           0% { transform: translateY(0); opacity: 0; }
           8% { opacity: 0.5; }
@@ -1111,325 +1111,325 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
         .aq-viewport::-webkit-scrollbar { display: none; width: 0; height: 0; }
       `}</style>
 
-            {/* === BACK LAYER — faint, far plants === */}
-            <svg style={{ position: "absolute", bottom: 14, left: "8%", opacity: 0.18, animation: `${uid}-sway2 9s ease-in-out infinite` }} width="10" height="50" viewBox="0 0 10 50" fill="none" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
-                <path d="M5 50 Q2 35 5 22 Q8 10 5 0" />
-            </svg>
-            <svg style={{ position: "absolute", bottom: 14, left: "45%", opacity: 0.14, animation: `${uid}-sway1 10s ease-in-out infinite` }} width="8" height="40" viewBox="0 0 8 40" fill="none" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
-                <path d="M4 40 Q7 28 4 18 Q1 8 4 0" />
-            </svg>
-            <svg style={{ position: "absolute", bottom: 14, right: "15%", opacity: 0.16, animation: `${uid}-sway2 11s ease-in-out infinite` }} width="8" height="36" viewBox="0 0 8 36" fill="none" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
-                <path d="M4 36 Q1 24 4 14 Q7 4 4 0" />
-            </svg>
+                {/* === BACK LAYER — faint, far plants === */}
+                <svg style={{ position: "absolute", bottom: 14, left: "8%", opacity: 0.18, animation: `${uid}-sway2 9s ease-in-out infinite` }} width="10" height="50" viewBox="0 0 10 50" fill="none" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
+                    <path d="M5 50 Q2 35 5 22 Q8 10 5 0" />
+                </svg>
+                <svg style={{ position: "absolute", bottom: 14, left: "45%", opacity: 0.14, animation: `${uid}-sway1 10s ease-in-out infinite` }} width="8" height="40" viewBox="0 0 8 40" fill="none" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
+                    <path d="M4 40 Q7 28 4 18 Q1 8 4 0" />
+                </svg>
+                <svg style={{ position: "absolute", bottom: 14, right: "15%", opacity: 0.16, animation: `${uid}-sway2 11s ease-in-out infinite` }} width="8" height="36" viewBox="0 0 8 36" fill="none" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
+                    <path d="M4 36 Q1 24 4 14 Q7 4 4 0" />
+                </svg>
 
-            {/* === MID LAYER === */}
-            <svg style={{ position: "absolute", bottom: 14, left: 20, opacity: 0.4, animation: `${uid}-sway1 6s ease-in-out infinite` }} width="16" height="48" viewBox="0 0 16 48" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
-                <path d="M8 48 Q4 34 8 22 Q12 10 8 2" />
-                <path d="M12 48 Q9 38 12 28 Q15 18 12 12" opacity="0.6" />
-            </svg>
-            <svg style={{ position: "absolute", bottom: 14, left: "58%", opacity: 0.35, animation: `${uid}-sway2 7.5s ease-in-out infinite` }} width="14" height="38" viewBox="0 0 14 38" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
-                <path d="M7 38 Q3 26 7 16 Q11 6 7 0" />
-                <path d="M11 38 Q8 30 11 22 Q14 14 11 8" opacity="0.5" />
-            </svg>
+                {/* === MID LAYER === */}
+                <svg style={{ position: "absolute", bottom: 14, left: 20, opacity: 0.4, animation: `${uid}-sway1 6s ease-in-out infinite` }} width="16" height="48" viewBox="0 0 16 48" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M8 48 Q4 34 8 22 Q12 10 8 2" />
+                    <path d="M12 48 Q9 38 12 28 Q15 18 12 12" opacity="0.6" />
+                </svg>
+                <svg style={{ position: "absolute", bottom: 14, left: "58%", opacity: 0.35, animation: `${uid}-sway2 7.5s ease-in-out infinite` }} width="14" height="38" viewBox="0 0 14 38" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M7 38 Q3 26 7 16 Q11 6 7 0" />
+                    <path d="M11 38 Q8 30 11 22 Q14 14 11 8" opacity="0.5" />
+                </svg>
 
-            {/* === FOREGROUND === */}
-            <svg style={{ position: "absolute", bottom: 14, right: 22, opacity: 0.5, animation: `${uid}-sway1 5s ease-in-out infinite` }} width="14" height="44" viewBox="0 0 14 44" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
-                <path d="M7 44 Q11 30 7 18 Q3 8 7 0" />
-                <path d="M3 44 Q6 34 3 26 Q0 18 3 12" opacity="0.6" />
-            </svg>
+                {/* === FOREGROUND === */}
+                <svg style={{ position: "absolute", bottom: 14, right: 22, opacity: 0.5, animation: `${uid}-sway1 5s ease-in-out infinite` }} width="14" height="44" viewBox="0 0 14 44" fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M7 44 Q11 30 7 18 Q3 8 7 0" />
+                    <path d="M3 44 Q6 34 3 26 Q0 18 3 12" opacity="0.6" />
+                </svg>
 
-            {/* === SEAWEED === */}
-            <div style={{ position: "absolute", bottom: 14, left: "30%", opacity: 0.55, animation: `${uid}-sway2 8s ease-in-out infinite` }}>
-                <LineSeaweed color={lineColor} height={58} />
-            </div>
-            <div style={{ position: "absolute", bottom: 14, left: "65%", opacity: 0.45, animation: `${uid}-sway1 9.5s ease-in-out infinite` }}>
-                <LineSeaweed color={lineColor} height={46} />
-            </div>
-            <div style={{ position: "absolute", bottom: 14, left: "5%", opacity: 0.38, animation: `${uid}-sway2 7s ease-in-out infinite` }}>
-                <LineSeaweed color={lineColor} height={40} />
-            </div>
+                {/* === SEAWEED === */}
+                <div style={{ position: "absolute", bottom: 14, left: "30%", opacity: 0.55, animation: `${uid}-sway2 8s ease-in-out infinite` }}>
+                    <LineSeaweed color={lineColor} height={58} />
+                </div>
+                <div style={{ position: "absolute", bottom: 14, left: "65%", opacity: 0.45, animation: `${uid}-sway1 9.5s ease-in-out infinite` }}>
+                    <LineSeaweed color={lineColor} height={46} />
+                </div>
+                <div style={{ position: "absolute", bottom: 14, left: "5%", opacity: 0.38, animation: `${uid}-sway2 7s ease-in-out infinite` }}>
+                    <LineSeaweed color={lineColor} height={40} />
+                </div>
 
-            {/* Large Rocks */}
-            <svg style={{ position: "absolute", bottom: 7, left: "4%", opacity: 0.32 }} width="90" height="24" viewBox="0 0 90 24" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
-                <path d="M2 22 Q8 6 20 4 Q32 2 38 9 Q44 16 40 22 Z" fill={lineColor} fillOpacity="0.1" />
-                <path d="M36 22 Q44 8 58 6 Q70 5 78 12 Q84 17 80 22 Z" fill={lineColor} fillOpacity="0.08" />
-            </svg>
-            <svg style={{ position: "absolute", bottom: 7, right: "5%", opacity: 0.28 }} width="65" height="20" viewBox="0 0 65 20" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
-                <path d="M2 18 Q8 5 18 3 Q28 1 34 7 Q40 13 36 18 Z" fill={lineColor} fillOpacity="0.1" />
-                <path d="M32 18 Q40 7 50 5 Q60 5 63 11 Q64 16 60 18 Z" fill={lineColor} fillOpacity="0.08" />
-            </svg>
+                {/* Large Rocks */}
+                <svg style={{ position: "absolute", bottom: 7, left: "4%", opacity: 0.32 }} width="90" height="24" viewBox="0 0 90 24" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
+                    <path d="M2 22 Q8 6 20 4 Q32 2 38 9 Q44 16 40 22 Z" fill={lineColor} fillOpacity="0.1" />
+                    <path d="M36 22 Q44 8 58 6 Q70 5 78 12 Q84 17 80 22 Z" fill={lineColor} fillOpacity="0.08" />
+                </svg>
+                <svg style={{ position: "absolute", bottom: 7, right: "5%", opacity: 0.28 }} width="65" height="20" viewBox="0 0 65 20" stroke={lineColor} strokeWidth="1" strokeLinecap="round">
+                    <path d="M2 18 Q8 5 18 3 Q28 1 34 7 Q40 13 36 18 Z" fill={lineColor} fillOpacity="0.1" />
+                    <path d="M32 18 Q40 7 50 5 Q60 5 63 11 Q64 16 60 18 Z" fill={lineColor} fillOpacity="0.08" />
+                </svg>
 
-            {/* Pebbles */}
-            <svg style={{ position: "absolute", bottom: 7, right: "28%", opacity: 0.18 }} width="50" height="10" viewBox="0 0 50 10" fill="none" stroke={lineColor} strokeWidth="0.8">
-                <ellipse cx="12" cy="7" rx="10" ry="3" />
-                <ellipse cx="35" cy="8" rx="7" ry="2.5" />
-            </svg>
-            <svg style={{ position: "absolute", bottom: 5, left: "32%", opacity: 0.3 }} width="30" height="10" viewBox="0 0 30 10" fill="none" stroke={lineColor} strokeWidth="1">
-                <ellipse cx="8" cy="7" rx="6" ry="3" />
-                <ellipse cx="22" cy="8" rx="5" ry="2" />
-            </svg>
+                {/* Pebbles */}
+                <svg style={{ position: "absolute", bottom: 7, right: "28%", opacity: 0.18 }} width="50" height="10" viewBox="0 0 50 10" fill="none" stroke={lineColor} strokeWidth="0.8">
+                    <ellipse cx="12" cy="7" rx="10" ry="3" />
+                    <ellipse cx="35" cy="8" rx="7" ry="2.5" />
+                </svg>
+                <svg style={{ position: "absolute", bottom: 5, left: "32%", opacity: 0.3 }} width="30" height="10" viewBox="0 0 30 10" fill="none" stroke={lineColor} strokeWidth="1">
+                    <ellipse cx="8" cy="7" rx="6" ry="3" />
+                    <ellipse cx="22" cy="8" rx="5" ry="2" />
+                </svg>
 
-            {/* Bubbles */}
-            {[18, 50, 76].map((x, i) => (
-                <div key={i} style={{
-                    position: "absolute", bottom: 20, left: `${x}%`,
-                    width: "4px", height: "4px", borderRadius: "50%",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    animation: `${uid}-bub ${6 + i * 2}s ease-in infinite`,
-                    animationDelay: `${i * 2.5}s`,
+                {/* Bubbles */}
+                {[18, 50, 76].map((x, i) => (
+                    <div key={i} style={{
+                        position: "absolute", bottom: 20, left: `${x}%`,
+                        width: "4px", height: "4px", borderRadius: "50%",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        animation: `${uid}-bub ${6 + i * 2}s ease-in infinite`,
+                        animationDelay: `${i * 2.5}s`,
+                    }} />
+                ))}
+
+                {/* Seafloor */}
+                <div style={{
+                    position: "absolute", bottom: 0, left: 0, right: 0, height: "42px",
+                    backgroundImage: "url(/tank/seafloor.png)",
+                    backgroundRepeat: "repeat-x",
+                    backgroundSize: "auto 100%",
+                    imageRendering: "pixelated",
                 }} />
-            ))}
 
-            {/* Seafloor */}
-            <div style={{
-                position: "absolute", bottom: 0, left: 0, right: 0, height: "42px",
-                backgroundImage: "url(/tank/seafloor.png)",
-                backgroundRepeat: "repeat-x",
-                backgroundSize: "auto 100%",
-                imageRendering: "pixelated",
-            }} />
+                {/* Placed Shrimp — crawl by default, draggable, drag-out to remove, drop in tank stays */}
+                {placedShrimp.map((s, i) => {
+                    const item = STORE_ITEM_MAP[s.item_id];
+                    if (!item) return null;
+                    const dur = shrimpBaseDur + i * 5;
+                    const homeRaw = typeof s.x === "number" ? s.x : 30;
+                    const startPct = Math.max(2, Math.min(85, homeRaw));
+                    return (
+                        <DraggableCritter
+                            key={s.id}
+                            purchase={s}
+                            boundsRef={viewportRef}
+                            tankInnerRef={tankRef}
+                            onRemove={onRemovePurchase}
+                            onDrop={({ leftPercent }) => onMovePurchase(s.id, Math.round(Math.max(2, Math.min(85, leftPercent))), 0)}
+                            onDragChange={setAnyDragging}
+                            onOutsideChange={setDragOutside}
+                            animationStyle={{
+                                position: "absolute", bottom: 16, left: "15%",
+                                animation: `${uid}-shrimp-${s.id}-${Math.round(startPct)} ${dur}s linear infinite`,
+                                zIndex: 5,
+                            }}
+                        >
+                            <TankImg src={`/tank/${s.item_id}.png`} width={24} alt={item.name} />
+                        </DraggableCritter>
+                    );
+                })}
 
-            {/* Placed Shrimp — crawl by default, draggable, drag-out to remove, drop in tank stays */}
-            {placedShrimp.map((s, i) => {
-                const item = STORE_ITEM_MAP[s.item_id];
-                if (!item) return null;
-                const dur = shrimpBaseDur + i * 5;
-                const homeRaw = typeof s.x === "number" ? s.x : 30;
-                const startPct = Math.max(2, Math.min(85, homeRaw));
-                return (
+                {/* Snail */}
+                {snailState.visible && (
                     <DraggableCritter
-                        key={s.id}
-                        purchase={s}
+                        purchase={{ id: "main-snail" }}
                         boundsRef={viewportRef}
                         tankInnerRef={tankRef}
-                        onRemove={onRemovePurchase}
-                        onDrop={({ leftPercent }) => onMovePurchase(s.id, Math.round(Math.max(2, Math.min(85, leftPercent))), 0)}
+                        onRemove={() => setSnailState({ visible: false, home: null })}
+                        onDrop={({ leftPx }) => setSnailState((s) => ({ ...s, home: { leftPx, bottomPx: 16 } }))}
                         onDragChange={setAnyDragging}
                         onOutsideChange={setDragOutside}
-                        animationStyle={{
-                            position: "absolute", bottom: 16, left: "15%",
-                            animation: `${uid}-shrimp-${s.id}-${Math.round(startPct)} ${dur}s linear infinite`,
-                            zIndex: 5,
-                        }}
+                        animationStyle={
+                            snailState.home
+                                ? {
+                                    position: "absolute",
+                                    left: `${snailState.home.leftPx}px`,
+                                    bottom: `${snailState.home.bottomPx}px`,
+                                    animation: `${uid}-snail-local-${Math.round(snailState.home.leftPx)} ${localSnailDuration} linear infinite`,
+                                    zIndex: 5,
+                                }
+                                : {
+                                    position: "absolute", bottom: 16, left: "15%",
+                                    animation: `${uid}-snail ${snailDur} linear infinite`,
+                                    zIndex: 5,
+                                }
+                        }
                     >
-                        <TankImg src={`/tank/${s.item_id}.png`} width={24} alt={item.name} />
+                        <LineSnail color={lineColor} size={22} />
                     </DraggableCritter>
-                );
-            })}
+                )}
 
-            {/* Snail */}
-            {snailState.visible && (
-                <DraggableCritter
-                    purchase={{ id: "main-snail" }}
-                    boundsRef={viewportRef}
-                    tankInnerRef={tankRef}
-                    onRemove={() => setSnailState({ visible: false, home: null })}
-                    onDrop={({ leftPx }) => setSnailState((s) => ({ ...s, home: { leftPx, bottomPx: 16 } }))}
-                    onDragChange={setAnyDragging}
-                    onOutsideChange={setDragOutside}
-                    animationStyle={
-                        snailState.home
-                            ? {
-                                position: "absolute",
-                                left: `${snailState.home.leftPx}px`,
-                                bottom: `${snailState.home.bottomPx}px`,
-                                animation: `${uid}-snail-local-${Math.round(snailState.home.leftPx)} ${localSnailDuration} linear infinite`,
-                                zIndex: 5,
-                            }
-                            : {
-                                position: "absolute", bottom: 16, left: "15%",
-                                animation: `${uid}-snail ${snailDur} linear infinite`,
-                                zIndex: 5,
-                            }
-                    }
-                >
-                    <LineSnail color={lineColor} size={22} />
-                </DraggableCritter>
-            )}
-
-            {/* School of fish */}
-            {schoolState.visible && (
-                <DraggableCritter
-                    purchase={{ id: "main-school" }}
-                    boundsRef={viewportRef}
-                    tankInnerRef={tankRef}
-                    gravity={false}
-                    onRemove={() => setSchoolState({ visible: false, home: null })}
-                    onDrop={({ leftPx, topPx }) => setSchoolState((s) => ({ ...s, home: { leftPx, topPx } }))}
-                    onDragChange={setAnyDragging}
-                    onOutsideChange={setDragOutside}
-                    animationStyle={
-                        schoolState.home
-                            ? {
-                                position: "absolute",
-                                left: `${schoolState.home.leftPx}px`,
-                                top: `${schoolState.home.topPx}px`,
-                                animation: `${uid}-school-local-${Math.round(schoolState.home.leftPx)}_${Math.round(schoolState.home.topPx)} ${localSchoolDuration} ease-in-out infinite`,
-                                zIndex: 5,
-                            }
-                            : {
-                                position: "absolute", top: 28, left: "78%",
-                                animation: `${uid}-school ${schoolDur} ease-in-out infinite`,
-                                zIndex: 5,
-                            }
-                    }
-                >
-                    <div style={{ position: "relative", width: 40, height: 24 }}>
-                        {[{ dx: 0, dy: 0 }, { dx: 16, dy: -7 }, { dx: -8, dy: 9 }, { dx: 24, dy: 3 }].map((off, i) => (
-                            <div key={i} style={{ position: "absolute", left: off.dx, top: off.dy }}>
-                                <LineFish mood={mood} size={14} />
-                            </div>
-                        ))}
-                    </div>
-                </DraggableCritter>
-            )}
-
-            {/* Fish + hearts */}
-            {fishState.visible && (
-                <DraggableCritter
-                    purchase={{ id: "main-fish" }}
-                    boundsRef={viewportRef}
-                    tankInnerRef={tankRef}
-                    gravity={false}
-                    onRemove={() => setFishState({ visible: false, home: null })}
-                    onDrop={({ leftPx, topPx }) => setFishState((s) => ({ ...s, home: { leftPx, topPx } }))}
-                    onDragChange={setAnyDragging}
-                    onOutsideChange={setDragOutside}
-                    animationStyle={
-                        fishState.home
-                            ? {
-                                position: "absolute",
-                                left: `${fishState.home.leftPx}px`,
-                                top: `${fishState.home.topPx}px`,
-                                animation: `${uid}-swim-local-${Math.round(fishState.home.leftPx)}_${Math.round(fishState.home.topPx)} ${localSwimDuration} ease-in-out infinite`,
-                                zIndex: 5,
-                            }
-                            : {
-                                position: "absolute", top: 50, left: 20,
-                                animation: `${uid}-swim ${swimDuration} ease-in-out infinite`,
-                                zIndex: 5,
-                            }
-                    }
-                >
-                    <div style={{ position: "relative" }}>
-                        <LineFish mood={mood} size={32} />
-                        {[0, 1, 2].map((i) => (
-                            <div key={i} style={{
-                                position: "absolute", top: -6, left: 6 + i * 7,
-                                fontSize: "8px", color: heartColor, opacity: 0,
-                                animation: `${uid}-heart ${3.5 + i * 0.8}s ease-out infinite`,
-                                animationDelay: `${i * 1.4}s`,
-                            }}>♥</div>
-                        ))}
-                    </div>
-                </DraggableCritter>
-            )}
-
-            {/* Bring-back panel for hidden critters */}
-            {(!fishState.visible || !snailState.visible || !schoolState.visible) && (
-                <div style={{
-                    position: "absolute", top: 8, right: 8, zIndex: 6,
-                    display: "flex", gap: "6px", pointerEvents: "auto",
-                }}>
-                    {!fishState.visible && (
-                        <button
-                            onClick={() => setFishState({ visible: true, home: null })}
-                            title="Bring back fish"
-                            style={{
-                                background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
-                                borderRadius: "8px", padding: "3px 8px",
-                                fontFamily: FONT, fontSize: "11px", fontWeight: 700,
-                                cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
-                            }}
-                        >🐟 +</button>
-                    )}
-                    {!snailState.visible && (
-                        <button
-                            onClick={() => setSnailState({ visible: true, home: null })}
-                            title="Bring back snail"
-                            style={{
-                                background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
-                                borderRadius: "8px", padding: "3px 8px",
-                                fontFamily: FONT, fontSize: "11px", fontWeight: 700,
-                                cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
-                            }}
-                        >🐌 +</button>
-                    )}
-                    {!schoolState.visible && (
-                        <button
-                            onClick={() => setSchoolState({ visible: true, home: null })}
-                            title="Bring back school"
-                            style={{
-                                background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
-                                borderRadius: "8px", padding: "3px 8px",
-                                fontFamily: FONT, fontSize: "11px", fontWeight: 700,
-                                cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
-                            }}
-                        >🐠 +</button>
-                    )}
-                </div>
-            )}
-
-            {/* Reward Animation */}
-            {rewardAnim && (
-                <div style={{
-                    position: "absolute", inset: 0, zIndex: 20,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    pointerEvents: "none",
-                }}>
-                    {["daily", "every2"].includes(rewardAnim) ? (
-                        <>
-                            {[20, 40, 55, 70, 85].map((x, i) => (
-                                <div key={i} style={{
-                                    position: "absolute", left: `${x}%`, top: 0,
-                                    fontSize: "12px",
-                                    animation: "reward-drop 2s ease-in forwards",
-                                    animationDelay: `${i * 0.12}s`,
-                                }}>
-                                    {REWARD_MAP[rewardAnim].emoji}
+                {/* School of fish */}
+                {schoolState.visible && (
+                    <DraggableCritter
+                        purchase={{ id: "main-school" }}
+                        boundsRef={viewportRef}
+                        tankInnerRef={tankRef}
+                        gravity={false}
+                        onRemove={() => setSchoolState({ visible: false, home: null })}
+                        onDrop={({ leftPx, topPx }) => setSchoolState((s) => ({ ...s, home: { leftPx, topPx } }))}
+                        onDragChange={setAnyDragging}
+                        onOutsideChange={setDragOutside}
+                        animationStyle={
+                            schoolState.home
+                                ? {
+                                    position: "absolute",
+                                    left: `${schoolState.home.leftPx}px`,
+                                    top: `${schoolState.home.topPx}px`,
+                                    animation: `${uid}-school-local-${Math.round(schoolState.home.leftPx)}_${Math.round(schoolState.home.topPx)} ${localSchoolDuration} ease-in-out infinite`,
+                                    zIndex: 5,
+                                }
+                                : {
+                                    position: "absolute", top: 28, left: "78%",
+                                    animation: `${uid}-school ${schoolDur} ease-in-out infinite`,
+                                    zIndex: 5,
+                                }
+                        }
+                    >
+                        <div style={{ position: "relative", width: 40, height: 24 }}>
+                            {[{ dx: 0, dy: 0 }, { dx: 16, dy: -7 }, { dx: -8, dy: 9 }, { dx: 24, dy: 3 }].map((off, i) => (
+                                <div key={i} style={{ position: "absolute", left: off.dx, top: off.dy }}>
+                                    <LineFish mood={mood} size={14} />
                                 </div>
                             ))}
-                        </>
-                    ) : (
-                        <div style={{
-                            fontSize: "28px",
-                            animation: "reward-flash 2s ease-out forwards",
-                        }}>
-                            {REWARD_MAP[rewardAnim]?.emoji || "✨"}
                         </div>
-                    )}
-                    <div style={{
-                        position: "absolute", bottom: "20px", left: 0, right: 0,
-                        textAlign: "center", fontSize: "11px", fontWeight: 700,
-                        color: "rgba(255,255,255,0.8)",
-                        animation: "reward-flash 2s ease-out forwards",
-                        animationDelay: "0.2s", opacity: 0,
-                    }}>
-                        {REWARD_MAP[rewardAnim]?.label || "Nice!"}
-                    </div>
-                </div>
-            )}
+                    </DraggableCritter>
+                )}
 
-            {/* Purchased items (draggable, placed only — shrimp use DraggableCritter, tank upgrades aren't placeable) */}
-            {purchases.filter((p) => p.x >= 0 && !p.item_id?.startsWith("shrimp_") && p.item_id !== TANK_EXPAND_ID).map((p) => {
-                const item = STORE_ITEM_MAP[p.item_id];
-                if (!item) return null;
-                return (
-                    <DraggablePurchase
-                        key={p.id}
-                        purchase={p}
-                        tankRef={tankRef}
+                {/* Fish + hearts */}
+                {fishState.visible && (
+                    <DraggableCritter
+                        purchase={{ id: "main-fish" }}
                         boundsRef={viewportRef}
-                        onMoveEnd={onMovePurchase}
-                        onRemove={onRemovePurchase}
+                        tankInnerRef={tankRef}
+                        gravity={false}
+                        onRemove={() => setFishState({ visible: false, home: null })}
+                        onDrop={({ leftPx, topPx }) => setFishState((s) => ({ ...s, home: { leftPx, topPx } }))}
                         onDragChange={setAnyDragging}
                         onOutsideChange={setDragOutside}
+                        animationStyle={
+                            fishState.home
+                                ? {
+                                    position: "absolute",
+                                    left: `${fishState.home.leftPx}px`,
+                                    top: `${fishState.home.topPx}px`,
+                                    animation: `${uid}-swim-local-${Math.round(fishState.home.leftPx)}_${Math.round(fishState.home.topPx)} ${localSwimDuration} ease-in-out infinite`,
+                                    zIndex: 5,
+                                }
+                                : {
+                                    position: "absolute", top: 50, left: 20,
+                                    animation: `${uid}-swim ${swimDuration} ease-in-out infinite`,
+                                    zIndex: 5,
+                                }
+                        }
                     >
-                        {item.render(0.75)}
-                    </DraggablePurchase>
-                );
-            })}
-        </div>
+                        <div style={{ position: "relative" }}>
+                            <LineFish mood={mood} size={32} />
+                            {[0, 1, 2].map((i) => (
+                                <div key={i} style={{
+                                    position: "absolute", top: -6, left: 6 + i * 7,
+                                    fontSize: "8px", color: heartColor, opacity: 0,
+                                    animation: `${uid}-heart ${3.5 + i * 0.8}s ease-out infinite`,
+                                    animationDelay: `${i * 1.4}s`,
+                                }}>♥</div>
+                            ))}
+                        </div>
+                    </DraggableCritter>
+                )}
+
+                {/* Bring-back panel for hidden critters */}
+                {(!fishState.visible || !snailState.visible || !schoolState.visible) && (
+                    <div style={{
+                        position: "absolute", top: 8, right: 8, zIndex: 6,
+                        display: "flex", gap: "6px", pointerEvents: "auto",
+                    }}>
+                        {!fishState.visible && (
+                            <button
+                                onClick={() => setFishState({ visible: true, home: null })}
+                                title="Bring back fish"
+                                style={{
+                                    background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
+                                    borderRadius: "8px", padding: "3px 8px",
+                                    fontFamily: FONT, fontSize: "11px", fontWeight: 700,
+                                    cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
+                                }}
+                            >🐟 +</button>
+                        )}
+                        {!snailState.visible && (
+                            <button
+                                onClick={() => setSnailState({ visible: true, home: null })}
+                                title="Bring back snail"
+                                style={{
+                                    background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
+                                    borderRadius: "8px", padding: "3px 8px",
+                                    fontFamily: FONT, fontSize: "11px", fontWeight: 700,
+                                    cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
+                                }}
+                            >🐌 +</button>
+                        )}
+                        {!schoolState.visible && (
+                            <button
+                                onClick={() => setSchoolState({ visible: true, home: null })}
+                                title="Bring back school"
+                                style={{
+                                    background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
+                                    borderRadius: "8px", padding: "3px 8px",
+                                    fontFamily: FONT, fontSize: "11px", fontWeight: 700,
+                                    cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
+                                }}
+                            >🐠 +</button>
+                        )}
+                    </div>
+                )}
+
+                {/* Reward Animation */}
+                {rewardAnim && (
+                    <div style={{
+                        position: "absolute", inset: 0, zIndex: 20,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        pointerEvents: "none",
+                    }}>
+                        {["daily", "every2"].includes(rewardAnim) ? (
+                            <>
+                                {[20, 40, 55, 70, 85].map((x, i) => (
+                                    <div key={i} style={{
+                                        position: "absolute", left: `${x}%`, top: 0,
+                                        fontSize: "12px",
+                                        animation: "reward-drop 2s ease-in forwards",
+                                        animationDelay: `${i * 0.12}s`,
+                                    }}>
+                                        {REWARD_MAP[rewardAnim].emoji}
+                                    </div>
+                                ))}
+                            </>
+                        ) : (
+                            <div style={{
+                                fontSize: "28px",
+                                animation: "reward-flash 2s ease-out forwards",
+                            }}>
+                                {REWARD_MAP[rewardAnim]?.emoji || "✨"}
+                            </div>
+                        )}
+                        <div style={{
+                            position: "absolute", bottom: "20px", left: 0, right: 0,
+                            textAlign: "center", fontSize: "11px", fontWeight: 700,
+                            color: "rgba(255,255,255,0.8)",
+                            animation: "reward-flash 2s ease-out forwards",
+                            animationDelay: "0.2s", opacity: 0,
+                        }}>
+                            {REWARD_MAP[rewardAnim]?.label || "Nice!"}
+                        </div>
+                    </div>
+                )}
+
+                {/* Purchased items (draggable, placed only — shrimp use DraggableCritter, tank upgrades aren't placeable) */}
+                {purchases.filter((p) => p.x >= 0 && !p.item_id?.startsWith("shrimp_") && p.item_id !== TANK_EXPAND_ID).map((p) => {
+                    const item = STORE_ITEM_MAP[p.item_id];
+                    if (!item) return null;
+                    return (
+                        <DraggablePurchase
+                            key={p.id}
+                            purchase={p}
+                            tankRef={tankRef}
+                            boundsRef={viewportRef}
+                            onMoveEnd={onMovePurchase}
+                            onRemove={onRemovePurchase}
+                            onDragChange={setAnyDragging}
+                            onOutsideChange={setDragOutside}
+                        >
+                            {item.render(0.75)}
+                        </DraggablePurchase>
+                    );
+                })}
+            </div>
 
             {/* Drag-outside-to-remove overlay */}
             {dragOutside && (
@@ -2124,7 +2124,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             )}
             {/* BUBBLE TITLE */}
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "0.75rem" }}>
-                <span style={{ fontSize: "32px", lineHeight: 1 }}>🐟</span>
+                <span style={{ fontSize: "32px", lineHeight: 1 }}></span>
                 <img src="/header.png" alt="My Fishtank" style={{ height: "64px" }} draggable={false} />
             </div>
 
@@ -2652,7 +2652,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                             <div>
                                                 <div style={{ fontSize: "13px", fontWeight: 600 }}>{item.name}</div>
                                                 <div style={{ fontSize: "11px", color: inTank ? "#22C55E" : "#888780" }}>
-                                                    {isUpgrade ? "active upgrade ✨" : inTank ? "in tank 🐟" : "in inventory"}
+                                                    {isUpgrade ? "active upgrade ✨" : inTank ? "in tank" : "in inventory"}
                                                 </div>
                                             </div>
                                         </div>
