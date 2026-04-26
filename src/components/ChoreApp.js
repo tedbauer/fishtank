@@ -778,7 +778,7 @@ function DraggablePurchase({ purchase, tankRef, boundsRef, onMoveEnd, onRemove, 
 // =========== DRAGGABLE CRITTER ===========
 // Crawls/swims via keyframe by default; pointerdown grabs it,
 // drag-out releases to inventory, drop in tank → falls to seafloor then resumes animation.
-function DraggableCritter({ purchase, boundsRef, tankInnerRef, floorBottom = 16, fallMs = 850, removable = true, onRemove, onDragChange, onOutsideChange, children, animationStyle }) {
+function DraggableCritter({ purchase, boundsRef, tankInnerRef, floorBottom = 16, fallMs = 850, removable = true, gravity = true, onRemove, onDrop, onDragChange, onOutsideChange, children, animationStyle }) {
     const [mode, setMode] = useState("idle"); // idle | dragging | falling
     const [isOutside, setIsOutside] = useState(false);
     const [pointer, setPointer] = useState({ x: 0, y: 0 });
@@ -829,23 +829,29 @@ function DraggableCritter({ purchase, boundsRef, tankInnerRef, floorBottom = 16,
                 onRemove?.(purchase.id);
                 return;
             }
-            // Drop inside tank (or anywhere if not removable) → fall from drop point to floor.
+            // Drop inside tank (or anywhere if not removable) → notify parent + (optionally) fall.
             const inner = tankInnerRef?.current?.getBoundingClientRect();
             if (!inner) {
                 setMode("idle");
                 return;
             }
-            // Clamp to tank when not removable so the critter can't end up outside.
             const clampedX = removable
                 ? ev.clientX
                 : Math.max(inner.left + 8, Math.min(inner.right - 8, ev.clientX));
             const clampedY = removable
                 ? ev.clientY
                 : Math.max(inner.top + 8, Math.min(inner.bottom - 8, ev.clientY));
-            const left = clampedX - inner.left;
-            const bottom = Math.max(floorBottom, inner.bottom - clampedY);
-            setFallPos({ left, bottom, settle: false });
-            setMode("falling");
+            const leftPx = clampedX - inner.left;
+            const bottomPx = Math.max(floorBottom, inner.bottom - clampedY);
+            const leftPercent = inner.width > 0 ? (leftPx / inner.width) * 100 : 0;
+            const bottomPercent = inner.height > 0 ? (bottomPx / inner.height) * 100 : 0;
+            onDrop?.({ leftPx, bottomPx, leftPercent, bottomPercent, topPx: clampedY - inner.top });
+            if (gravity) {
+                setFallPos({ left: leftPx, bottom: bottomPx, settle: false });
+                setMode("falling");
+            } else {
+                setMode("idle");
+            }
         };
         const onCancel = (ev) => {
             if (!dragState.current || ev.pointerId !== pointerId) return;
@@ -945,6 +951,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
     const viewportRef = useRef(null);
     const [anyDragging, setAnyDragging] = useState(false);
     const [dragOutside, setDragOutside] = useState(false);
+    const [fishHome, setFishHome] = useState(null);
     const tankWidthPct = 100 * (1 + TANK_EXPAND_STEP * expansions);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpBaseDur = { ecstatic: 30, happy: 35, content: 40, meh: 50, sad: 60, miserable: 80 }[mood] || 40;
@@ -1000,25 +1007,26 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
           90%  { left: 20px;  top: 52px; transform: scaleX(-1); }
           100% { left: 20px;  top: 50px; transform: scaleX(-1); }
         }
-        ${placedShrimp.map((s, i) => {
-                const startPct = 15 + (i * 20) % 60;
-                const endPct = startPct + 25;
+        ${placedShrimp.map((s) => {
+                const homeRaw = typeof s.x === "number" ? s.x : 30;
+                const startPct = Math.max(2, Math.min(85, homeRaw));
+                const endPct = Math.min(98, startPct + 14);
                 return `
-        @keyframes ${uid}-shrimp-${i} {
+        @keyframes ${uid}-shrimp-${s.id}-${Math.round(startPct)} {
           0%   { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
-          12%  { left: ${startPct + 8}%; bottom: 16px; transform: scaleX(-1); }
-          15%  { left: ${startPct + 10}%; bottom: 30px; transform: scaleX(-1); }
-          18%  { left: ${startPct + 13}%; bottom: 16px; transform: scaleX(-1); }
-          35%  { left: ${endPct - 5}%; bottom: 16px; transform: scaleX(-1); }
-          38%  { left: ${endPct - 3}%; bottom: 28px; transform: scaleX(-1); }
+          12%  { left: ${startPct + 5}%; bottom: 16px; transform: scaleX(-1); }
+          15%  { left: ${startPct + 7}%; bottom: 30px; transform: scaleX(-1); }
+          18%  { left: ${startPct + 9}%; bottom: 16px; transform: scaleX(-1); }
+          35%  { left: ${endPct - 3}%; bottom: 16px; transform: scaleX(-1); }
+          38%  { left: ${endPct - 1}%; bottom: 28px; transform: scaleX(-1); }
           41%  { left: ${endPct}%; bottom: 16px; transform: scaleX(-1); }
           48%  { left: ${endPct}%; bottom: 16px; transform: scaleX(-1); }
           52%  { left: ${endPct}%; bottom: 16px; transform: scaleX(1); }
-          62%  { left: ${endPct - 8}%; bottom: 16px; transform: scaleX(1); }
-          65%  { left: ${endPct - 10}%; bottom: 30px; transform: scaleX(1); }
-          68%  { left: ${endPct - 13}%; bottom: 16px; transform: scaleX(1); }
-          85%  { left: ${startPct + 5}%; bottom: 16px; transform: scaleX(1); }
-          88%  { left: ${startPct + 3}%; bottom: 28px; transform: scaleX(1); }
+          62%  { left: ${endPct - 6}%; bottom: 16px; transform: scaleX(1); }
+          65%  { left: ${endPct - 8}%; bottom: 30px; transform: scaleX(1); }
+          68%  { left: ${endPct - 10}%; bottom: 16px; transform: scaleX(1); }
+          85%  { left: ${startPct + 3}%; bottom: 16px; transform: scaleX(1); }
+          88%  { left: ${startPct + 1}%; bottom: 28px; transform: scaleX(1); }
           91%  { left: ${startPct}%; bottom: 16px; transform: scaleX(1); }
           98%  { left: ${startPct}%; bottom: 16px; transform: scaleX(1); }
           100% { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
@@ -1155,11 +1163,13 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                 imageRendering: "pixelated",
             }} />
 
-            {/* Placed Shrimp — crawl by default, draggable to remove */}
+            {/* Placed Shrimp — crawl by default, draggable, drag-out to remove, drop in tank stays */}
             {placedShrimp.map((s, i) => {
                 const item = STORE_ITEM_MAP[s.item_id];
                 if (!item) return null;
                 const dur = shrimpBaseDur + i * 5;
+                const homeRaw = typeof s.x === "number" ? s.x : 30;
+                const startPct = Math.max(2, Math.min(85, homeRaw));
                 return (
                     <DraggableCritter
                         key={s.id}
@@ -1167,11 +1177,12 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                         boundsRef={viewportRef}
                         tankInnerRef={tankRef}
                         onRemove={onRemovePurchase}
+                        onDrop={({ leftPercent }) => onMovePurchase(s.id, Math.round(Math.max(2, Math.min(85, leftPercent))), 0)}
                         onDragChange={setAnyDragging}
                         onOutsideChange={setDragOutside}
                         animationStyle={{
                             position: "absolute", bottom: 16, left: "15%",
-                            animation: `${uid}-shrimp-${i} ${dur}s linear infinite`,
+                            animation: `${uid}-shrimp-${s.id}-${Math.round(startPct)} ${dur}s linear infinite`,
                             zIndex: 5,
                         }}
                     >
@@ -1206,13 +1217,24 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                 boundsRef={viewportRef}
                 tankInnerRef={tankRef}
                 removable={false}
+                gravity={false}
+                onDrop={({ leftPx, topPx }) => setFishHome({ leftPx, topPx })}
                 onDragChange={setAnyDragging}
                 onOutsideChange={setDragOutside}
-                animationStyle={{
-                    position: "absolute", top: 50, left: 20,
-                    animation: `${uid}-swim ${swimDuration} ease-in-out infinite`,
-                    zIndex: 5,
-                }}
+                animationStyle={
+                    fishHome
+                        ? {
+                            position: "absolute",
+                            left: `${fishHome.leftPx}px`,
+                            top: `${fishHome.topPx}px`,
+                            zIndex: 5,
+                        }
+                        : {
+                            position: "absolute", top: 50, left: 20,
+                            animation: `${uid}-swim ${swimDuration} ease-in-out infinite`,
+                            zIndex: 5,
+                        }
+                }
             >
                 <div style={{ position: "relative" }}>
                     <LineFish mood={mood} size={32} />
