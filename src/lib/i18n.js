@@ -307,7 +307,7 @@ export const translations = {
         save: "Lưu",
         cancel: "Hủy",
         unassigned: "Chưa phân công",
-        choreNamePlaceholder: "tưới cây mọng nước…",
+        choreNamePlaceholder: "tưới sen đá…",
         oneTimePlaceholder: "lấy đồ giặt khô…",
         descriptionPlaceholder: "Mô tả (tùy chọn)",
         deadlinePlaceholder: "Hạn chót (tùy chọn)",
