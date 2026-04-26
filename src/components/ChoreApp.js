@@ -31,6 +31,7 @@ import {
     Package,
 } from "lucide-react";
 import HeatmapView from "@/components/HeatmapView";
+import ProfilePicturePicker, { Avatar } from "@/components/ProfilePicturePicker";
 import { t, LANGUAGES } from "@/lib/i18n";
 
 // Frequency in days. `labelKey` maps to a translation key in lib/i18n.js.
@@ -1603,19 +1604,34 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         };
     }, []);
 
+    const [localProfile, setLocalProfile] = useState(profile);
+    useEffect(() => { setLocalProfile(profile); }, [profile]);
+    const [showProfilePicker, setShowProfilePicker] = useState(false);
+
     const currentUser = {
         id: user.id,
-        name: profile?.display_name || "You",
-        color: profile?.color || USER_COLORS[0],
+        name: localProfile?.display_name || "You",
+        color: localProfile?.color || USER_COLORS[0],
+        profile_critter: localProfile?.profile_critter || null,
+        avatar_url: localProfile?.avatar_url || null,
+        display_name: localProfile?.display_name || "You",
     };
 
     const users = useMemo(() => {
-        return householdMembers.map((m, i) => ({
-            id: m.id,
-            name: m.display_name || "User",
-            color: m.color || USER_COLORS[i % USER_COLORS.length],
-        }));
-    }, [householdMembers]);
+        return householdMembers.map((m, i) => {
+            // For the current user, prefer in-memory edits made via the picker.
+            const isMe = m.id === user.id;
+            const src = isMe ? { ...m, ...localProfile } : m;
+            return {
+                id: m.id,
+                name: src.display_name || "User",
+                color: src.color || USER_COLORS[i % USER_COLORS.length],
+                profile_critter: src.profile_critter || null,
+                avatar_url: src.avatar_url || null,
+                display_name: src.display_name || "User",
+            };
+        });
+    }, [householdMembers, localProfile, user.id]);
 
     const partner = users.find((u) => u.id !== currentUser.id);
 
@@ -2099,6 +2115,15 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         <div style={{ maxWidth: "720px", margin: "0 auto", padding: "1rem", fontFamily: FONT, animation: "page-fade-in 0.3s ease" }}>
             <style>{`@keyframes page-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
             <ToastStack toasts={toasts} />
+            {showProfilePicker && (
+                <ProfilePicturePicker
+                    user={user}
+                    profile={localProfile}
+                    lang={lang}
+                    onClose={() => setShowProfilePicker(false)}
+                    onSaved={(updated) => setLocalProfile(updated)}
+                />
+            )}
             {/* PULL-TO-REFRESH INDICATOR */}
             {pullDelta > 0 && (
                 <div style={{
@@ -2130,14 +2155,16 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             {/* HEADER */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <div style={{
-                        width: "36px", height: "36px", borderRadius: "50%", background: currentUser.color,
-                        color: "white", display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: "15px", fontWeight: 700, border: "2px solid #2C2C2A",
-                        boxShadow: boxShadow(currentUser.color + "88", 2, 2),
-                    }}>
-                        {currentUser.name.charAt(0).toUpperCase()}
-                    </div>
+                    <button
+                        onClick={() => setShowProfilePicker(true)}
+                        title={t("profile_change", lang)}
+                        style={{
+                            background: "transparent", border: "none", padding: 0, cursor: "pointer",
+                            borderRadius: "50%",
+                        }}
+                    >
+                        <Avatar profile={currentUser} size={36} />
+                    </button>
                     <div>
                         <div style={{ fontSize: "16px", fontWeight: 700 }}>{t("hi", lang, { name: currentUser.name })}</div>
                         <div style={{ fontSize: "12px", color: "#888780" }}>
@@ -2778,13 +2805,52 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     </Section>
 
+                    <Section title={t("section_profile", lang)} accentColor="#1D9E75">
+                        <div style={{
+                            padding: "12px 16px", background: "white", borderRadius: "12px",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 2, 2),
+                            display: "flex", alignItems: "center", gap: "14px",
+                        }}>
+                            <Avatar profile={currentUser} size={56} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: "14px", fontWeight: 700, color: "#2C2C2A" }}>
+                                    {t("profile_pictureLabel", lang)}
+                                </div>
+                                <div style={{ fontSize: "11px", color: "#888780", marginTop: "2px" }}>
+                                    {t("profile_pictureDesc", lang)}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowProfilePicker(true)}
+                                style={{
+                                    padding: "8px 12px", background: "#E1F5EE", border: "2px solid #2C2C2A",
+                                    borderRadius: "10px", cursor: "pointer", fontFamily: FONT, fontWeight: 700,
+                                    fontSize: "12px", color: "#085041",
+                                    boxShadow: boxShadow("#1D9E75", 2, 2),
+                                }}
+                            >
+                                {t("profile_change", lang)}
+                            </button>
+                        </div>
+                    </Section>
+
                     <Section title={t("section_household", lang)} accentColor="#D4537E">
                         <div style={{
                             padding: "12px 16px", background: "#FBEAF0", borderRadius: "12px",
                             fontSize: "14px", color: "#72243E", marginBottom: "8px",
                             border: "2px solid #2C2C2A", boxShadow: boxShadow("#D4537E", 2, 2),
                         }}>
-                            <strong>{t("members", lang)}</strong> {users.map((u) => u.name).join(", ")}
+                            <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: "8px" }}>
+                                {t("members", lang)}
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                                {users.map((u) => (
+                                    <div key={u.id} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                        <Avatar profile={u} size={28} />
+                                        <span style={{ fontSize: "13px", fontWeight: 600 }}>{u.name}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                         {inviteCode && (
                             <>
