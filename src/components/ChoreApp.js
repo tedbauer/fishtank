@@ -1007,6 +1007,17 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
           90%  { left: 20px;  top: 52px; transform: scaleX(-1); }
           100% { left: 20px;  top: 50px; transform: scaleX(-1); }
         }
+        ${fishHome ? `
+        @keyframes ${uid}-swim-local-${Math.round(fishHome.leftPx)}_${Math.round(fishHome.topPx)} {
+          0%   { transform: translate(0px, 0px) scaleX(-1); }
+          22%  { transform: translate(40px, -5px) scaleX(-1); }
+          42%  { transform: translate(70px, 4px) scaleX(-1); }
+          46%  { transform: translate(70px, 4px) scaleX(1); }
+          66%  { transform: translate(20px, -3px) scaleX(1); }
+          84%  { transform: translate(-50px, 5px) scaleX(1); }
+          88%  { transform: translate(-50px, 5px) scaleX(-1); }
+          100% { transform: translate(0px, 0px) scaleX(-1); }
+        }` : ''}
         ${placedShrimp.map((s) => {
                 const homeRaw = typeof s.x === "number" ? s.x : 30;
                 const startPct = Math.max(2, Math.min(85, homeRaw));
@@ -1227,6 +1238,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                             position: "absolute",
                             left: `${fishHome.leftPx}px`,
                             top: `${fishHome.topPx}px`,
+                            animation: `${uid}-swim-local-${Math.round(fishHome.leftPx)}_${Math.round(fishHome.topPx)} ${swimDuration} ease-in-out infinite`,
                             zIndex: 5,
                         }
                         : {
