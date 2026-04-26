@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import { getSupabase } from "@/lib/supabase";
 import { Home, Copy, Check } from "lucide-react";
+import { t } from "@/lib/i18n";
 
 export default function HouseholdSetup({ user, profile, onComplete }) {
+    const lang = profile?.language || "en";
     const [mode, setMode] = useState(null); // null | 'create' | 'join'
     const [inviteCode, setInviteCode] = useState("");
     const [createdCode, setCreatedCode] = useState(null);
@@ -94,7 +96,7 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
         setError(null);
         try {
             const code = inviteCode.trim().toLowerCase();
-            if (!code) throw new Error("Please enter an invite code");
+            if (!code) throw new Error(t("hh_err_empty", lang));
 
             // Find household by invite code
             const { data: household, error: hErr } = await supabase
@@ -102,7 +104,7 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
                 .select("id")
                 .eq("invite_code", code)
                 .single();
-            if (hErr || !household) throw new Error("Invalid invite code. Check with your partner.");
+            if (hErr || !household) throw new Error(t("hh_err_invalid", lang));
 
             // Join household
             const { error: pErr } = await supabase
@@ -130,9 +132,9 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
             <div style={containerStyle}>
                 <div style={cardStyle}>
                     <div style={{ fontSize: "32px", marginBottom: "12px" }}>🏠</div>
-                    <h2 style={{ margin: "0 0 6px", fontSize: "20px" }}>Household created!</h2>
+                    <h2 style={{ margin: "0 0 6px", fontSize: "20px" }}>{t("hh_created_heading", lang)}</h2>
                     <p style={{ fontSize: "14px", color: "#888780", margin: "0 0 1.5rem" }}>
-                        Share this code with your partner so they can join:
+                        {t("hh_created_share", lang)}
                     </p>
 
                     <div
@@ -173,7 +175,7 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
                     </div>
 
                     <button onClick={onComplete} style={primaryButtonStyle}>
-                        Continue to app →
+                        {t("hh_continue", lang)}
                     </button>
                 </div>
             </div>
@@ -197,19 +199,19 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
                         <Home size={26} color="#D4537E" />
                     </div>
                     <h2 style={{ margin: "0 0 6px", fontSize: "20px" }}>
-                        Welcome, {profile?.display_name || "there"}!
+                        {t("hh_welcome", lang, { name: profile?.display_name || "there" })}
                     </h2>
                     <p style={{ fontSize: "14px", color: "#888780", margin: "0 0 1.5rem" }}>
-                        Set up your shared household
+                        {t("hh_setup_subtitle", lang)}
                     </p>
 
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         <button onClick={() => setMode("create")} style={choiceButtonStyle}>
                             <span style={{ fontSize: "20px" }}>🏠</span>
                             <div style={{ textAlign: "left" }}>
-                                <div style={{ fontWeight: 500, fontSize: "15px" }}>Create a household</div>
+                                <div style={{ fontWeight: 500, fontSize: "15px" }}>{t("hh_create_title", lang)}</div>
                                 <div style={{ fontSize: "12px", color: "#888780" }}>
-                                    Start fresh and invite your partner
+                                    {t("hh_create_desc", lang)}
                                 </div>
                             </div>
                         </button>
@@ -217,9 +219,9 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
                         <button onClick={() => setMode("join")} style={choiceButtonStyle}>
                             <span style={{ fontSize: "20px" }}>🔗</span>
                             <div style={{ textAlign: "left" }}>
-                                <div style={{ fontWeight: 500, fontSize: "15px" }}>Join a household</div>
+                                <div style={{ fontWeight: 500, fontSize: "15px" }}>{t("hh_join_title", lang)}</div>
                                 <div style={{ fontSize: "12px", color: "#888780" }}>
-                                    Enter an invite code from your partner
+                                    {t("hh_join_desc", lang)}
                                 </div>
                             </div>
                         </button>
@@ -234,19 +236,19 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
         return (
             <div style={containerStyle}>
                 <div style={cardStyle}>
-                    <h2 style={{ margin: "0 0 6px", fontSize: "20px" }}>Create your household</h2>
+                    <h2 style={{ margin: "0 0 6px", fontSize: "20px" }}>{t("hh_create_heading", lang)}</h2>
                     <p style={{ fontSize: "14px", color: "#888780", margin: "0 0 1.5rem" }}>
-                        We'll set up default chores and give you an invite code.
+                        {t("hh_create_blurb", lang)}
                     </p>
 
                     {error && <p style={errorStyle}>{error}</p>}
 
                     <button onClick={handleCreate} disabled={loading} style={primaryButtonStyle}>
-                        {loading ? "Creating…" : "Create household"}
+                        {loading ? t("hh_creating", lang) : t("hh_create_button", lang)}
                     </button>
 
                     <button onClick={() => setMode(null)} style={backButtonStyle}>
-                        ← Back
+                        {t("back", lang)}
                     </button>
                 </div>
             </div>
@@ -257,9 +259,9 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
     return (
         <div style={containerStyle}>
             <div style={cardStyle}>
-                <h2 style={{ margin: "0 0 6px", fontSize: "20px" }}>Join a household</h2>
+                <h2 style={{ margin: "0 0 6px", fontSize: "20px" }}>{t("hh_join_heading", lang)}</h2>
                 <p style={{ fontSize: "14px", color: "#888780", margin: "0 0 1.5rem" }}>
-                    Enter the 6-character invite code from your partner.
+                    {t("hh_join_blurb", lang)}
                 </p>
 
                 <input
@@ -292,11 +294,11 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
                         opacity: loading || inviteCode.trim().length < 6 ? 0.5 : 1,
                     }}
                 >
-                    {loading ? "Joining…" : "Join household"}
+                    {loading ? t("hh_joining", lang) : t("hh_join_button", lang)}
                 </button>
 
                 <button onClick={() => setMode(null)} style={backButtonStyle}>
-                    ← Back
+                    {t("back", lang)}
                 </button>
             </div>
         </div>

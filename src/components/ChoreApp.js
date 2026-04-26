@@ -31,16 +31,17 @@ import {
     Package,
 } from "lucide-react";
 import HeatmapView from "@/components/HeatmapView";
+import { t, LANGUAGES } from "@/lib/i18n";
 
-// Frequency in days
+// Frequency in days. `labelKey` maps to a translation key in lib/i18n.js.
 const FREQ = {
-    daily: { days: 1, label: "Daily", color: "#D4537E", bg: "#FBEAF0", text: "#72243E" },
-    every2: { days: 2, label: "Every 2 days", color: "#D85A30", bg: "#FAECE7", text: "#712B13" },
-    weekly: { days: 7, label: "Weekly", color: "#7F77DD", bg: "#EEEDFE", text: "#3C3489" },
-    biweekly: { days: 14, label: "Every 2 weeks", color: "#378ADD", bg: "#E6F1FB", text: "#0C447C" },
-    monthly: { days: 30, label: "Monthly", color: "#1D9E75", bg: "#E1F5EE", text: "#085041" },
-    quarterly: { days: 90, label: "Quarterly", color: "#BA7517", bg: "#FAEEDA", text: "#633806" },
-    biannual: { days: 180, label: "Twice a year", color: "#888780", bg: "#F1EFE8", text: "#444441" },
+    daily: { days: 1, labelKey: "freq_daily", color: "#D4537E", bg: "#FBEAF0", text: "#72243E" },
+    every2: { days: 2, labelKey: "freq_every2", color: "#D85A30", bg: "#FAECE7", text: "#712B13" },
+    weekly: { days: 7, labelKey: "freq_weekly", color: "#7F77DD", bg: "#EEEDFE", text: "#3C3489" },
+    biweekly: { days: 14, labelKey: "freq_biweekly", color: "#378ADD", bg: "#E6F1FB", text: "#0C447C" },
+    monthly: { days: 30, labelKey: "freq_monthly", color: "#1D9E75", bg: "#E1F5EE", text: "#085041" },
+    quarterly: { days: 90, labelKey: "freq_quarterly", color: "#BA7517", bg: "#FAEEDA", text: "#633806" },
+    biannual: { days: 180, labelKey: "freq_biannual", color: "#888780", bg: "#F1EFE8", text: "#444441" },
 };
 
 const USER_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#378ADD", "#D85A30", "#BA7517"];
@@ -65,15 +66,15 @@ const parseDate = (s) => {
     return d;
 };
 
-const friendlyDate = (d) => {
-    const t = today();
-    const diff = daysBetween(d, t);
-    if (diff === 0) return "today";
-    if (diff === 1) return "yesterday";
-    if (diff === -1) return "tomorrow";
-    if (diff > 0 && diff < 7) return `${diff} days ago`;
-    if (diff < 0 && diff > -7) return `in ${-diff} days`;
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const friendlyDate = (d, lang = "en") => {
+    const now = today();
+    const diff = daysBetween(d, now);
+    if (diff === 0) return t("date_today", lang);
+    if (diff === 1) return t("date_yesterday", lang);
+    if (diff === -1) return t("date_tomorrow", lang);
+    if (diff > 0 && diff < 7) return t("date_daysAgo", lang, { n: diff });
+    if (diff < 0 && diff > -7) return t("date_inDays", lang, { n: -diff });
+    return d.toLocaleDateString(lang === "vi" ? "vi-VN" : undefined, { month: "short", day: "numeric" });
 };
 
 // =========== HAPPINESS SYSTEM ===========
@@ -765,18 +766,194 @@ function DraggablePurchase({ purchase, tankRef, boundsRef, onMoveEnd, onRemove, 
     );
 }
 
+// =========== DRAGGABLE CRITTER ===========
+// Crawls/swims via keyframe by default; pointerdown grabs it,
+// drag-out releases to inventory, drop in tank → falls to seafloor then resumes animation.
+function DraggableCritter({ purchase, boundsRef, tankInnerRef, floorBottom = 16, fallMs = 850, removable = true, gravity = true, onRemove, onDrop, onDragChange, onOutsideChange, children, animationStyle }) {
+    const [mode, setMode] = useState("idle"); // idle | dragging | falling
+    const [isOutside, setIsOutside] = useState(false);
+    const [pointer, setPointer] = useState({ x: 0, y: 0 });
+    const [fallPos, setFallPos] = useState({ left: 0, bottom: 0, settle: false });
+    const dragState = useRef(null);
+
+    const checkOutside = (clientX, clientY, rect) =>
+        clientX < rect.left || clientX > rect.right ||
+        clientY < rect.top || clientY > rect.bottom;
+
+    const handlePointerDown = (e) => {
+        if (mode === "falling") return;
+        e.preventDefault();
+        e.stopPropagation();
+        const pointerId = e.pointerId;
+        dragState.current = { pointerId };
+        setMode("dragging");
+        setPointer({ x: e.clientX, y: e.clientY });
+        onDragChange?.(true);
+        document.body.style.userSelect = "none";
+        document.body.style.webkitUserSelect = "none";
+
+        const onMove = (ev) => {
+            if (!dragState.current || ev.pointerId !== pointerId) return;
+            if (removable) {
+                const bounds = boundsRef?.current?.getBoundingClientRect();
+                if (bounds) {
+                    const outside = checkOutside(ev.clientX, ev.clientY, bounds);
+                    setIsOutside(outside);
+                    onOutsideChange?.(outside);
+                }
+            }
+            setPointer({ x: ev.clientX, y: ev.clientY });
+        };
+        const onUp = (ev) => {
+            if (!dragState.current || ev.pointerId !== pointerId) return;
+            cleanup();
+            const bounds = boundsRef?.current?.getBoundingClientRect();
+            const outside = removable && bounds
+                ? checkOutside(ev.clientX, ev.clientY, bounds)
+                : false;
+            dragState.current = null;
+            onDragChange?.(false);
+            onOutsideChange?.(false);
+            setIsOutside(false);
+            if (outside) {
+                setMode("idle");
+                onRemove?.(purchase.id);
+                return;
+            }
+            // Drop inside tank (or anywhere if not removable) → notify parent + (optionally) fall.
+            const inner = tankInnerRef?.current?.getBoundingClientRect();
+            if (!inner) {
+                setMode("idle");
+                return;
+            }
+            const clampedX = removable
+                ? ev.clientX
+                : Math.max(inner.left + 8, Math.min(inner.right - 8, ev.clientX));
+            const clampedY = removable
+                ? ev.clientY
+                : Math.max(inner.top + 8, Math.min(inner.bottom - 8, ev.clientY));
+            const leftPx = clampedX - inner.left;
+            const bottomPx = Math.max(floorBottom, inner.bottom - clampedY);
+            const leftPercent = inner.width > 0 ? (leftPx / inner.width) * 100 : 0;
+            const bottomPercent = inner.height > 0 ? (bottomPx / inner.height) * 100 : 0;
+            onDrop?.({ leftPx, bottomPx, leftPercent, bottomPercent, topPx: clampedY - inner.top });
+            if (gravity) {
+                setFallPos({ left: leftPx, bottom: bottomPx, settle: false });
+                setMode("falling");
+            } else {
+                setMode("idle");
+            }
+        };
+        const onCancel = (ev) => {
+            if (!dragState.current || ev.pointerId !== pointerId) return;
+            cleanup();
+            dragState.current = null;
+            setMode("idle");
+            setIsOutside(false);
+            onDragChange?.(false);
+            onOutsideChange?.(false);
+        };
+        const cleanup = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onCancel);
+            document.body.style.userSelect = "";
+            document.body.style.webkitUserSelect = "";
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onCancel);
+    };
+
+    useEffect(() => {
+        if (mode !== "falling") return;
+        let raf1, raf2;
+        raf1 = requestAnimationFrame(() => {
+            raf2 = requestAnimationFrame(() => {
+                setFallPos((p) => ({ ...p, bottom: floorBottom, settle: true }));
+            });
+        });
+        const t = setTimeout(() => setMode("idle"), fallMs);
+        return () => {
+            cancelAnimationFrame(raf1);
+            cancelAnimationFrame(raf2);
+            clearTimeout(t);
+        };
+    }, [mode, floorBottom, fallMs]);
+
+    const isDragging = mode === "dragging";
+    const isFalling = mode === "falling";
+
+    return (
+        <>
+            <div
+                style={{
+                    ...animationStyle,
+                    animation: isFalling ? "none" : animationStyle?.animation,
+                    animationPlayState: isDragging ? "paused" : "running",
+                    opacity: isDragging ? 0 : 1,
+                    ...(isFalling ? {
+                        left: `${fallPos.left}px`,
+                        bottom: `${fallPos.bottom}px`,
+                        top: "auto",
+                        transition: fallPos.settle
+                            ? `bottom ${fallMs}ms cubic-bezier(0.5, 0, 0.85, 0.4)`
+                            : "none",
+                    } : {}),
+                }}
+            >
+                <div
+                    onPointerDown={handlePointerDown}
+                    style={{
+                        padding: "16px",
+                        margin: "-16px",
+                        cursor: isDragging ? "grabbing" : "grab",
+                        touchAction: "none",
+                        userSelect: "none",
+                        WebkitUserSelect: "none",
+                    }}
+                >
+                    {children}
+                </div>
+            </div>
+            {isDragging && (
+                <div style={{
+                    position: "fixed",
+                    left: pointer.x, top: pointer.y,
+                    transform: "translate(-50%, -50%) scale(1.6)",
+                    pointerEvents: "none",
+                    zIndex: 100,
+                    filter: isOutside
+                        ? "drop-shadow(0 6px 12px rgba(220,38,38,0.8)) sepia(1) saturate(3) hue-rotate(300deg)"
+                        : "drop-shadow(0 8px 16px rgba(0,0,0,0.5))",
+                    opacity: isOutside ? 0.75 : 1,
+                    transition: "transform 0.12s ease",
+                }}>
+                    {children}
+                </div>
+            )}
+        </>
+    );
+}
+
 // =========== MINIMAL AQUARIUM ===========
 function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0, onMovePurchase, onRemovePurchase }) {
     const tankRef = useRef(null);
     const viewportRef = useRef(null);
     const [anyDragging, setAnyDragging] = useState(false);
     const [dragOutside, setDragOutside] = useState(false);
+    const [fishState, setFishState] = useState({ visible: true, home: null });
+    const [snailState, setSnailState] = useState({ visible: true, home: null });
+    const [schoolState, setSchoolState] = useState({ visible: true, home: null });
     const tankWidthPct = 100 * (1 + TANK_EXPAND_STEP * expansions);
     const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
     const shrimpBaseDur = { ecstatic: 30, happy: 35, content: 40, meh: 50, sad: 60, miserable: 80 }[mood] || 40;
-    const ownedShrimp = purchases.filter((p) => p.item_id?.startsWith("shrimp_"));
+    const placedShrimp = purchases.filter((p) => p.item_id?.startsWith("shrimp_") && p.x >= 0);
     const schoolDur = { ecstatic: "24s", happy: "29s", content: "34s", meh: "43s", sad: "54s", miserable: "70s" }[mood] || "34s";
     const snailDur = { ecstatic: "55s", happy: "65s", content: "75s", meh: "90s", sad: "110s", miserable: "140s" }[mood] || "75s";
+    const localSwimDuration = `${Math.max(6, parseFloat(swimDuration) * 0.4).toFixed(1)}s`;
+    const localSnailDuration = `${Math.max(20, parseFloat(snailDur) * 0.45).toFixed(1)}s`;
+    const localSchoolDuration = `${Math.max(8, parseFloat(schoolDur) * 0.4).toFixed(1)}s`;
     const uid = `aq-${mood}`;
 
     const waterColor = {
@@ -826,25 +1003,56 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
           90%  { left: 20px;  top: 52px; transform: scaleX(-1); }
           100% { left: 20px;  top: 50px; transform: scaleX(-1); }
         }
-        ${ownedShrimp.map((s, i) => {
-                const startPct = 15 + (i * 20) % 60;
-                const endPct = startPct + 25;
+        ${fishState.home ? `
+        @keyframes ${uid}-swim-local-${Math.round(fishState.home.leftPx)}_${Math.round(fishState.home.topPx)} {
+          0%   { transform: translate(0px, 0px) scaleX(-1); }
+          22%  { transform: translate(40px, -5px) scaleX(-1); }
+          42%  { transform: translate(70px, 4px) scaleX(-1); }
+          46%  { transform: translate(70px, 4px) scaleX(1); }
+          66%  { transform: translate(20px, -3px) scaleX(1); }
+          84%  { transform: translate(-50px, 5px) scaleX(1); }
+          88%  { transform: translate(-50px, 5px) scaleX(-1); }
+          100% { transform: translate(0px, 0px) scaleX(-1); }
+        }` : ''}
+        ${snailState.home ? `
+        @keyframes ${uid}-snail-local-${Math.round(snailState.home.leftPx)} {
+          0%   { transform: translate(0px, 0) scaleX(1); }
+          48%  { transform: translate(60px, 0) scaleX(1); }
+          52%  { transform: translate(60px, 0) scaleX(-1); }
+          98%  { transform: translate(-30px, 0) scaleX(-1); }
+          100% { transform: translate(0px, 0) scaleX(1); }
+        }` : ''}
+        ${schoolState.home ? `
+        @keyframes ${uid}-school-local-${Math.round(schoolState.home.leftPx)}_${Math.round(schoolState.home.topPx)} {
+          0%   { transform: translate(0px, 0px) scaleX(1); }
+          22%  { transform: translate(-50px, 6px) scaleX(1); }
+          42%  { transform: translate(-90px, -4px) scaleX(1); }
+          46%  { transform: translate(-90px, -4px) scaleX(-1); }
+          66%  { transform: translate(-30px, 5px) scaleX(-1); }
+          84%  { transform: translate(40px, -6px) scaleX(-1); }
+          88%  { transform: translate(40px, -6px) scaleX(1); }
+          100% { transform: translate(0px, 0px) scaleX(1); }
+        }` : ''}
+        ${placedShrimp.map((s) => {
+                const homeRaw = typeof s.x === "number" ? s.x : 30;
+                const startPct = Math.max(2, Math.min(85, homeRaw));
+                const endPct = Math.min(98, startPct + 14);
                 return `
-        @keyframes ${uid}-shrimp-${i} {
+        @keyframes ${uid}-shrimp-${s.id}-${Math.round(startPct)} {
           0%   { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
-          12%  { left: ${startPct + 8}%; bottom: 16px; transform: scaleX(-1); }
-          15%  { left: ${startPct + 10}%; bottom: 30px; transform: scaleX(-1); }
-          18%  { left: ${startPct + 13}%; bottom: 16px; transform: scaleX(-1); }
-          35%  { left: ${endPct - 5}%; bottom: 16px; transform: scaleX(-1); }
-          38%  { left: ${endPct - 3}%; bottom: 28px; transform: scaleX(-1); }
+          12%  { left: ${startPct + 5}%; bottom: 16px; transform: scaleX(-1); }
+          15%  { left: ${startPct + 7}%; bottom: 30px; transform: scaleX(-1); }
+          18%  { left: ${startPct + 9}%; bottom: 16px; transform: scaleX(-1); }
+          35%  { left: ${endPct - 3}%; bottom: 16px; transform: scaleX(-1); }
+          38%  { left: ${endPct - 1}%; bottom: 28px; transform: scaleX(-1); }
           41%  { left: ${endPct}%; bottom: 16px; transform: scaleX(-1); }
           48%  { left: ${endPct}%; bottom: 16px; transform: scaleX(-1); }
           52%  { left: ${endPct}%; bottom: 16px; transform: scaleX(1); }
-          62%  { left: ${endPct - 8}%; bottom: 16px; transform: scaleX(1); }
-          65%  { left: ${endPct - 10}%; bottom: 30px; transform: scaleX(1); }
-          68%  { left: ${endPct - 13}%; bottom: 16px; transform: scaleX(1); }
-          85%  { left: ${startPct + 5}%; bottom: 16px; transform: scaleX(1); }
-          88%  { left: ${startPct + 3}%; bottom: 28px; transform: scaleX(1); }
+          62%  { left: ${endPct - 6}%; bottom: 16px; transform: scaleX(1); }
+          65%  { left: ${endPct - 8}%; bottom: 30px; transform: scaleX(1); }
+          68%  { left: ${endPct - 10}%; bottom: 16px; transform: scaleX(1); }
+          85%  { left: ${startPct + 3}%; bottom: 16px; transform: scaleX(1); }
+          88%  { left: ${startPct + 1}%; bottom: 28px; transform: scaleX(1); }
           91%  { left: ${startPct}%; bottom: 16px; transform: scaleX(1); }
           98%  { left: ${startPct}%; bottom: 16px; transform: scaleX(1); }
           100% { left: ${startPct}%; bottom: 16px; transform: scaleX(-1); }
@@ -981,53 +1189,186 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                 imageRendering: "pixelated",
             }} />
 
-            {/* Purchased Shrimp */}
-            {ownedShrimp.map((s, i) => {
+            {/* Placed Shrimp — crawl by default, draggable, drag-out to remove, drop in tank stays */}
+            {placedShrimp.map((s, i) => {
                 const item = STORE_ITEM_MAP[s.item_id];
                 if (!item) return null;
                 const dur = shrimpBaseDur + i * 5;
+                const homeRaw = typeof s.x === "number" ? s.x : 30;
+                const startPct = Math.max(2, Math.min(85, homeRaw));
                 return (
-                    <div key={s.id} style={{
-                        position: "absolute", bottom: 16, left: "15%",
-                        animation: `${uid}-shrimp-${i} ${dur}s linear infinite`,
-                    }}>
+                    <DraggableCritter
+                        key={s.id}
+                        purchase={s}
+                        boundsRef={viewportRef}
+                        tankInnerRef={tankRef}
+                        onRemove={onRemovePurchase}
+                        onDrop={({ leftPercent }) => onMovePurchase(s.id, Math.round(Math.max(2, Math.min(85, leftPercent))), 0)}
+                        onDragChange={setAnyDragging}
+                        onOutsideChange={setDragOutside}
+                        animationStyle={{
+                            position: "absolute", bottom: 16, left: "15%",
+                            animation: `${uid}-shrimp-${s.id}-${Math.round(startPct)} ${dur}s linear infinite`,
+                            zIndex: 5,
+                        }}
+                    >
                         <TankImg src={`/tank/${s.item_id}.png`} width={24} alt={item.name} />
-                    </div>
+                    </DraggableCritter>
                 );
             })}
 
             {/* Snail */}
-            <div style={{
-                position: "absolute", bottom: 16, left: "15%",
-                animation: `${uid}-snail ${snailDur} linear infinite`,
-            }}>
-                <LineSnail color={lineColor} size={22} />
-            </div>
+            {snailState.visible && (
+                <DraggableCritter
+                    purchase={{ id: "main-snail" }}
+                    boundsRef={viewportRef}
+                    tankInnerRef={tankRef}
+                    onRemove={() => setSnailState({ visible: false, home: null })}
+                    onDrop={({ leftPx }) => setSnailState((s) => ({ ...s, home: { leftPx, bottomPx: 16 } }))}
+                    onDragChange={setAnyDragging}
+                    onOutsideChange={setDragOutside}
+                    animationStyle={
+                        snailState.home
+                            ? {
+                                position: "absolute",
+                                left: `${snailState.home.leftPx}px`,
+                                bottom: `${snailState.home.bottomPx}px`,
+                                animation: `${uid}-snail-local-${Math.round(snailState.home.leftPx)} ${localSnailDuration} linear infinite`,
+                                zIndex: 5,
+                            }
+                            : {
+                                position: "absolute", bottom: 16, left: "15%",
+                                animation: `${uid}-snail ${snailDur} linear infinite`,
+                                zIndex: 5,
+                            }
+                    }
+                >
+                    <LineSnail color={lineColor} size={22} />
+                </DraggableCritter>
+            )}
 
             {/* School of fish */}
-            <div style={{
-                position: "absolute", top: 28, left: "78%",
-                animation: `${uid}-school ${schoolDur} ease-in-out infinite`,
-            }}>
-                {[{ dx: 0, dy: 0 }, { dx: 16, dy: -7 }, { dx: -8, dy: 9 }, { dx: 24, dy: 3 }].map((off, i) => (
-                    <div key={i} style={{ position: "absolute", left: off.dx, top: off.dy }}>
-                        <LineFish mood={mood} size={14} />
+            {schoolState.visible && (
+                <DraggableCritter
+                    purchase={{ id: "main-school" }}
+                    boundsRef={viewportRef}
+                    tankInnerRef={tankRef}
+                    gravity={false}
+                    onRemove={() => setSchoolState({ visible: false, home: null })}
+                    onDrop={({ leftPx, topPx }) => setSchoolState((s) => ({ ...s, home: { leftPx, topPx } }))}
+                    onDragChange={setAnyDragging}
+                    onOutsideChange={setDragOutside}
+                    animationStyle={
+                        schoolState.home
+                            ? {
+                                position: "absolute",
+                                left: `${schoolState.home.leftPx}px`,
+                                top: `${schoolState.home.topPx}px`,
+                                animation: `${uid}-school-local-${Math.round(schoolState.home.leftPx)}_${Math.round(schoolState.home.topPx)} ${localSchoolDuration} ease-in-out infinite`,
+                                zIndex: 5,
+                            }
+                            : {
+                                position: "absolute", top: 28, left: "78%",
+                                animation: `${uid}-school ${schoolDur} ease-in-out infinite`,
+                                zIndex: 5,
+                            }
+                    }
+                >
+                    <div style={{ position: "relative", width: 40, height: 24 }}>
+                        {[{ dx: 0, dy: 0 }, { dx: 16, dy: -7 }, { dx: -8, dy: 9 }, { dx: 24, dy: 3 }].map((off, i) => (
+                            <div key={i} style={{ position: "absolute", left: off.dx, top: off.dy }}>
+                                <LineFish mood={mood} size={14} />
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
+                </DraggableCritter>
+            )}
 
             {/* Fish + hearts */}
-            <div className={`${uid}-fish`}>
-                <LineFish mood={mood} size={32} />
-                {[0, 1, 2].map((i) => (
-                    <div key={i} style={{
-                        position: "absolute", top: -6, left: 6 + i * 7,
-                        fontSize: "8px", color: heartColor, opacity: 0,
-                        animation: `${uid}-heart ${3.5 + i * 0.8}s ease-out infinite`,
-                        animationDelay: `${i * 1.4}s`,
-                    }}>♥</div>
-                ))}
-            </div>
+            {fishState.visible && (
+                <DraggableCritter
+                    purchase={{ id: "main-fish" }}
+                    boundsRef={viewportRef}
+                    tankInnerRef={tankRef}
+                    gravity={false}
+                    onRemove={() => setFishState({ visible: false, home: null })}
+                    onDrop={({ leftPx, topPx }) => setFishState((s) => ({ ...s, home: { leftPx, topPx } }))}
+                    onDragChange={setAnyDragging}
+                    onOutsideChange={setDragOutside}
+                    animationStyle={
+                        fishState.home
+                            ? {
+                                position: "absolute",
+                                left: `${fishState.home.leftPx}px`,
+                                top: `${fishState.home.topPx}px`,
+                                animation: `${uid}-swim-local-${Math.round(fishState.home.leftPx)}_${Math.round(fishState.home.topPx)} ${localSwimDuration} ease-in-out infinite`,
+                                zIndex: 5,
+                            }
+                            : {
+                                position: "absolute", top: 50, left: 20,
+                                animation: `${uid}-swim ${swimDuration} ease-in-out infinite`,
+                                zIndex: 5,
+                            }
+                    }
+                >
+                    <div style={{ position: "relative" }}>
+                        <LineFish mood={mood} size={32} />
+                        {[0, 1, 2].map((i) => (
+                            <div key={i} style={{
+                                position: "absolute", top: -6, left: 6 + i * 7,
+                                fontSize: "8px", color: heartColor, opacity: 0,
+                                animation: `${uid}-heart ${3.5 + i * 0.8}s ease-out infinite`,
+                                animationDelay: `${i * 1.4}s`,
+                            }}>♥</div>
+                        ))}
+                    </div>
+                </DraggableCritter>
+            )}
+
+            {/* Bring-back panel for hidden critters */}
+            {(!fishState.visible || !snailState.visible || !schoolState.visible) && (
+                <div style={{
+                    position: "absolute", top: 8, right: 8, zIndex: 6,
+                    display: "flex", gap: "6px", pointerEvents: "auto",
+                }}>
+                    {!fishState.visible && (
+                        <button
+                            onClick={() => setFishState({ visible: true, home: null })}
+                            title="Bring back fish"
+                            style={{
+                                background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
+                                borderRadius: "8px", padding: "3px 8px",
+                                fontFamily: FONT, fontSize: "11px", fontWeight: 700,
+                                cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
+                            }}
+                        >🐟 +</button>
+                    )}
+                    {!snailState.visible && (
+                        <button
+                            onClick={() => setSnailState({ visible: true, home: null })}
+                            title="Bring back snail"
+                            style={{
+                                background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
+                                borderRadius: "8px", padding: "3px 8px",
+                                fontFamily: FONT, fontSize: "11px", fontWeight: 700,
+                                cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
+                            }}
+                        >🐌 +</button>
+                    )}
+                    {!schoolState.visible && (
+                        <button
+                            onClick={() => setSchoolState({ visible: true, home: null })}
+                            title="Bring back school"
+                            style={{
+                                background: "rgba(255,255,255,0.92)", border: "2px solid #2C2C2A",
+                                borderRadius: "8px", padding: "3px 8px",
+                                fontFamily: FONT, fontSize: "11px", fontWeight: 700,
+                                cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 1, 1),
+                            }}
+                        >🐠 +</button>
+                    )}
+                </div>
+            )}
 
             {/* Reward Animation */}
             {rewardAnim && (
@@ -1069,7 +1410,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                 </div>
             )}
 
-            {/* Purchased items (draggable, placed only — shrimp excluded (they crawl), tank upgrades excluded (not placeable)) */}
+            {/* Purchased items (draggable, placed only — shrimp use DraggableCritter, tank upgrades aren't placeable) */}
             {purchases.filter((p) => p.x >= 0 && !p.item_id?.startsWith("shrimp_") && p.item_id !== TANK_EXPAND_ID).map((p) => {
                 const item = STORE_ITEM_MAP[p.item_id];
                 if (!item) return null;
@@ -1124,9 +1465,71 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
         </div>
     );
 }
+// =========== TOAST SYSTEM ===========
+function ToastStack({ toasts }) {
+    return (
+        <div style={{
+            position: "fixed", top: "14px", left: 0, right: 0, zIndex: 200,
+            display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
+            pointerEvents: "none", padding: "0 12px",
+        }}>
+            <style>{`
+                @keyframes toast-in {
+                    0% { opacity: 0; transform: translateY(-18px) scale(0.95); }
+                    60% { opacity: 1; transform: translateY(2px) scale(1.02); }
+                    100% { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                @keyframes toast-out {
+                    0% { opacity: 1; transform: translateY(0) scale(1); }
+                    100% { opacity: 0; transform: translateY(-10px) scale(0.96); }
+                }
+            `}</style>
+            {toasts.map((t) => (
+                <div key={t.id} style={{
+                    animation: t.leaving ? "toast-out 0.3s ease forwards" : "toast-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1.05)",
+                    background: "white", border: "2px solid #2C2C2A",
+                    borderRadius: "14px", boxShadow: boxShadow(t.color || "#2C2C2A", 3, 3),
+                    padding: "10px 14px", fontFamily: FONT,
+                    display: "flex", alignItems: "center", gap: "10px",
+                    minWidth: "220px", maxWidth: "360px",
+                    pointerEvents: "auto",
+                }}>
+                    <div style={{
+                        width: "34px", height: "34px", flexShrink: 0,
+                        background: t.color || "#2C2C2A",
+                        color: "white", borderRadius: "50%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "17px", fontWeight: 700,
+                    }}>
+                        {t.icon}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#2C2C2A", lineHeight: 1.2 }}>
+                            {t.title}
+                        </div>
+                        {t.subtitle && (
+                            <div style={{ fontSize: "11px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
+                                {t.subtitle}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 // =========== MAIN APP ===========
 export default function ChoreApp({ user, profile, householdMembers }) {
     const supabase = getSupabase();
+    const [language, setLanguage] = useState(profile?.language || "en");
+    const lang = language;
+    // Keep lang in sync if the profile prop changes (e.g. after first-time picker save)
+    useEffect(() => {
+        if (profile?.language && profile.language !== language) {
+            setLanguage(profile.language);
+        }
+    }, [profile?.language]);
     const [chores, setChores] = useState([]);
     const [completions, setCompletions] = useState([]);
     const [purchases, setPurchases] = useState([]);
@@ -1148,8 +1551,21 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, overdueAlerts: true, streakWarnings: true, choreDoneAlerts: true });
     const [streakAnim, setStreakAnim] = useState(false);
     const [pullDelta, setPullDelta] = useState(0);
+    const [toasts, setToasts] = useState([]);
     const prevStreakRef = useRef(null);
     const pullRef = useRef({ active: false, startY: 0, delta: 0 });
+    const toastIdRef = useRef(0);
+
+    const pushToast = useCallback(({ title, subtitle, color, icon }) => {
+        const id = ++toastIdRef.current;
+        setToasts((prev) => [...prev, { id, title, subtitle, color, icon, leaving: false }]);
+        setTimeout(() => {
+            setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+            setTimeout(() => {
+                setToasts((prev) => prev.filter((t) => t.id !== id));
+            }, 300);
+        }, 2500);
+    }, []);
 
     useEffect(() => {
         const THRESHOLD = 64;
@@ -1485,6 +1901,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 setTimeout(() => setRewardAnim(null), 2500);
             }
             notifyChoreComplete(chore?.name || "a chore");
+            const reward = chore?.reward ?? 5;
+            pushToast({
+                title: `Done: ${chore?.name || "chore"}`,
+                subtitle: `+${reward} coins`,
+                color: FREQ[chore?.freq]?.color || "#22C55E",
+                icon: <Check size={18} strokeWidth={3} />,
+            });
         }
     };
 
@@ -1499,6 +1922,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 setTimeout(() => setRewardAnim(null), 2500);
             }
             notifyChoreComplete(chore?.name || "a chore", true);
+            const reward = (chore?.reward ?? 5) * users.length;
+            pushToast({
+                title: `Together: ${chore?.name || "chore"}`,
+                subtitle: `+${reward} coins`,
+                color: FREQ[chore?.freq]?.color || "#22C55E",
+                icon: <Check size={18} strokeWidth={3} />,
+            });
         }
     };
 
@@ -1536,6 +1966,12 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         if (!error && data) {
             setPurchases((prev) => [...prev, data]);
             notifyPurchase(item.name);
+            pushToast({
+                title: `Bought: ${item.name}`,
+                subtitle: `−${item.price} coins`,
+                color: "#F59E0B",
+                icon: <ShoppingBag size={18} strokeWidth={2.5} />,
+            });
         }
     };
 
@@ -1569,8 +2005,18 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     };
 
     const sellPurchase = async (purchaseId) => {
+        const sold = purchases.find((p) => p.id === purchaseId);
+        const item = sold ? STORE_ITEM_MAP[sold.item_id] : null;
         setPurchases((prev) => prev.filter((p) => p.id !== purchaseId));
         await supabase.from("purchases").delete().eq("id", purchaseId);
+        if (item) {
+            pushToast({
+                title: `Sold: ${item.name}`,
+                subtitle: `+${item.price} coins`,
+                color: "#7F77DD",
+                icon: <Trash2 size={16} strokeWidth={2.5} />,
+            });
+        }
     };
 
     // =========== DEBUG COIN TOOLS (staging only) ===========
@@ -1595,11 +2041,19 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     };
 
     const undoComplete = async (choreId) => {
+        const chore = chores.find((c) => c.id === choreId);
         const toDelete = completions.filter((c) => c.chore_id === choreId && c.completed_date === todayStr);
         for (const comp of toDelete) {
             await supabase.from("completions").delete().eq("id", comp.id);
         }
         setCompletions((prev) => prev.filter((c) => !(c.chore_id === choreId && c.completed_date === todayStr)));
+        if (toDelete.length > 0) {
+            pushToast({
+                title: `Undone: ${chore?.name || "chore"}`,
+                color: "#888780",
+                icon: <RotateCcw size={16} strokeWidth={2.5} />,
+            });
+        }
     };
 
     const assignOwner = async (choreId, userId) => {
@@ -1645,6 +2099,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     return (
         <div style={{ maxWidth: "720px", margin: "0 auto", padding: "1rem", fontFamily: FONT, animation: "page-fade-in 0.3s ease" }}>
             <style>{`@keyframes page-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+            <ToastStack toasts={toasts} />
             {/* PULL-TO-REFRESH INDICATOR */}
             {pullDelta > 0 && (
                 <div style={{
@@ -1703,7 +2158,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         onClick={handleSignOut}
                         style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "4px", background: "white", border: "2px solid #2C2C2A", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", color: "#2C2C2A", fontFamily: FONT, fontWeight: 600, boxShadow: boxShadow("#2C2C2A", 2, 2) }}
                     >
-                        <LogOut size={12} /> Sign Out
+                        <LogOut size={12} /> {t("signOut", lang)}
                     </button>
                 </div>
             </div>
@@ -1716,20 +2171,20 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 WebkitOverflowScrolling: "touch", scrollbarWidth: "none",
             }}>
                 {[
-                    { id: "today", label: "Today", icon: Home, accent: "#D4537E" },
-                    { id: "week", label: "This Week", icon: Clock, accent: "#7F77DD" },
-                    { id: "month", label: "This Month", icon: Calendar, accent: "#1D9E75" },
-                    { id: "longterm", label: "Long-Term", icon: RotateCcw, accent: "#BA7517" },
-                    { id: "heatmap", label: "Heatmap", icon: BarChart3, accent: "#D85A30" },
-                    { id: "store", label: "Store", icon: ShoppingBag, accent: "#F59E0B" },
-                    { id: "manage", label: "Manage", icon: Home, accent: "#888780" },
-                ].map((t) => {
-                    const Icon = t.icon;
-                    const active = view === t.id;
+                    { id: "today", label: t("tab_today", lang), icon: Home, accent: "#D4537E" },
+                    { id: "week", label: t("tab_week", lang), icon: Clock, accent: "#7F77DD" },
+                    { id: "month", label: t("tab_month", lang), icon: Calendar, accent: "#1D9E75" },
+                    { id: "longterm", label: t("tab_longterm", lang), icon: RotateCcw, accent: "#BA7517" },
+                    { id: "heatmap", label: t("tab_heatmap", lang), icon: BarChart3, accent: "#D85A30" },
+                    { id: "store", label: t("tab_store", lang), icon: ShoppingBag, accent: "#F59E0B" },
+                    { id: "manage", label: t("tab_manage", lang), icon: Home, accent: "#888780" },
+                ].map((tab) => {
+                    const Icon = tab.icon;
+                    const active = view === tab.id;
                     return (
                         <button
-                            key={t.id}
-                            onClick={() => setView(t.id)}
+                            key={tab.id}
+                            onClick={() => setView(tab.id)}
                             style={{
                                 flex: "1 0 auto", padding: "8px 6px", minWidth: "52px",
                                 border: active ? "2px solid #2C2C2A" : "2px solid transparent",
@@ -1737,13 +2192,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 borderRadius: "8px", display: "flex", flexDirection: "column",
                                 alignItems: "center", justifyContent: "center", gap: "3px",
                                 fontSize: "10px", fontWeight: 700, cursor: "pointer", fontFamily: FONT,
-                                color: active ? t.accent : "#888780",
-                                boxShadow: active ? boxShadow(t.accent, 2, 2) : "none",
+                                color: active ? tab.accent : "#888780",
+                                boxShadow: active ? boxShadow(tab.accent, 2, 2) : "none",
                                 transition: "color 0.15s",
                             }}
                         >
                             <Icon size={16} />
-                            {t.label}
+                            {tab.label}
                         </button>
                     );
                 })}
@@ -1764,7 +2219,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         />
                     </div>
                     {(() => {
-                        const inventoryItems = purchases.filter((p) => p.x < 0 && !p.item_id?.startsWith("shrimp_") && p.item_id !== TANK_EXPAND_ID);
+                        const inventoryItems = purchases.filter((p) => p.x < 0 && p.item_id !== TANK_EXPAND_ID);
                         return inventoryItems.length > 0 && (
                             <div style={{ marginBottom: "1rem" }}>
                                 <button
@@ -1899,36 +2354,36 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     {todayList.length === 0 && (
                         <div style={{ textAlign: "center", padding: "2.5rem 1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
                             <div style={{ fontSize: "36px", marginBottom: "8px" }}>✨</div>
-                            <div style={{ fontWeight: 700, color: "#085041", marginBottom: "4px", fontSize: "16px" }}>All Caught Up!</div>
-                            <div style={{ fontSize: "13px", color: "#085041" }}>Nothing due today. Go enjoy your home!</div>
+                            <div style={{ fontWeight: 700, color: "#085041", marginBottom: "4px", fontSize: "16px" }}>{t("allCaughtUp", lang)}</div>
+                            <div style={{ fontSize: "13px", color: "#085041" }}>{t("nothingDue", lang)}</div>
                         </div>
                     )}
 
                     {todayList.length > 0 && todayList.every((c) => c.completedToday) && (
                         <div style={{ textAlign: "center", padding: "1.5rem 1rem", marginBottom: "1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
                             <div style={{ fontSize: "28px", marginBottom: "4px" }}>🎉</div>
-                            <div style={{ fontWeight: 700, color: "#085041", fontSize: "15px" }}>All Done For Today!</div>
+                            <div style={{ fontWeight: 700, color: "#085041", fontSize: "15px" }}>{t("allDoneForToday", lang)}</div>
                         </div>
                     )}
 
                     {myChores.length > 0 && (
-                        <Section title={`Your Turn, ${currentUser.name}`} accentColor={currentUser.color}>
-                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} />)}
+                        <Section title={t("yourTurn", lang, { name: currentUser.name })} accentColor={currentUser.color}>
+                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
                     )}
                     {unassigned.length > 0 && (
-                        <Section title="Up For Grabs" accentColor="#888780">
-                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} />)}
+                        <Section title={t("upForGrabs", lang)} accentColor="#888780">
+                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
                     )}
                     {partnerChores.length > 0 && partner && (
-                        <Section title={`${partner.name}'s turn`} accentColor={partner.color}>
-                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} />)}
+                        <Section title={t("partnersTurn", lang, { name: partner.name })} accentColor={partner.color}>
+                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
                     )}
 
                     {snoozedList.length > 0 && (
-                        <Section title={`Snoozed (${snoozedList.length})`} accentColor="#888780">
+                        <Section title={t("snoozed", lang, { n: snoozedList.length })} accentColor="#888780">
                             {snoozedList.map((c) => (
                                 <div key={c.id} style={{
                                     display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -1941,7 +2396,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                         <div>
                                             <div style={{ fontSize: "14px", fontWeight: 700, color: "#888780" }}>{c.name}</div>
                                             <div style={{ fontSize: "11px", color: "#B4B2A9" }}>
-                                                back {friendlyDate(c.snoozeUntil)}
+                                                {t("back_text", lang)} {friendlyDate(c.snoozeUntil, lang)}
                                             </div>
                                         </div>
                                     </div>
@@ -1969,7 +2424,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Coming Up This Week</div>
                     {weekList.length === 0 && <EmptyState text="Nothing for this week! 🎈" />}
-                    {weekList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="week" />)}
+                    {weekList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="week" lang={lang} />)}
 
                     {(() => {
                         const weekCompletedChores = {};
@@ -2013,7 +2468,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Due This Month</div>
                     {monthList.length === 0 && <EmptyState text="All clear for the month! ✨" />}
-                    {monthList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="month" />)}
+                    {monthList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="month" lang={lang} />)}
 
                     {(() => {
                         const monthCompletedChores = {};
@@ -2057,7 +2512,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>The Big Stuff — Longer Cycles 🔮</div>
                     {longtermList.length === 0 && <EmptyState text="Nothing long-term pending!" />}
-                    {longtermList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="longterm" />)}
+                    {longtermList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="longterm" lang={lang} />)}
                 </div>
             )}
 
@@ -2174,16 +2629,15 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     })}
 
                     {purchases.length > 0 && (
-                        <Section title="Your Items" accentColor="#7F77DD">
+                        <Section title={t("yourItems", lang)} accentColor="#7F77DD">
                             <div style={{ fontSize: "12px", color: "#888780", marginBottom: "10px" }}>
                                 Items in tank: drag to reposition or drag outside to return to inventory. Items in inventory: tap Place to add to tank.
                             </div>
                             {purchases.map((p) => {
                                 const item = STORE_ITEM_MAP[p.item_id];
                                 if (!item) return null;
-                                const isShrimp = p.item_id?.startsWith("shrimp_");
                                 const isUpgrade = p.item_id === TANK_EXPAND_ID;
-                                const inTank = isShrimp || isUpgrade || p.x >= 0;
+                                const inTank = isUpgrade || p.x >= 0;
                                 return (
                                     <div key={p.id} style={{
                                         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -2238,11 +2692,43 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             {/* MANAGE VIEW */}
             {view === "manage" && (
                 <div>
-                    <Section title="Add A Chore" accentColor="#7F77DD">
+                    <Section title={t("lang_section", lang)} accentColor="#7F77DD">
+                        <div style={{
+                            padding: "12px 16px", background: "white", borderRadius: "12px",
+                            fontSize: "14px", color: "#2C2C2A",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow("#7F77DD", 2, 2),
+                        }}>
+                            <div style={{ fontSize: "12px", color: "#888780", marginBottom: "8px" }}>
+                                {t("lang_settingDesc", lang)}
+                            </div>
+                            <select
+                                value={lang}
+                                onChange={async (e) => {
+                                    const newLang = e.target.value;
+                                    setLanguage(newLang);
+                                    await supabase.from("profiles").update({ language: newLang }).eq("id", user.id);
+                                }}
+                                style={{
+                                    width: "100%", padding: "10px 12px", border: "2px solid #2C2C2A",
+                                    borderRadius: "10px", fontSize: "14px", fontFamily: FONT,
+                                    fontWeight: 600, background: "white",
+                                    boxShadow: boxShadow("#7F77DD", 2, 2),
+                                }}
+                            >
+                                {LANGUAGES.map((l) => (
+                                    <option key={l.code} value={l.code}>
+                                        {l.native} ({l.label})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </Section>
+
+                    <Section title={t("section_addChore", lang)} accentColor="#7F77DD">
                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                             <input
                                 type="text" value={newChoreName} onChange={(e) => setNewChoreName(e.target.value)}
-                                placeholder={newChoreOneTime ? "pick up dry cleaning…" : "water the succulents…"}
+                                placeholder={newChoreOneTime ? t("oneTimePlaceholder", lang) : t("choreNamePlaceholder", lang)}
                                 onKeyDown={(e) => { if (e.key === "Enter") addChore(); }}
                                 style={{ flex: 1, minWidth: "200px", padding: "10px 12px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "14px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2) }}
                             />
@@ -2250,7 +2736,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 <input
                                     type="date" value={newChoreDeadline}
                                     onChange={(e) => setNewChoreDeadline(e.target.value)}
-                                    placeholder="Deadline (optional)"
+                                    placeholder={t("deadlinePlaceholder", lang)}
                                     style={{ padding: "10px 8px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2) }}
                                 />
                             ) : (
@@ -2258,14 +2744,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     value={newChoreFreq} onChange={(e) => setNewChoreFreq(e.target.value)}
                                     style={{ minWidth: "120px", padding: "10px 8px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2) }}
                                 >
-                                    {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                                    {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{t(v.labelKey, lang)}</option>)}
                                 </select>
                             )}
                             <button
                                 onClick={addChore}
                                 style={{ padding: "10px 16px", background: "#7F77DD", color: "white", border: "2px solid #2C2C2A", borderRadius: "10px", cursor: "pointer", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px", fontFamily: FONT, boxShadow: boxShadow("#2C2C2A", 2, 2) }}
                             >
-                                <Plus size={14} /> Add!
+                                <Plus size={14} /> {t("addButton", lang)}
                             </button>
                         </div>
                         <input
@@ -2286,17 +2772,17 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             }}>
                                 {newChoreOneTime && <Check size={12} color="white" strokeWidth={3} />}
                             </div>
-                            One-time task {newChoreOneTime && <span style={{ fontSize: "11px", color: "#888780", fontWeight: 400 }}>(won't repeat)</span>}
+                            {t("oneTimeTask", lang)} {newChoreOneTime && <span style={{ fontSize: "11px", color: "#888780", fontWeight: 400 }}>{t("oneTimeTask_hint", lang)}</span>}
                         </div>
                     </Section>
 
-                    <Section title="Household" accentColor="#D4537E">
+                    <Section title={t("section_household", lang)} accentColor="#D4537E">
                         <div style={{
                             padding: "12px 16px", background: "#FBEAF0", borderRadius: "12px",
                             fontSize: "14px", color: "#72243E", marginBottom: "8px",
                             border: "2px solid #2C2C2A", boxShadow: boxShadow("#D4537E", 2, 2),
                         }}>
-                            <strong>Members:</strong> {users.map((u) => u.name).join(", ")}
+                            <strong>{t("members", lang)}</strong> {users.map((u) => u.name).join(", ")}
                         </div>
                         {inviteCode && (
                             <>
@@ -2310,7 +2796,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                         <Link size={14} color="#D4537E" />
                                         <div>
-                                            <div style={{ fontSize: "12px", color: "#888780", fontWeight: 600 }}>Invite Code</div>
+                                            <div style={{ fontSize: "12px", color: "#888780", fontWeight: 600 }}>{t("inviteCode", lang)}</div>
                                             <div style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "3px", fontFamily: "monospace" }}>{inviteCode}</div>
                                         </div>
                                     </div>
@@ -2325,7 +2811,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                             boxShadow: boxShadow(codeCopied ? "#059669" : "#e8e8e8", 2, 2),
                                         }}
                                     >
-                                        {codeCopied ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Code</>}
+                                        {codeCopied ? <><Check size={12} /> {t("codeCopied", lang)}</> : <><Copy size={12} /> {t("copyCode", lang)}</>}
                                     </button>
                                 </div>
                                 <button
@@ -2345,13 +2831,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                         boxShadow: boxShadow(linkCopied ? "#059669" : "#e8e8e8", 2, 2),
                                     }}
                                 >
-                                    {linkCopied ? <><Check size={12} /> Link Copied!</> : <><Link size={12} /> Copy Share Link</>}
+                                    {linkCopied ? <><Check size={12} /> {t("linkCopied", lang)}</> : <><Link size={12} /> {t("copyShareLink", lang)}</>}
                                 </button>
                             </>
                         )}
                     </Section>
 
-                    <Section title="Notifications" accentColor="#F59E0B">
+                    <Section title={t("section_notifications", lang)} accentColor="#F59E0B">
                         <div style={{
                             padding: "12px 16px", background: "white", borderRadius: "12px",
                             fontSize: "14px", color: "#2C2C2A",
@@ -2362,14 +2848,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     {notifStatus === "granted" ? <Bell size={16} color="#F59E0B" /> : <BellOff size={16} color="#888780" />}
                                     <div>
                                         <div style={{ fontWeight: 700, fontSize: "13px" }}>
-                                            {notifStatus === "granted" ? "Notifications Enabled" : "Push Notifications"}
+                                            {notifStatus === "granted" ? t("notif_enabled", lang) : t("notif_push", lang)}
                                         </div>
                                         <div style={{ fontSize: "11px", color: "#888780" }}>
                                             {notifStatus === "granted"
-                                                ? "Choose what to get notified about"
+                                                ? t("notif_chooseDesc", lang)
                                                 : notifStatus === "denied"
-                                                    ? "Blocked \u2014 enable in browser settings"
-                                                    : "Get reminded about chores and streaks"}
+                                                    ? t("notif_blockedDesc", lang)
+                                                    : t("notif_defaultDesc", lang)}
                                         </div>
                                     </div>
                                 </div>
@@ -2386,17 +2872,17 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                             opacity: notifStatus === "subscribing" ? 0.6 : 1,
                                         }}
                                     >
-                                        {notifStatus === "subscribing" ? "Enabling..." : "Enable"}
+                                        {notifStatus === "subscribing" ? t("notif_enabling", lang) : t("notif_enable", lang)}
                                     </button>
                                 )}
                             </div>
                             {notifStatus === "granted" && (
                                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid #e8e8e8", paddingTop: "12px" }}>
                                     {[
-                                        { key: "choreDoneAlerts", label: "Partner Activity", desc: "When your partner completes a chore" },
-                                        { key: "dailySummary", label: "Daily Summary", desc: "How many chores are due today" },
-                                        { key: "overdueAlerts", label: "Overdue Alerts", desc: "When chores go past their due date" },
-                                        { key: "streakWarnings", label: "Streak Warnings", desc: "When your streak is about to break" },
+                                        { key: "choreDoneAlerts", label: t("notif_partnerActivity", lang), desc: t("notif_partnerActivityDesc", lang) },
+                                        { key: "dailySummary", label: t("notif_dailySummary", lang), desc: t("notif_dailySummaryDesc", lang) },
+                                        { key: "overdueAlerts", label: t("notif_overdue", lang), desc: t("notif_overdueDesc", lang) },
+                                        { key: "streakWarnings", label: t("notif_streak", lang), desc: t("notif_streakDesc", lang) },
                                     ].map(({ key, label, desc }) => (
                                         <label key={key} style={{
                                             display: "flex", alignItems: "center", gap: "10px", cursor: "pointer",
@@ -2426,7 +2912,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     </Section>
 
-                    <Section title="All Chores" accentColor="#888780">
+                    <Section title={t("section_allChores", lang)} accentColor="#888780">
                         {Object.entries(FREQ).map(([freqKey, freqInfo]) => {
                             const list = chores.filter((c) => c.freq === freqKey);
                             if (list.length === 0) return null;
@@ -2438,10 +2924,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                         padding: "4px 12px", borderRadius: "8px", marginBottom: "8px",
                                         border: "1.5px solid " + freqInfo.color,
                                     }}>
-                                        {freqInfo.label}
+                                        {t(freqInfo.labelKey, lang)}
                                     </div>
                                     {list.map((c) => (
-                                        <ManageChoreRow key={c.id} chore={c} users={users} onUpdate={updateChore} onAssign={assignOwner} onDelete={deleteChore} />
+                                        <ManageChoreRow key={c.id} chore={c} users={users} onUpdate={updateChore} onAssign={assignOwner} onDelete={deleteChore} lang={lang} />
                                     ))}
                                 </div>
                             );
@@ -2500,7 +2986,7 @@ const SNOOZE_OPTIONS = [
     { label: "2 weeks", days: 14 },
 ];
 
-function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign, onSnooze }) {
+function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign, onSnooze, lang = "en" }) {
     const freqInfo = FREQ[chore.freq];
     const isOverdue = chore.status === "overdue";
     const isDone = chore.completedToday;
@@ -2575,7 +3061,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                 display: "inline-flex", alignItems: "center", gap: "4px",
                                 border: "1.5px solid #1D9E75",
                             }}>
-                                🤝 done together
+                                🤝 {t("doneTogether", lang)}
                             </span>
                         ) : isDone && completedBy ? (
                             <span style={{
@@ -2584,13 +3070,13 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                 display: "inline-flex", alignItems: "center", gap: "4px",
                                 border: "1.5px solid #1D9E75",
                             }}>
-                                <Check size={10} strokeWidth={3} /> done by {completedBy.name}
+                                <Check size={10} strokeWidth={3} /> {t("doneBy", lang, { name: completedBy.name })}
                             </span>
                         ) : (
                             <>
                                 {chore.one_time ? (
                                     <span style={{ fontSize: "11px", padding: "2px 8px", background: "#EDE9FE", color: "#5B21B6", borderRadius: "6px", fontWeight: 700, border: "1px solid #7C3AED" }}>
-                                        one-time
+                                        {t("oneTime", lang)}
                                     </span>
                                 ) : freqInfo && (
                                     <span style={{
@@ -2598,16 +3084,16 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                         background: freqInfo.bg, color: freqInfo.text,
                                         borderRadius: "6px", fontWeight: 700, border: "1px solid " + freqInfo.color,
                                     }}>
-                                        {freqInfo.label}
+                                        {t(freqInfo.labelKey, lang)}
                                     </span>
                                 )}
-                                {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {chore.daysOverdue}d overdue!</span>}
+                                {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {t("overdueShort", lang, { n: chore.daysOverdue })}</span>}
                                 {!isOverdue && chore.status === "due" && (
                                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>
-                                        {chore.one_time && chore.deadline ? `due ${friendlyDate(parseDate(chore.deadline))}` : "due today"}
+                                        {chore.one_time && chore.deadline ? `${t("due", lang)} ${friendlyDate(parseDate(chore.deadline), lang)}` : t("dueToday", lang)}
                                     </span>
                                 )}
-                                {!chore.one_time && chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>last: {friendlyDate(chore.lastDone.date)}</span>}
+                                {!chore.one_time && chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>{t("last", lang)} {friendlyDate(chore.lastDone.date, lang)}</span>}
                             </>
                         )}
                     </div>
@@ -2677,7 +3163,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
     );
 }
 
-function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week" }) {
+function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week", lang = "en" }) {
     const freqInfo = chore.one_time ? null : FREQ[chore.freq];
     const [checked, setChecked] = useState(false);
     const [removing, setRemoving] = useState(false);
@@ -2697,14 +3183,16 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
     };
 
     const dueText = chore.one_time && chore.deadline
-        ? `due ${friendlyDate(parseDate(chore.deadline))}`
+        ? `${t("due", lang)} ${friendlyDate(parseDate(chore.deadline), lang)}`
         : chore.status === "done"
             ? (chore.daysUntilDue > 30
-                ? `in ${Math.round(chore.daysUntilDue / 30)} months`
-                : `in ${chore.daysUntilDue} ${chore.daysUntilDue === 1 ? "day" : "days"}`)
+                ? t("inMonths", lang, { n: Math.round(chore.daysUntilDue / 30) })
+                : chore.daysUntilDue === 1
+                    ? t("inOneDay", lang)
+                    : t("inDays", lang, { n: chore.daysUntilDue }))
             : chore.status === "overdue"
-                ? `${chore.daysOverdue}d overdue`
-                : "due now!";
+                ? t("overdueShort2", lang, { n: chore.daysOverdue })
+                : t("dueNow", lang);
 
     const isOverdue = chore.status === "overdue" || chore.status === "due";
 
@@ -2771,7 +3259,7 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
                     borderRadius: "6px", fontWeight: 700, flexShrink: 0,
                     border: "1px solid " + (chore.one_time ? "#7C3AED" : (freqInfo?.color || "#ccc")),
                 }}>
-                    {chore.one_time ? "one-time" : freqInfo?.label}
+                    {chore.one_time ? t("oneTime", lang) : (freqInfo ? t(freqInfo.labelKey, lang) : "")}
                 </span>
             </div>
         </div>
@@ -2779,7 +3267,7 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
 }
 
 // =========== MANAGE CHORE ROW (EDITABLE) ===========
-function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
+function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en" }) {
     const [editing, setEditing] = useState(false);
     const [editName, setEditName] = useState(chore.name);
     const [editDesc, setEditDesc] = useState(chore.description || "");
@@ -2828,23 +3316,23 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                 />
                 <input
                     value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
-                    placeholder="Description (optional)"
+                    placeholder={t("descriptionPlaceholder", lang)}
                     style={{ width: "100%", padding: "6px 10px", border: "2px solid #e8e8e8", borderRadius: "8px", fontSize: "12px", fontFamily: FONT, marginBottom: "8px", boxSizing: "border-box" }}
                 />
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", marginBottom: "6px" }}>
                     {editOneTime ? (
                         <input type="date" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)}
-                            placeholder="Deadline (optional)"
+                            placeholder={t("deadlinePlaceholder", lang)}
                             style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1 }} />
                     ) : (
                         <select value={editFreq} onChange={(e) => setEditFreq(e.target.value)}
                             style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1, minWidth: "100px" }}>
-                            {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                            {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{t(v.labelKey, lang)}</option>)}
                         </select>
                     )}
                     <select value={editOwner} onChange={(e) => setEditOwner(e.target.value)}
                         style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1, minWidth: "100px" }}>
-                        <option value="">Unassigned</option>
+                        <option value="">{t("unassigned", lang)}</option>
                         {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                 </div>
@@ -2852,11 +3340,11 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                     <div style={{ width: "18px", height: "18px", borderRadius: "4px", border: "2px solid #2C2C2A", flexShrink: 0, background: editOneTime ? "#7C3AED" : "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         {editOneTime && <Check size={11} color="white" strokeWidth={3} />}
                     </div>
-                    One-time task
+                    {t("oneTimeTask", lang)}
                 </div>
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
                     <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#78350F", background: "#FEF3C7", padding: "6px 10px", border: "2px solid #2C2C2A", borderRadius: "6px", flex: 1, minWidth: "140px" }}>
-                        <Coins size={12} strokeWidth={2.5} /> Reward
+                        <Coins size={12} strokeWidth={2.5} /> {t("rewardLabel", lang)}
                         <input
                             type="number" min="0" value={editReward}
                             onChange={(e) => setEditReward(e.target.value)}
@@ -2864,10 +3352,10 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                         />
                     </label>
                     <button onClick={handleSave} style={{ padding: "6px 12px", background: "#1D9E75", color: "white", border: "2px solid #2C2C2A", borderRadius: "6px", cursor: "pointer", fontWeight: 700, fontSize: "12px", fontFamily: FONT, display: "flex", alignItems: "center", gap: "4px" }}>
-                        <Save size={12} /> Save
+                        <Save size={12} /> {t("save", lang)}
                     </button>
                     <button onClick={handleCancel} style={{ padding: "6px 12px", background: "white", border: "2px solid #2C2C2A", borderRadius: "6px", cursor: "pointer", fontWeight: 700, fontSize: "12px", fontFamily: FONT, display: "flex", alignItems: "center", gap: "4px" }}>
-                        <X size={12} /> Cancel
+                        <X size={12} /> {t("cancel", lang)}
                     </button>
                 </div>
             </div>
@@ -2886,8 +3374,8 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                 {chore.description && <div style={{ fontSize: "11px", color: "#888780", marginTop: "2px", fontStyle: "italic" }}>{chore.description}</div>}
                 {chore.one_time && (
                     <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
-                        <span style={{ fontSize: "10px", padding: "1px 6px", background: "#EDE9FE", color: "#5B21B6", borderRadius: "4px", fontWeight: 700, border: "1px solid #7C3AED" }}>one-time</span>
-                        {chore.deadline && <span style={{ fontSize: "10px", color: "#888780" }}>due {friendlyDate(parseDate(chore.deadline))}</span>}
+                        <span style={{ fontSize: "10px", padding: "1px 6px", background: "#EDE9FE", color: "#5B21B6", borderRadius: "4px", fontWeight: 700, border: "1px solid #7C3AED" }}>{t("oneTime", lang)}</span>
+                        {chore.deadline && <span style={{ fontSize: "10px", color: "#888780" }}>{t("due", lang)} {friendlyDate(parseDate(chore.deadline), lang)}</span>}
                     </div>
                 )}
             </div>
