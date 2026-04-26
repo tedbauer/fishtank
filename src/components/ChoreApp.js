@@ -3011,6 +3011,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 color: "#888780", fontWeight: 600,
             }}>
                 <a href="/devlog" style={{ color: "#888780", textDecoration: "underline" }}>News</a>
+                <span style={{ color: "#d4d3cd", margin: "0 6px" }}>·</span>
+                <a href="https://polarbeardomestication.net" style={{ color: "#888780", textDecoration: "underline" }}>polarbeardomestication.net</a>
             </div>
         </div >
     );
