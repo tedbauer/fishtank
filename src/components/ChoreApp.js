@@ -2936,6 +2936,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 </div >
             )
             }
+
+            {/* FOOTER */}
+            <div style={{
+                textAlign: "center", padding: "2rem 0 1rem", fontSize: "11px",
+                color: "#888780", fontWeight: 600,
+            }}>
+                <a href="/devlog" style={{ color: "#888780", textDecoration: "underline" }}>devlog</a>
+            </div>
         </div >
     );
 }
