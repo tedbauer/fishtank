@@ -2697,29 +2697,32 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             fontSize: "14px", color: "#2C2C2A",
                             border: "2px solid #2C2C2A", boxShadow: boxShadow("#7F77DD", 2, 2),
                         }}>
-                            <div style={{ fontSize: "12px", color: "#888780", marginBottom: "8px" }}>
-                                {t("lang_settingDesc", lang)}
+                            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                                {LANGUAGES.map((l) => {
+                                    const active = lang === l.code;
+                                    return (
+                                        <button
+                                            key={l.code}
+                                            onClick={async () => {
+                                                setLanguage(l.code);
+                                                await supabase.from("profiles").update({ language: l.code }).eq("id", user.id);
+                                            }}
+                                            style={{
+                                                display: "flex", alignItems: "center", gap: "8px",
+                                                padding: "8px 14px", borderRadius: "10px",
+                                                border: active ? "2px solid #7F77DD" : "2px solid #e8e8e8",
+                                                background: active ? "#EEEDFE" : "white",
+                                                cursor: "pointer", fontFamily: FONT, fontSize: "13px",
+                                                fontWeight: 700, color: active ? "#3C3489" : "#888780",
+                                                boxShadow: active ? boxShadow("#7F77DD", 2, 2) : "none",
+                                            }}
+                                        >
+                                            <span style={{ fontSize: "20px" }}>{l.flag}</span>
+                                            {l.native}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                            <select
-                                value={lang}
-                                onChange={async (e) => {
-                                    const newLang = e.target.value;
-                                    setLanguage(newLang);
-                                    await supabase.from("profiles").update({ language: newLang }).eq("id", user.id);
-                                }}
-                                style={{
-                                    width: "100%", padding: "10px 12px", border: "2px solid #2C2C2A",
-                                    borderRadius: "10px", fontSize: "14px", fontFamily: FONT,
-                                    fontWeight: 600, background: "white",
-                                    boxShadow: boxShadow("#7F77DD", 2, 2),
-                                }}
-                            >
-                                {LANGUAGES.map((l) => (
-                                    <option key={l.code} value={l.code}>
-                                        {l.native} ({l.label})
-                                    </option>
-                                ))}
-                            </select>
                         </div>
                     </Section>
 

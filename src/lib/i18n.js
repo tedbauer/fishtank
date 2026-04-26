@@ -2,8 +2,8 @@
 // Missing keys or unknown languages fall back to English.
 
 export const LANGUAGES = [
-    { code: "en", label: "English", native: "English" },
-    { code: "vi", label: "Vietnamese", native: "Tiếng Việt" },
+    { code: "en", label: "English", native: "English", flag: "🇺🇸" },
+    { code: "vi", label: "Vietnamese", native: "Tiếng Việt", flag: "🇻🇳" },
 ];
 
 export const DEFAULT_LANG = "en";
