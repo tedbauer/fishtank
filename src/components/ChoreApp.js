@@ -77,26 +77,16 @@ const friendlyDate = (d) => {
 };
 
 // =========== HAPPINESS SYSTEM ===========
-const computeHappiness = (completions, choresWithStatus) => {
-    let score = 70;
-    const t = today();
-    completions.forEach((comp) => {
-        const compDate = parseDate(comp.completed_date);
-        const daysAgo = daysBetween(compDate, t);
-        if (daysAgo > 14 || daysAgo < 0) return;
-        const weight = daysAgo <= 3 ? 1 : daysAgo <= 7 ? 0.7 : 0.4;
-        score += 2.5 * weight;
-    });
+const computeHappiness = (completions, choresWithStatus, streak) => {
+    let score = 100;
     choresWithStatus.forEach((c) => {
         if (c.status !== "overdue") return;
-        score -= 3 + Math.min(5, Math.max(0, c.daysOverdue) * 0.25);
+        score -= 8 + Math.min(20, Math.max(0, c.daysOverdue) * 2);
     });
-    const recentCompletions = completions.filter((comp) => {
-        const d = parseDate(comp.completed_date);
-        const daysAgo = daysBetween(d, t);
-        return daysAgo <= 3 && daysAgo >= 0;
-    }).length;
-    score += Math.min(12, recentCompletions);
+    const hasRecurringChores = choresWithStatus.some((c) => !c.one_time);
+    if (hasRecurringChores && streak === 0 && completions.length > 0) {
+        score -= 15;
+    }
     return Math.max(0, Math.min(100, Math.round(score)));
 };
 
@@ -1437,10 +1427,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         }).length
         : 0;
 
-    const rawHappiness = computeHappiness(completions, choresWithStatus);
+    const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
+    const rawHappiness = computeHappiness(completions, choresWithStatus, streak);
     const householdHappiness = Math.max(0, Math.min(100, rawHappiness + happinessOffset));
     const householdMood = moodTier(householdHappiness);
-    const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
 
     // Detect streak increase and animate
     useEffect(() => {
