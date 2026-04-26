@@ -35,9 +35,9 @@ export default function DevlogPage() {
             <h1 style={{
                 fontSize: "28px", fontWeight: 800, color: "#2C2C2A",
                 marginBottom: "0.25rem",
-            }}>News 📣</h1>
+            }}>News</h1>
             <p style={{ fontSize: "13px", color: "#888780", marginBottom: "2rem" }}>
-                What&apos;s new in Fishtank
+                What&apos;s new in the tank
             </p>
 
             {ENTRIES.map((entry, i) => (
