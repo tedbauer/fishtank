@@ -31,16 +31,17 @@ import {
     Package,
 } from "lucide-react";
 import HeatmapView from "@/components/HeatmapView";
+import { t, LANGUAGES } from "@/lib/i18n";
 
-// Frequency in days
+// Frequency in days. `labelKey` maps to a translation key in lib/i18n.js.
 const FREQ = {
-    daily: { days: 1, label: "Daily", color: "#D4537E", bg: "#FBEAF0", text: "#72243E" },
-    every2: { days: 2, label: "Every 2 days", color: "#D85A30", bg: "#FAECE7", text: "#712B13" },
-    weekly: { days: 7, label: "Weekly", color: "#7F77DD", bg: "#EEEDFE", text: "#3C3489" },
-    biweekly: { days: 14, label: "Every 2 weeks", color: "#378ADD", bg: "#E6F1FB", text: "#0C447C" },
-    monthly: { days: 30, label: "Monthly", color: "#1D9E75", bg: "#E1F5EE", text: "#085041" },
-    quarterly: { days: 90, label: "Quarterly", color: "#BA7517", bg: "#FAEEDA", text: "#633806" },
-    biannual: { days: 180, label: "Twice a year", color: "#888780", bg: "#F1EFE8", text: "#444441" },
+    daily: { days: 1, labelKey: "freq_daily", color: "#D4537E", bg: "#FBEAF0", text: "#72243E" },
+    every2: { days: 2, labelKey: "freq_every2", color: "#D85A30", bg: "#FAECE7", text: "#712B13" },
+    weekly: { days: 7, labelKey: "freq_weekly", color: "#7F77DD", bg: "#EEEDFE", text: "#3C3489" },
+    biweekly: { days: 14, labelKey: "freq_biweekly", color: "#378ADD", bg: "#E6F1FB", text: "#0C447C" },
+    monthly: { days: 30, labelKey: "freq_monthly", color: "#1D9E75", bg: "#E1F5EE", text: "#085041" },
+    quarterly: { days: 90, labelKey: "freq_quarterly", color: "#BA7517", bg: "#FAEEDA", text: "#633806" },
+    biannual: { days: 180, labelKey: "freq_biannual", color: "#888780", bg: "#F1EFE8", text: "#444441" },
 };
 
 const USER_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#378ADD", "#D85A30", "#BA7517"];
@@ -65,38 +66,28 @@ const parseDate = (s) => {
     return d;
 };
 
-const friendlyDate = (d) => {
-    const t = today();
-    const diff = daysBetween(d, t);
-    if (diff === 0) return "today";
-    if (diff === 1) return "yesterday";
-    if (diff === -1) return "tomorrow";
-    if (diff > 0 && diff < 7) return `${diff} days ago`;
-    if (diff < 0 && diff > -7) return `in ${-diff} days`;
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const friendlyDate = (d, lang = "en") => {
+    const now = today();
+    const diff = daysBetween(d, now);
+    if (diff === 0) return t("date_today", lang);
+    if (diff === 1) return t("date_yesterday", lang);
+    if (diff === -1) return t("date_tomorrow", lang);
+    if (diff > 0 && diff < 7) return t("date_daysAgo", lang, { n: diff });
+    if (diff < 0 && diff > -7) return t("date_inDays", lang, { n: -diff });
+    return d.toLocaleDateString(lang === "vi" ? "vi-VN" : undefined, { month: "short", day: "numeric" });
 };
 
 // =========== HAPPINESS SYSTEM ===========
-const computeHappiness = (completions, choresWithStatus) => {
-    let score = 70;
-    const t = today();
-    completions.forEach((comp) => {
-        const compDate = parseDate(comp.completed_date);
-        const daysAgo = daysBetween(compDate, t);
-        if (daysAgo > 14 || daysAgo < 0) return;
-        const weight = daysAgo <= 3 ? 1 : daysAgo <= 7 ? 0.7 : 0.4;
-        score += 2.5 * weight;
-    });
+const computeHappiness = (completions, choresWithStatus, streak) => {
+    let score = 100;
     choresWithStatus.forEach((c) => {
         if (c.status !== "overdue") return;
-        score -= 3 + Math.min(5, Math.max(0, c.daysOverdue) * 0.25);
+        score -= 8 + Math.min(20, Math.max(0, c.daysOverdue) * 2);
     });
-    const recentCompletions = completions.filter((comp) => {
-        const d = parseDate(comp.completed_date);
-        const daysAgo = daysBetween(d, t);
-        return daysAgo <= 3 && daysAgo >= 0;
-    }).length;
-    score += Math.min(12, recentCompletions);
+    const hasRecurringChores = choresWithStatus.some((c) => !c.one_time);
+    if (hasRecurringChores && streak === 0 && completions.length > 0) {
+        score -= 15;
+    }
     return Math.max(0, Math.min(100, Math.round(score)));
 };
 
@@ -1401,6 +1392,8 @@ function ToastStack({ toasts }) {
 // =========== MAIN APP ===========
 export default function ChoreApp({ user, profile, householdMembers }) {
     const supabase = getSupabase();
+    const [language, setLanguage] = useState(profile?.language || "en");
+    const lang = language;
     const [chores, setChores] = useState([]);
     const [completions, setCompletions] = useState([]);
     const [purchases, setPurchases] = useState([]);
@@ -1714,10 +1707,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         }).length
         : 0;
 
-    const rawHappiness = computeHappiness(completions, choresWithStatus);
+    const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
+    const rawHappiness = computeHappiness(completions, choresWithStatus, streak);
     const householdHappiness = Math.max(0, Math.min(100, rawHappiness + happinessOffset));
     const householdMood = moodTier(householdHappiness);
-    const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
 
     // Detect streak increase and animate
     useEffect(() => {
@@ -2029,7 +2022,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         onClick={handleSignOut}
                         style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "4px", background: "white", border: "2px solid #2C2C2A", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", color: "#2C2C2A", fontFamily: FONT, fontWeight: 600, boxShadow: boxShadow("#2C2C2A", 2, 2) }}
                     >
-                        <LogOut size={12} /> Sign Out
+                        <LogOut size={12} /> {t("signOut", lang)}
                     </button>
                 </div>
             </div>
@@ -2042,20 +2035,20 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 WebkitOverflowScrolling: "touch", scrollbarWidth: "none",
             }}>
                 {[
-                    { id: "today", label: "Today", icon: Home, accent: "#D4537E" },
-                    { id: "week", label: "This Week", icon: Clock, accent: "#7F77DD" },
-                    { id: "month", label: "This Month", icon: Calendar, accent: "#1D9E75" },
-                    { id: "longterm", label: "Long-Term", icon: RotateCcw, accent: "#BA7517" },
-                    { id: "heatmap", label: "Heatmap", icon: BarChart3, accent: "#D85A30" },
-                    { id: "store", label: "Store", icon: ShoppingBag, accent: "#F59E0B" },
-                    { id: "manage", label: "Manage", icon: Home, accent: "#888780" },
-                ].map((t) => {
-                    const Icon = t.icon;
-                    const active = view === t.id;
+                    { id: "today", label: t("tab_today", lang), icon: Home, accent: "#D4537E" },
+                    { id: "week", label: t("tab_week", lang), icon: Clock, accent: "#7F77DD" },
+                    { id: "month", label: t("tab_month", lang), icon: Calendar, accent: "#1D9E75" },
+                    { id: "longterm", label: t("tab_longterm", lang), icon: RotateCcw, accent: "#BA7517" },
+                    { id: "heatmap", label: t("tab_heatmap", lang), icon: BarChart3, accent: "#D85A30" },
+                    { id: "store", label: t("tab_store", lang), icon: ShoppingBag, accent: "#F59E0B" },
+                    { id: "manage", label: t("tab_manage", lang), icon: Home, accent: "#888780" },
+                ].map((tab) => {
+                    const Icon = tab.icon;
+                    const active = view === tab.id;
                     return (
                         <button
-                            key={t.id}
-                            onClick={() => setView(t.id)}
+                            key={tab.id}
+                            onClick={() => setView(tab.id)}
                             style={{
                                 flex: "1 0 auto", padding: "8px 6px", minWidth: "52px",
                                 border: active ? "2px solid #2C2C2A" : "2px solid transparent",
@@ -2063,13 +2056,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 borderRadius: "8px", display: "flex", flexDirection: "column",
                                 alignItems: "center", justifyContent: "center", gap: "3px",
                                 fontSize: "10px", fontWeight: 700, cursor: "pointer", fontFamily: FONT,
-                                color: active ? t.accent : "#888780",
-                                boxShadow: active ? boxShadow(t.accent, 2, 2) : "none",
+                                color: active ? tab.accent : "#888780",
+                                boxShadow: active ? boxShadow(tab.accent, 2, 2) : "none",
                                 transition: "color 0.15s",
                             }}
                         >
                             <Icon size={16} />
-                            {t.label}
+                            {tab.label}
                         </button>
                     );
                 })}
@@ -2238,23 +2231,23 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     )}
 
                     {myChores.length > 0 && (
-                        <Section title={`Your Turn, ${currentUser.name}`} accentColor={currentUser.color}>
-                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} />)}
+                        <Section title={t("yourTurn", lang, { name: currentUser.name })} accentColor={currentUser.color}>
+                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
                     )}
                     {unassigned.length > 0 && (
-                        <Section title="Up For Grabs" accentColor="#888780">
-                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} />)}
+                        <Section title={t("upForGrabs", lang)} accentColor="#888780">
+                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
                     )}
                     {partnerChores.length > 0 && partner && (
-                        <Section title={`${partner.name}'s turn`} accentColor={partner.color}>
-                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} />)}
+                        <Section title={t("partnersTurn", lang, { name: partner.name })} accentColor={partner.color}>
+                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
                     )}
 
                     {snoozedList.length > 0 && (
-                        <Section title={`Snoozed (${snoozedList.length})`} accentColor="#888780">
+                        <Section title={t("snoozed", lang, { n: snoozedList.length })} accentColor="#888780">
                             {snoozedList.map((c) => (
                                 <div key={c.id} style={{
                                     display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -2267,7 +2260,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                         <div>
                                             <div style={{ fontSize: "14px", fontWeight: 700, color: "#888780" }}>{c.name}</div>
                                             <div style={{ fontSize: "11px", color: "#B4B2A9" }}>
-                                                back {friendlyDate(c.snoozeUntil)}
+                                                back {friendlyDate(c.snoozeUntil, lang)}
                                             </div>
                                         </div>
                                     </div>
@@ -2295,7 +2288,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Coming Up This Week</div>
                     {weekList.length === 0 && <EmptyState text="Nothing for this week! 🎈" />}
-                    {weekList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="week" />)}
+                    {weekList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="week" lang={lang} />)}
 
                     {(() => {
                         const weekCompletedChores = {};
@@ -2339,7 +2332,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Due This Month</div>
                     {monthList.length === 0 && <EmptyState text="All clear for the month! ✨" />}
-                    {monthList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="month" />)}
+                    {monthList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="month" lang={lang} />)}
 
                     {(() => {
                         const monthCompletedChores = {};
@@ -2383,7 +2376,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>The Big Stuff — Longer Cycles 🔮</div>
                     {longtermList.length === 0 && <EmptyState text="Nothing long-term pending!" />}
-                    {longtermList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="longterm" />)}
+                    {longtermList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="longterm" lang={lang} />)}
                 </div>
             )}
 
@@ -2500,7 +2493,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     })}
 
                     {purchases.length > 0 && (
-                        <Section title="Your Items" accentColor="#7F77DD">
+                        <Section title={t("yourItems", lang)} accentColor="#7F77DD">
                             <div style={{ fontSize: "12px", color: "#888780", marginBottom: "10px" }}>
                                 Items in tank: drag to reposition or drag outside to return to inventory. Items in inventory: tap Place to add to tank.
                             </div>
@@ -2563,7 +2556,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             {/* MANAGE VIEW */}
             {view === "manage" && (
                 <div>
-                    <Section title="Add A Chore" accentColor="#7F77DD">
+                    <Section title={t("section_addChore", lang)} accentColor="#7F77DD">
                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                             <input
                                 type="text" value={newChoreName} onChange={(e) => setNewChoreName(e.target.value)}
@@ -2583,7 +2576,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     value={newChoreFreq} onChange={(e) => setNewChoreFreq(e.target.value)}
                                     style={{ minWidth: "120px", padding: "10px 8px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2) }}
                                 >
-                                    {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                                    {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{t(v.labelKey, lang)}</option>)}
                                 </select>
                             )}
                             <button
@@ -2611,17 +2604,17 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             }}>
                                 {newChoreOneTime && <Check size={12} color="white" strokeWidth={3} />}
                             </div>
-                            One-time task {newChoreOneTime && <span style={{ fontSize: "11px", color: "#888780", fontWeight: 400 }}>(won't repeat)</span>}
+                            {t("oneTimeTask", lang)} {newChoreOneTime && <span style={{ fontSize: "11px", color: "#888780", fontWeight: 400 }}>{t("oneTimeTask_hint", lang)}</span>}
                         </div>
                     </Section>
 
-                    <Section title="Household" accentColor="#D4537E">
+                    <Section title={t("section_household", lang)} accentColor="#D4537E">
                         <div style={{
                             padding: "12px 16px", background: "#FBEAF0", borderRadius: "12px",
                             fontSize: "14px", color: "#72243E", marginBottom: "8px",
                             border: "2px solid #2C2C2A", boxShadow: boxShadow("#D4537E", 2, 2),
                         }}>
-                            <strong>Members:</strong> {users.map((u) => u.name).join(", ")}
+                            <strong>{t("members", lang)}</strong> {users.map((u) => u.name).join(", ")}
                         </div>
                         {inviteCode && (
                             <>
@@ -2635,7 +2628,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                         <Link size={14} color="#D4537E" />
                                         <div>
-                                            <div style={{ fontSize: "12px", color: "#888780", fontWeight: 600 }}>Invite Code</div>
+                                            <div style={{ fontSize: "12px", color: "#888780", fontWeight: 600 }}>{t("inviteCode", lang)}</div>
                                             <div style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "3px", fontFamily: "monospace" }}>{inviteCode}</div>
                                         </div>
                                     </div>
@@ -2650,7 +2643,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                             boxShadow: boxShadow(codeCopied ? "#059669" : "#e8e8e8", 2, 2),
                                         }}
                                     >
-                                        {codeCopied ? <><Check size={12} /> Copied!</> : <><Copy size={12} /> Code</>}
+                                        {codeCopied ? <><Check size={12} /> {t("codeCopied", lang)}</> : <><Copy size={12} /> {t("copyCode", lang)}</>}
                                     </button>
                                 </div>
                                 <button
@@ -2670,13 +2663,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                         boxShadow: boxShadow(linkCopied ? "#059669" : "#e8e8e8", 2, 2),
                                     }}
                                 >
-                                    {linkCopied ? <><Check size={12} /> Link Copied!</> : <><Link size={12} /> Copy Share Link</>}
+                                    {linkCopied ? <><Check size={12} /> {t("linkCopied", lang)}</> : <><Link size={12} /> {t("copyShareLink", lang)}</>}
                                 </button>
                             </>
                         )}
                     </Section>
 
-                    <Section title="Notifications" accentColor="#F59E0B">
+                    <Section title={t("section_notifications", lang)} accentColor="#F59E0B">
                         <div style={{
                             padding: "12px 16px", background: "white", borderRadius: "12px",
                             fontSize: "14px", color: "#2C2C2A",
@@ -2687,14 +2680,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     {notifStatus === "granted" ? <Bell size={16} color="#F59E0B" /> : <BellOff size={16} color="#888780" />}
                                     <div>
                                         <div style={{ fontWeight: 700, fontSize: "13px" }}>
-                                            {notifStatus === "granted" ? "Notifications Enabled" : "Push Notifications"}
+                                            {notifStatus === "granted" ? t("notif_enabled", lang) : t("notif_push", lang)}
                                         </div>
                                         <div style={{ fontSize: "11px", color: "#888780" }}>
                                             {notifStatus === "granted"
-                                                ? "Choose what to get notified about"
+                                                ? t("notif_chooseDesc", lang)
                                                 : notifStatus === "denied"
-                                                    ? "Blocked \u2014 enable in browser settings"
-                                                    : "Get reminded about chores and streaks"}
+                                                    ? t("notif_blockedDesc", lang)
+                                                    : t("notif_defaultDesc", lang)}
                                         </div>
                                     </div>
                                 </div>
@@ -2711,17 +2704,17 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                             opacity: notifStatus === "subscribing" ? 0.6 : 1,
                                         }}
                                     >
-                                        {notifStatus === "subscribing" ? "Enabling..." : "Enable"}
+                                        {notifStatus === "subscribing" ? t("notif_enabling", lang) : t("notif_enable", lang)}
                                     </button>
                                 )}
                             </div>
                             {notifStatus === "granted" && (
                                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid #e8e8e8", paddingTop: "12px" }}>
                                     {[
-                                        { key: "choreDoneAlerts", label: "Partner Activity", desc: "When your partner completes a chore" },
-                                        { key: "dailySummary", label: "Daily Summary", desc: "How many chores are due today" },
-                                        { key: "overdueAlerts", label: "Overdue Alerts", desc: "When chores go past their due date" },
-                                        { key: "streakWarnings", label: "Streak Warnings", desc: "When your streak is about to break" },
+                                        { key: "choreDoneAlerts", label: t("notif_partnerActivity", lang), desc: t("notif_partnerActivityDesc", lang) },
+                                        { key: "dailySummary", label: t("notif_dailySummary", lang), desc: t("notif_dailySummaryDesc", lang) },
+                                        { key: "overdueAlerts", label: t("notif_overdue", lang), desc: t("notif_overdueDesc", lang) },
+                                        { key: "streakWarnings", label: t("notif_streak", lang), desc: t("notif_streakDesc", lang) },
                                     ].map(({ key, label, desc }) => (
                                         <label key={key} style={{
                                             display: "flex", alignItems: "center", gap: "10px", cursor: "pointer",
@@ -2751,7 +2744,39 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     </Section>
 
-                    <Section title="All Chores" accentColor="#888780">
+                    <Section title={t("lang_section", lang)} accentColor="#7F77DD">
+                        <div style={{
+                            padding: "12px 16px", background: "white", borderRadius: "12px",
+                            fontSize: "14px", color: "#2C2C2A",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow("#7F77DD", 2, 2),
+                        }}>
+                            <div style={{ fontSize: "12px", color: "#888780", marginBottom: "8px" }}>
+                                {t("lang_settingDesc", lang)}
+                            </div>
+                            <select
+                                value={lang}
+                                onChange={async (e) => {
+                                    const newLang = e.target.value;
+                                    setLanguage(newLang);
+                                    await supabase.from("profiles").update({ language: newLang }).eq("id", user.id);
+                                }}
+                                style={{
+                                    width: "100%", padding: "10px 12px", border: "2px solid #2C2C2A",
+                                    borderRadius: "10px", fontSize: "14px", fontFamily: FONT,
+                                    fontWeight: 600, background: "white",
+                                    boxShadow: boxShadow("#7F77DD", 2, 2),
+                                }}
+                            >
+                                {LANGUAGES.map((l) => (
+                                    <option key={l.code} value={l.code}>
+                                        {l.native} ({l.label})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </Section>
+
+                    <Section title={t("section_allChores", lang)} accentColor="#888780">
                         {Object.entries(FREQ).map(([freqKey, freqInfo]) => {
                             const list = chores.filter((c) => c.freq === freqKey);
                             if (list.length === 0) return null;
@@ -2763,10 +2788,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                         padding: "4px 12px", borderRadius: "8px", marginBottom: "8px",
                                         border: "1.5px solid " + freqInfo.color,
                                     }}>
-                                        {freqInfo.label}
+                                        {t(freqInfo.labelKey, lang)}
                                     </div>
                                     {list.map((c) => (
-                                        <ManageChoreRow key={c.id} chore={c} users={users} onUpdate={updateChore} onAssign={assignOwner} onDelete={deleteChore} />
+                                        <ManageChoreRow key={c.id} chore={c} users={users} onUpdate={updateChore} onAssign={assignOwner} onDelete={deleteChore} lang={lang} />
                                     ))}
                                 </div>
                             );
@@ -2825,7 +2850,7 @@ const SNOOZE_OPTIONS = [
     { label: "2 weeks", days: 14 },
 ];
 
-function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign, onSnooze }) {
+function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign, onSnooze, lang = "en" }) {
     const freqInfo = FREQ[chore.freq];
     const isOverdue = chore.status === "overdue";
     const isDone = chore.completedToday;
@@ -2923,16 +2948,16 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                         background: freqInfo.bg, color: freqInfo.text,
                                         borderRadius: "6px", fontWeight: 700, border: "1px solid " + freqInfo.color,
                                     }}>
-                                        {freqInfo.label}
+                                        {t(freqInfo.labelKey, lang)}
                                     </span>
                                 )}
                                 {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {chore.daysOverdue}d overdue!</span>}
                                 {!isOverdue && chore.status === "due" && (
                                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>
-                                        {chore.one_time && chore.deadline ? `due ${friendlyDate(parseDate(chore.deadline))}` : "due today"}
+                                        {chore.one_time && chore.deadline ? `due ${friendlyDate(parseDate(chore.deadline), lang)}` : "due today"}
                                     </span>
                                 )}
-                                {!chore.one_time && chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>last: {friendlyDate(chore.lastDone.date)}</span>}
+                                {!chore.one_time && chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>last: {friendlyDate(chore.lastDone.date, lang)}</span>}
                             </>
                         )}
                     </div>
@@ -3002,7 +3027,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
     );
 }
 
-function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week" }) {
+function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week", lang = "en" }) {
     const freqInfo = chore.one_time ? null : FREQ[chore.freq];
     const [checked, setChecked] = useState(false);
     const [removing, setRemoving] = useState(false);
@@ -3022,7 +3047,7 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
     };
 
     const dueText = chore.one_time && chore.deadline
-        ? `due ${friendlyDate(parseDate(chore.deadline))}`
+        ? `due ${friendlyDate(parseDate(chore.deadline), lang)}`
         : chore.status === "done"
             ? (chore.daysUntilDue > 30
                 ? `in ${Math.round(chore.daysUntilDue / 30)} months`
@@ -3096,7 +3121,7 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
                     borderRadius: "6px", fontWeight: 700, flexShrink: 0,
                     border: "1px solid " + (chore.one_time ? "#7C3AED" : (freqInfo?.color || "#ccc")),
                 }}>
-                    {chore.one_time ? "one-time" : freqInfo?.label}
+                    {chore.one_time ? "one-time" : (freqInfo ? t(freqInfo.labelKey, lang) : "")}
                 </span>
             </div>
         </div>
@@ -3104,7 +3129,7 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
 }
 
 // =========== MANAGE CHORE ROW (EDITABLE) ===========
-function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
+function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en" }) {
     const [editing, setEditing] = useState(false);
     const [editName, setEditName] = useState(chore.name);
     const [editDesc, setEditDesc] = useState(chore.description || "");
@@ -3164,7 +3189,7 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                     ) : (
                         <select value={editFreq} onChange={(e) => setEditFreq(e.target.value)}
                             style={{ padding: "6px 8px", border: "2px solid #2C2C2A", borderRadius: "6px", fontSize: "12px", fontFamily: FONT, flex: 1, minWidth: "100px" }}>
-                            {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                            {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{t(v.labelKey, lang)}</option>)}
                         </select>
                     )}
                     <select value={editOwner} onChange={(e) => setEditOwner(e.target.value)}
@@ -3177,7 +3202,7 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                     <div style={{ width: "18px", height: "18px", borderRadius: "4px", border: "2px solid #2C2C2A", flexShrink: 0, background: editOneTime ? "#7C3AED" : "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         {editOneTime && <Check size={11} color="white" strokeWidth={3} />}
                     </div>
-                    One-time task
+                    {t("oneTimeTask", lang)}
                 </div>
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
                     <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#78350F", background: "#FEF3C7", padding: "6px 10px", border: "2px solid #2C2C2A", borderRadius: "6px", flex: 1, minWidth: "140px" }}>
@@ -3212,7 +3237,7 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete }) {
                 {chore.one_time && (
                     <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
                         <span style={{ fontSize: "10px", padding: "1px 6px", background: "#EDE9FE", color: "#5B21B6", borderRadius: "4px", fontWeight: 700, border: "1px solid #7C3AED" }}>one-time</span>
-                        {chore.deadline && <span style={{ fontSize: "10px", color: "#888780" }}>due {friendlyDate(parseDate(chore.deadline))}</span>}
+                        {chore.deadline && <span style={{ fontSize: "10px", color: "#888780" }}>due {friendlyDate(parseDate(chore.deadline), lang)}</span>}
                     </div>
                 )}
             </div>
