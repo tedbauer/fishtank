@@ -1694,9 +1694,9 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         {currentUser.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <div style={{ fontSize: "16px", fontWeight: 700 }}>Hi, {currentUser.name}!</div>
+                        <div style={{ fontSize: "16px", fontWeight: 700 }}>{t("hi", lang, { name: currentUser.name })}</div>
                         <div style={{ fontSize: "12px", color: "#888780" }}>
-                            {today().toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+                            {today().toLocaleDateString(lang === "vi" ? "vi-VN" : undefined, { weekday: "long", month: "short", day: "numeric" })}
                         </div>
                     </div>
                 </div>
@@ -1787,7 +1787,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     }}
                                 >
                                     <Package size={14} />
-                                    Inventory ({inventoryItems.length})
+                                    {t("inventory", lang, { n: inventoryItems.length })}
                                     <span style={{ fontSize: "10px" }}>{showInventory ? "▲" : "▼"}</span>
                                 </button>
                                 {showInventory && (
@@ -1845,7 +1845,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             <div style={{ fontSize: "20px", fontWeight: 800, color: moodColor(householdHappiness), transition: "color 0.5s ease" }}>
                                 {householdHappiness}
                             </div>
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>Tank Quality</div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{t("tankQuality", lang)}</div>
                         </div>
                         <div style={{
                             padding: "10px 8px", background: streak > 0 ? "#FEF3C7" : "white",
@@ -1859,7 +1859,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 {streak}
                             </div>
                             <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
-                                {streak === 0 ? "No Streak" : "Day Streak"}
+                                {streak === 0 ? t("noStreak", lang) : t("dayStreak", lang)}
                             </div>
                         </div>
                         <div style={{
@@ -1869,7 +1869,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             <div style={{ fontSize: "20px", fontWeight: 800, color: "#2C2C2A" }}>
                                 {todayList.filter((c) => !c.completedToday).length}
                             </div>
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>Chores Left</div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{t("choresLeft", lang)}</div>
                         </div>
                         {/* Row 2: My Week, Partner's Week, Coins */}
                         <div style={{
@@ -1879,7 +1879,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             <div style={{ fontSize: "20px", fontWeight: 800, color: currentUser.color || "#2C2C2A" }}>
                                 {myCompletionsThisWeek}
                             </div>
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{currentUser.name?.split(" ")[0]}'s Chores</div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{t("usersChores", lang, { name: currentUser.name?.split(" ")[0] })}</div>
                         </div>
                         <div style={{
                             padding: "10px 8px", background: "white", borderRadius: "12px", textAlign: "center",
@@ -1888,7 +1888,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             <div style={{ fontSize: "20px", fontWeight: 800, color: partner?.color || "#2C2C2A" }}>
                                 {partnerCompletionsThisWeek}
                             </div>
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{partner?.name?.split(" ")[0] || "Partner"}'s Chores</div>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{t("usersChores", lang, { name: partner?.name?.split(" ")[0] || t("partner", lang) })}</div>
                         </div>
                         <div
                             onClick={() => setView("store")}
@@ -1901,7 +1901,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             <div style={{ fontSize: "20px", fontWeight: 800, color: "#B45309", display: "flex", alignItems: "center", justifyContent: "center", gap: "3px" }}>
                                 <Coins size={16} strokeWidth={2.5} color="#B45309" /> {coinBalance}
                             </div>
-                            <div style={{ fontSize: "10px", fontWeight: 700, color: "#B45309", marginTop: "2px" }}>Shop →</div>
+                            <div style={{ fontSize: "10px", fontWeight: 700, color: "#B45309", marginTop: "2px" }}>{t("shop", lang)}</div>
                         </div>
                     </div>
 

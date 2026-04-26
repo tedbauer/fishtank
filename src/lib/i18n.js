@@ -8,7 +8,7 @@ export const LANGUAGES = [
 
 export const DEFAULT_LANG = "en";
 
-const translations = {
+export const translations = {
     en: {
         // Loading / generic
         loading: "Loading…",
@@ -143,6 +143,18 @@ const translations = {
         inMonths: "in {n} months",
         inOneDay: "in 1 day",
         inDays: "in {n} days",
+
+        // Header + stat cards
+        hi: "Hi, {name}!",
+        partner: "Partner",
+        tankQuality: "Tank Quality",
+        noStreak: "No Streak",
+        dayStreak: "Day Streak",
+        choresLeft: "Chores Left",
+        usersChores: "{name}'s Chores",
+        shop: "Shop →",
+        inventory: "Inventory ({n})",
+        refresh: "Refresh",
     },
     vi: {
         loading: "Đang tải…",
@@ -266,6 +278,17 @@ const translations = {
         inMonths: "trong {n} tháng nữa",
         inOneDay: "trong 1 ngày nữa",
         inDays: "trong {n} ngày nữa",
+
+        hi: "Chào, {name}!",
+        partner: "Bạn đời",
+        tankQuality: "Chất lượng bể",
+        noStreak: "Chưa có chuỗi",
+        dayStreak: "Ngày liên tiếp",
+        choresLeft: "Việc còn lại",
+        usersChores: "Việc của {name}",
+        shop: "Cửa hàng →",
+        inventory: "Kho ({n})",
+        refresh: "Làm mới",
     },
 };
 
