@@ -79,17 +79,31 @@ const friendlyDate = (d, lang = "en") => {
 };
 
 // =========== HAPPINESS SYSTEM ===========
-const computeHappiness = (completions, choresWithStatus, streak) => {
-    let score = 100;
+// Returns both the final tank quality score and the line items that
+// produced it, so the UI can show the user where each deduction came
+// from.
+const happinessBreakdown = (completions, choresWithStatus, streak, offset = 0) => {
+    const items = [{ kind: "base", label: null, value: 100 }];
     choresWithStatus.forEach((c) => {
         if (c.status !== "overdue") return;
-        score -= 8 + Math.min(20, Math.max(0, c.daysOverdue) * 2);
+        const penalty = 8 + Math.min(20, Math.max(0, c.daysOverdue) * 2);
+        items.push({
+            kind: "overdue",
+            label: c.name || "chore",
+            daysOverdue: c.daysOverdue,
+            value: -penalty,
+        });
     });
     const hasRecurringChores = choresWithStatus.some((c) => !c.one_time);
     if (hasRecurringChores && streak === 0 && completions.length > 0) {
-        score -= 15;
+        items.push({ kind: "streakBreak", label: null, value: -15 });
     }
-    return Math.max(0, Math.min(100, Math.round(score)));
+    if (offset !== 0) {
+        items.push({ kind: "adjustment", label: null, value: offset });
+    }
+    const rawScore = items.reduce((acc, it) => acc + it.value, 0);
+    const finalScore = Math.max(0, Math.min(100, Math.round(rawScore)));
+    return { items, rawScore: Math.round(rawScore), finalScore, clamped: rawScore !== finalScore };
 };
 
 // =========== STREAK SYSTEM ===========
@@ -1578,6 +1592,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [streakAnim, setStreakAnim] = useState(false);
     const [pullDelta, setPullDelta] = useState(0);
     const [toasts, setToasts] = useState([]);
+    const [showQualityBreakdown, setShowQualityBreakdown] = useState(false);
     const prevStreakRef = useRef(null);
     const pullRef = useRef({ active: false, startY: 0, delta: 0 });
     const toastIdRef = useRef(0);
@@ -1885,8 +1900,11 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         : 0;
 
     const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
-    const rawHappiness = computeHappiness(completions, choresWithStatus, streak);
-    const householdHappiness = Math.max(0, Math.min(100, rawHappiness + happinessOffset));
+    const happinessDetails = useMemo(
+        () => happinessBreakdown(completions, choresWithStatus, streak, happinessOffset),
+        [completions, choresWithStatus, streak, happinessOffset]
+    );
+    const householdHappiness = happinessDetails.finalScore;
     const householdMood = moodTier(householdHappiness);
 
     // Detect streak increase and animate
@@ -2150,6 +2168,15 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     onSaved={(updated) => setLocalProfile(updated)}
                 />
             )}
+            {showQualityBreakdown && (
+                <TankQualityModal
+                    breakdown={happinessDetails}
+                    score={householdHappiness}
+                    color={moodColor(householdHappiness)}
+                    lang={lang}
+                    onClose={() => setShowQualityBreakdown(false)}
+                />
+            )}
             {/* PULL-TO-REFRESH INDICATOR */}
             {pullDelta > 0 && (
                 <div style={{
@@ -2337,15 +2364,20 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     `}</style>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
                         {/* Row 1: Tank Quality, Streak, Left Today */}
-                        <div style={{
-                            padding: "10px 8px", background: "white", borderRadius: "12px", textAlign: "center",
-                            border: "2px solid #2C2C2A", boxShadow: boxShadow(moodColor(householdHappiness), 2, 2),
-                        }}>
+                        <button
+                            onClick={() => setShowQualityBreakdown(true)}
+                            title={t("tq_tapHint", lang)}
+                            style={{
+                                padding: "10px 8px", background: "white", borderRadius: "12px", textAlign: "center",
+                                border: "2px solid #2C2C2A", boxShadow: boxShadow(moodColor(householdHappiness), 2, 2),
+                                cursor: "pointer", fontFamily: FONT,
+                            }}
+                        >
                             <div style={{ fontSize: "20px", fontWeight: 800, color: moodColor(householdHappiness), transition: "color 0.5s ease" }}>
                                 {householdHappiness}
                             </div>
                             <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{t("tankQuality", lang)}</div>
-                        </div>
+                        </button>
                         <div style={{
                             padding: "10px 8px", background: streak > 0 ? "#FEF3C7" : "white",
                             borderRadius: "12px", textAlign: "center",
@@ -3046,6 +3078,131 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 }
 
 // =========== SUB-COMPONENTS ===========
+
+function TankQualityModal({ breakdown, score, color, lang, onClose }) {
+    const { items, rawScore, clamped } = breakdown;
+    const itemLabel = (it) => {
+        switch (it.kind) {
+            case "base": return t("tq_base", lang);
+            case "overdue": return t("tq_overdueRow", lang, { name: it.label, n: it.daysOverdue });
+            case "streakBreak": return t("tq_streakBreak", lang);
+            case "adjustment": return t("tq_adjustment", lang);
+            default: return "";
+        }
+    };
+    return (
+        <div
+            onClick={onClose}
+            style={{
+                position: "fixed", inset: 0, background: "rgba(44,44,42,0.55)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: "16px", zIndex: 1000, fontFamily: FONT,
+            }}
+        >
+            <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                    background: "#f8f7f4", borderRadius: "16px",
+                    border: "2px solid #2C2C2A", boxShadow: boxShadow("#2C2C2A", 4, 4),
+                    width: "100%", maxWidth: "420px", maxHeight: "90vh", overflowY: "auto",
+                    padding: "18px",
+                }}
+            >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700 }}>{t("tq_title", lang)}</h3>
+                    <button
+                        onClick={onClose}
+                        style={{
+                            background: "white", border: "2px solid #2C2C2A", borderRadius: "8px",
+                            padding: "4px 6px", cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 2, 2),
+                        }}
+                        aria-label={t("profile_cancel", lang)}
+                    >
+                        <X size={14} />
+                    </button>
+                </div>
+
+                <div style={{
+                    background: "white", border: "2px solid #2C2C2A", borderRadius: "12px",
+                    padding: "10px 14px", marginBottom: "12px",
+                    boxShadow: boxShadow(color, 2, 2),
+                    display: "flex", alignItems: "baseline", justifyContent: "space-between",
+                }}>
+                    <span style={{ fontSize: "13px", fontWeight: 600, color: "#2C2C2A" }}>{t("tq_currentScore", lang)}</span>
+                    <span style={{ fontSize: "26px", fontWeight: 800, color }}>{score}</span>
+                </div>
+
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#888780", marginBottom: "8px" }}>
+                    {t("tq_breakdown", lang)}
+                </div>
+
+                <div style={{
+                    background: "white", border: "2px solid #2C2C2A", borderRadius: "12px",
+                    boxShadow: boxShadow("#e8e8e8", 2, 2),
+                    overflow: "hidden",
+                }}>
+                    {items.map((it, i) => {
+                        const isPositive = it.value > 0;
+                        const isBase = it.kind === "base";
+                        return (
+                            <div
+                                key={i}
+                                style={{
+                                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                                    padding: "10px 14px",
+                                    borderTop: i === 0 ? "none" : "1px solid #eee",
+                                    fontSize: "13px",
+                                }}
+                            >
+                                <span style={{ color: "#2C2C2A", fontWeight: isBase ? 700 : 500, paddingRight: "10px" }}>
+                                    {itemLabel(it)}
+                                </span>
+                                <span style={{
+                                    fontWeight: 700, fontFamily: "monospace", fontSize: "13px",
+                                    color: isBase ? "#2C2C2A" : isPositive ? "#1D9E75" : "#D4537E",
+                                    whiteSpace: "nowrap",
+                                }}>
+                                    {isBase ? it.value : `${isPositive ? "+" : "−"}${Math.abs(it.value)}`}
+                                </span>
+                            </div>
+                        );
+                    })}
+                    <div style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "12px 14px",
+                        borderTop: "2px solid #2C2C2A",
+                        background: "#f5f4f1",
+                    }}>
+                        <span style={{ color: "#2C2C2A", fontWeight: 700, fontSize: "13px" }}>{t("tq_total", lang)}</span>
+                        <span style={{ fontWeight: 800, fontSize: "16px", color, fontFamily: "monospace" }}>
+                            {score}
+                        </span>
+                    </div>
+                </div>
+
+                {clamped && (
+                    <div style={{
+                        marginTop: "10px", padding: "8px 12px",
+                        background: "#FEF3C7", borderRadius: "8px", border: "2px solid #F59E0B",
+                        fontSize: "11px", fontWeight: 600, color: "#78350F",
+                    }}>
+                        {t("tq_clamped", lang, { raw: rawScore })}
+                    </div>
+                )}
+
+                {items.length === 1 && (
+                    <div style={{
+                        marginTop: "10px", padding: "8px 12px",
+                        background: "#E1F5EE", borderRadius: "8px", border: "2px solid #1D9E75",
+                        fontSize: "12px", fontWeight: 600, color: "#085041",
+                    }}>
+                        {t("tq_perfect", lang)}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
 
 function EmptyState({ text }) {
     return (
