@@ -1483,7 +1483,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                     fontSize: "9px", fontWeight: 600, color: "rgba(255,255,255,0.45)",
                     pointerEvents: "none", fontFamily: FONT,
                 }}>
-                    drag out to remove
+                    {t("dragOutToRemove", lang)}
                 </div>
             )}
 
@@ -2683,7 +2683,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     {purchases.length > 0 && (
                         <Section title={t("yourItems", lang)} accentColor="#7F77DD">
                             <div style={{ fontSize: "12px", color: "#888780", marginBottom: "10px" }}>
-                                Items in tank: drag to reposition or drag outside to return to inventory. Items in inventory: tap Place to add to tank.
+                                {t("inventoryHelp", lang)}
                             </div>
                             {purchases.map((p) => {
                                 const item = STORE_ITEM_MAP[p.item_id];

@@ -176,6 +176,8 @@ export const translations = {
         usersChores: "{name}'s Chores",
         shop: "Shop →",
         inventory: "Inventory ({n})",
+        dragOutToRemove: "drag out to remove",
+        inventoryHelp: "Items in tank: drag to reposition or drag outside to return to inventory. Items in inventory: tap Place to add to tank.",
         refresh: "Refresh",
     },
     vi: {
@@ -331,6 +333,8 @@ export const translations = {
         usersChores: "Việc của {name}",
         shop: "Cửa hàng →",
         inventory: "Kho ({n})",
+        dragOutToRemove: "kéo ra để xóa",
+        inventoryHelp: "Vật phẩm trong bể: kéo để di chuyển hoặc kéo ra ngoài để trả về kho. Vật phẩm trong kho: nhấn Đặt để thêm vào bể.",
         refresh: "Làm mới",
     },
 };
