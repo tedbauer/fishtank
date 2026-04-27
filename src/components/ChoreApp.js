@@ -1104,6 +1104,25 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
           75% { opacity: 1; transform: scale(1); }
           100% { opacity: 0; transform: scale(0.8); }
         }
+        @keyframes ${uid}-feed {
+          /* Visits the 5 food drop columns (20/40/55/70/85%) and snaps
+             upward at each, then loops back to a resting spot. */
+          0%   { left: 4%;  top: 50px; transform: scaleX(-1); }
+          5%   { left: 12%; top: 24px; transform: scaleX(-1); }
+          10%  { left: 18%; top: 6px;  transform: scaleX(-1); }
+          14%  { left: 22%; top: 4px;  transform: scaleX(-1); }
+          20%  { left: 32%; top: 14px; transform: scaleX(-1); }
+          26%  { left: 38%; top: 6px;  transform: scaleX(-1); }
+          32%  { left: 48%; top: 12px; transform: scaleX(-1); }
+          38%  { left: 53%; top: 4px;  transform: scaleX(-1); }
+          46%  { left: 64%; top: 12px; transform: scaleX(-1); }
+          52%  { left: 68%; top: 4px;  transform: scaleX(-1); }
+          60%  { left: 78%; top: 12px; transform: scaleX(-1); }
+          66%  { left: 83%; top: 4px;  transform: scaleX(-1); }
+          72%  { left: 83%; top: 16px; transform: scaleX(1); }
+          88%  { left: 35%; top: 32px; transform: scaleX(1); }
+          100% { left: 4%;  top: 50px; transform: scaleX(-1); }
+        }
         .${uid}-fish {
           position: absolute; top: 50px; left: 20px;
           animation: ${uid}-swim ${swimDuration} ease-in-out infinite;
@@ -1296,19 +1315,26 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                         onDragChange={setAnyDragging}
                         onOutsideChange={setDragOutside}
                         animationStyle={
-                            fishState.home
+                            // "daily" reward = fish food drops; chase and eat each one.
+                            rewardAnim === "daily"
                                 ? {
-                                    position: "absolute",
-                                    left: `${fishState.home.leftPx}px`,
-                                    top: `${fishState.home.topPx}px`,
-                                    animation: `${uid}-swim-local-${Math.round(fishState.home.leftPx)}_${Math.round(fishState.home.topPx)} ${localSwimDuration} ease-in-out infinite`,
-                                    zIndex: 5,
+                                    position: "absolute", top: 50, left: "4%",
+                                    animation: `${uid}-feed 2.5s ease-in-out forwards`,
+                                    zIndex: 21,
                                 }
-                                : {
-                                    position: "absolute", top: 50, left: 20,
-                                    animation: `${uid}-swim ${swimDuration} ease-in-out infinite`,
-                                    zIndex: 5,
-                                }
+                                : fishState.home
+                                    ? {
+                                        position: "absolute",
+                                        left: `${fishState.home.leftPx}px`,
+                                        top: `${fishState.home.topPx}px`,
+                                        animation: `${uid}-swim-local-${Math.round(fishState.home.leftPx)}_${Math.round(fishState.home.topPx)} ${localSwimDuration} ease-in-out infinite`,
+                                        zIndex: 5,
+                                    }
+                                    : {
+                                        position: "absolute", top: 50, left: 20,
+                                        animation: `${uid}-swim ${swimDuration} ease-in-out infinite`,
+                                        zIndex: 5,
+                                    }
                         }
                     >
                         <div style={{ position: "relative" }}>
