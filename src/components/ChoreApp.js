@@ -937,7 +937,7 @@ function DraggableCritter({ purchase, boundsRef, tankInnerRef, floorBottom = 16,
 }
 
 // =========== MINIMAL AQUARIUM ===========
-function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0, onMovePurchase, onRemovePurchase }) {
+function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0, lang = "en", onMovePurchase, onRemovePurchase }) {
     const tankRef = useRef(null);
     const viewportRef = useRef(null);
     const [anyDragging, setAnyDragging] = useState(false);
@@ -2266,6 +2266,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                             rewardAnim={rewardAnim}
                             purchases={purchases}
                             expansions={tankExpansions}
+                            lang={lang}
                             onMovePurchase={movePurchase}
                             onRemovePurchase={unplacePurchase}
                         />
