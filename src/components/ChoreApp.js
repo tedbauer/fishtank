@@ -1596,6 +1596,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const prevStreakRef = useRef(null);
     const pullRef = useRef({ active: false, startY: 0, delta: 0 });
     const toastIdRef = useRef(0);
+    // Sum of prices for purchases that have been clicked but whose insert
+    // hasn't completed yet. Subtracted from affordability checks so a fast
+    // double-tap on Buy can't bypass the check before state updates.
+    const pendingSpendRef = useRef(0);
 
     const pushToast = useCallback(({ title, subtitle, color, icon }) => {
         const id = ++toastIdRef.current;
@@ -2017,12 +2021,16 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const purchaseItem = async (itemId) => {
         const item = STORE_ITEM_MAP[itemId];
         if (!item || !profile?.household_id) return;
-        if (coinBalance < item.price) return;
-        const { data, error } = await supabase
-            .from("purchases")
-            .insert({ household_id: profile.household_id, item_id: itemId, x: -1, y: -1 })
-            .select().single();
-        if (!error && data) {
+        // Synchronous guard against double-tap: subtract already-in-flight
+        // purchases from the available balance.
+        if (coinBalance - pendingSpendRef.current < item.price) return;
+        pendingSpendRef.current += item.price;
+        try {
+            const { data, error } = await supabase
+                .from("purchases")
+                .insert({ household_id: profile.household_id, item_id: itemId, x: -1, y: -1 })
+                .select().single();
+            if (error || !data) throw error || new Error("purchase failed");
             setPurchases((prev) => [...prev, data]);
             notifyPurchase(item.name);
             pushToast({
@@ -2031,6 +2039,15 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 color: "#F59E0B",
                 icon: <ShoppingBag size={18} strokeWidth={2.5} />,
             });
+        } catch (e) {
+            pushToast({
+                title: "Purchase failed",
+                subtitle: e?.message || "try again",
+                color: "#EF4444",
+                icon: <XIcon size={18} strokeWidth={2.5} />,
+            });
+        } finally {
+            pendingSpendRef.current -= item.price;
         }
     };
 
