@@ -81,12 +81,16 @@ const friendlyDate = (d, lang = "en") => {
 // =========== HAPPINESS SYSTEM ===========
 // Returns both the final tank quality score and the line items that
 // produced it, so the UI can show the user where each deduction came
-// from.
+// from. Doing even one chore today triggers a recovery bonus (waiving
+// half the overdue cost and skipping the streak-break penalty), so a
+// day or two of slack doesn't tank the score.
 const happinessBreakdown = (completions, choresWithStatus, streak, offset = 0) => {
     const items = [{ kind: "base", label: null, value: 100 }];
+    let overdueTotal = 0;
     choresWithStatus.forEach((c) => {
         if (c.status !== "overdue") return;
-        const penalty = 8 + Math.min(20, Math.max(0, c.daysOverdue) * 2);
+        const penalty = 3 + Math.min(15, Math.max(0, c.daysOverdue) * 2);
+        overdueTotal += penalty;
         items.push({
             kind: "overdue",
             label: c.name || "chore",
@@ -94,8 +98,12 @@ const happinessBreakdown = (completions, choresWithStatus, streak, offset = 0) =
             value: -penalty,
         });
     });
+    const completedTodayAny = choresWithStatus.some((c) => c.completedToday);
+    if (completedTodayAny && overdueTotal > 0) {
+        items.push({ kind: "recovery", label: null, value: Math.round(overdueTotal * 0.5) });
+    }
     const hasRecurringChores = choresWithStatus.some((c) => !c.one_time);
-    if (hasRecurringChores && streak === 0 && completions.length > 0) {
+    if (hasRecurringChores && streak === 0 && completions.length > 0 && !completedTodayAny) {
         items.push({ kind: "streakBreak", label: null, value: -15 });
     }
     if (offset !== 0) {
@@ -3102,6 +3110,7 @@ function TankQualityModal({ breakdown, score, color, lang, onClose }) {
         switch (it.kind) {
             case "base": return t("tq_base", lang);
             case "overdue": return t("tq_overdueRow", lang, { name: it.label, n: it.daysOverdue });
+            case "recovery": return t("tq_recovery", lang);
             case "streakBreak": return t("tq_streakBreak", lang);
             case "adjustment": return t("tq_adjustment", lang);
             default: return "";
