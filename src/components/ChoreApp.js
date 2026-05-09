@@ -121,40 +121,17 @@ const computeStreak = (chores, completions) => {
     const todayStr = formatDate(t);
     let streak = 0;
 
-    // Check today first: only counts if ALL due chores are completed today
-    const todayCompletedIds = new Set(
+    // Today counts if the user completed any recurring chore today.
+    // Overdue work piles don't gate the streak — the previous "all due
+    // chores done" rule meant a user 60 days behind could complete one
+    // chore and still see streak = 0, which broke the comeback flow.
+    const todayCompletedChoreIds = new Set(
         completions.filter((c) => c.completed_date === todayStr).map((c) => c.chore_id)
     );
-    let todayCounts = true;
-    let anyActiveToday = false;
-    for (const chore of chores) {
-        if (chore.one_time) continue;
-        const freqDays = FREQ[chore.freq]?.days || 7;
-        const choreCreated = chore.created_at ? parseDate(chore.created_at.split("T")[0]) : t;
-        if (t < choreCreated) continue;
-
-        // Look at completions BEFORE today to determine if chore was due today
-        const preTodayComps = completions
-            .filter((c) => c.chore_id === chore.id && c.completed_date < todayStr)
-            .sort((a, b) => b.completed_date.localeCompare(a.completed_date));
-        const lastBeforeToday = preTodayComps[0];
-        let daysSince;
-        if (lastBeforeToday) {
-            daysSince = daysBetween(parseDate(lastBeforeToday.completed_date), t);
-        } else {
-            daysSince = daysBetween(choreCreated, t);
-        }
-
-        // Was this chore due today (before any today completions)?
-        if (daysSince >= freqDays) {
-            anyActiveToday = true;
-            if (!todayCompletedIds.has(chore.id)) {
-                todayCounts = false;
-                break;
-            }
-        }
-    }
-    if (anyActiveToday && todayCounts) streak++;
+    const completedRecurringToday = chores.some(
+        (c) => !c.one_time && todayCompletedChoreIds.has(c.id)
+    );
+    if (completedRecurringToday) streak++;
 
     // Check past days
     for (let dayOffset = 1; dayOffset < 365; dayOffset++) {
@@ -1947,6 +1924,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     // Tank quality if the user completed any one chore today: removes the
     // streak-break penalty and adds the recovery bonus that
     // happinessBreakdown applies once `completedTodayAny` is true.
+    //
+    // We have to reconstruct the post-completion raw score from scratch,
+    // not add bonuses on top of `householdHappiness`. When the user is
+    // very behind, `householdHappiness` is already clamped to 0 — adding
+    // bonuses to that clamped value invents happiness that won't actually
+    // exist after the completion lands (the bug that surfaced as a "0 →
+    // 100" preview where the tank only rose to 12).
     const projectedTankScore = useMemo(() => {
         if (completedTodayAny) return householdHappiness;
         const overdueTotal = overdueChores.reduce(
@@ -1954,14 +1938,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             0
         );
         const recoveryBonus = overdueTotal > 0 ? Math.round(overdueTotal * 0.5) : 0;
-        const hasRecurringChores = choresWithStatus.some((c) => !c.one_time);
-        const removedStreakPenalty =
-            hasRecurringChores && streak === 0 && completions.length > 0 ? 15 : 0;
-        return Math.max(
-            0,
-            Math.min(100, householdHappiness + recoveryBonus + removedStreakPenalty)
-        );
-    }, [completedTodayAny, householdHappiness, overdueChores, choresWithStatus, streak, completions]);
+        // After completing one chore today, happinessBreakdown will:
+        //   - keep the overdue penalties (overdueTotal)
+        //   - add the recovery bonus (overdueTotal * 0.5)
+        //   - skip the streak-break penalty (because completedTodayAny)
+        const rawProjected = 100 - overdueTotal + recoveryBonus;
+        return Math.max(0, Math.min(100, Math.round(rawProjected)));
+    }, [completedTodayAny, householdHappiness, overdueChores]);
 
     // In comeback mode we hide overdue chores from the per-owner sections
     // and tuck them into a single collapsible "Catching up" group, so the
