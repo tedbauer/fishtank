@@ -47,6 +47,7 @@ export const translations = {
         hh_continue: "Continue to app →",
         hh_err_empty: "Please enter an invite code",
         hh_err_invalid: "Invalid invite code. Check with your partner.",
+        hh_err_no_profile: "Your profile is missing. Sign out, sign back in, and try again.",
 
         // ChoreApp tabs
         tab_today: "Today",
@@ -238,6 +239,7 @@ export const translations = {
         hh_continue: "Vào ứng dụng →",
         hh_err_empty: "Vui lòng nhập mã mời",
         hh_err_invalid: "Mã mời không hợp lệ. Kiểm tra với bạn đời của bạn.",
+        hh_err_no_profile: "Hồ sơ của bạn chưa tồn tại. Hãy đăng xuất, đăng nhập lại và thử lại.",
 
         tab_today: "Hôm nay",
         tab_week: "Tuần này",
