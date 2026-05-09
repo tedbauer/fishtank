@@ -95,11 +95,14 @@ export async function GET(request) {
                 });
             }
 
-            // Overdue alerts
+            // Overdue alerts — frame as encouragement, not a scold:
+            // even one chore today brings the tank back to baseline.
             if (prefs.overdueAlerts && data.overdue.length > 0) {
+                const n = data.overdue.length;
+                const names = data.overdue.map((a) => a.name).join(", ");
                 messages.push({
-                    title: `🔴 ${data.overdue.length} Overdue!`,
-                    body: data.overdue.map((a) => a.name).join(", "),
+                    title: `🐟 ${n} chore${n > 1 ? "s" : ""} overdue`,
+                    body: `Doing just one keeps the tank healthy: ${names}`,
                     tag: "overdue-alert",
                 });
             }
@@ -107,8 +110,8 @@ export async function GET(request) {
             // Streak warnings
             if (prefs.streakWarnings && data.streakAtRisk) {
                 messages.push({
-                    title: "🔥 Streak at risk!",
-                    body: "Complete your chores today to keep your streak going",
+                    title: "🔥 Keep your streak alive",
+                    body: "Even one chore today keeps it going",
                     tag: "streak-warning",
                 });
             }
