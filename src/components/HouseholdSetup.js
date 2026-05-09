@@ -38,12 +38,20 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
                 .single();
             if (hErr) throw hErr;
 
-            // Update profile with household_id
-            const { error: pErr } = await supabase
+            // Update profile with household_id. PostgREST returns no error
+            // for an UPDATE that affects 0 rows, so we ask for the rows
+            // back and bail explicitly — otherwise a missing profile
+            // silently leaves the user orphaned from the household they
+            // just created.
+            const { data: updatedProfiles, error: pErr } = await supabase
                 .from("profiles")
                 .update({ household_id: household.id })
-                .eq("id", user.id);
+                .eq("id", user.id)
+                .select("id");
             if (pErr) throw pErr;
+            if (!updatedProfiles || updatedProfiles.length === 0) {
+                throw new Error(t("hh_err_no_profile", lang));
+            }
 
             // Seed default chores
             const DEFAULT_CHORES = [
@@ -106,12 +114,17 @@ export default function HouseholdSetup({ user, profile, onComplete }) {
                 .single();
             if (hErr || !household) throw new Error(t("hh_err_invalid", lang));
 
-            // Join household
-            const { error: pErr } = await supabase
+            // Join household. Same silent-0-rows trap as handleCreate —
+            // ask for the affected row back and bail if none.
+            const { data: updatedProfiles, error: pErr } = await supabase
                 .from("profiles")
                 .update({ household_id: household.id })
-                .eq("id", user.id);
+                .eq("id", user.id)
+                .select("id");
             if (pErr) throw pErr;
+            if (!updatedProfiles || updatedProfiles.length === 0) {
+                throw new Error(t("hh_err_no_profile", lang));
+            }
 
             onComplete();
         } catch (e) {

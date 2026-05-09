@@ -31,25 +31,34 @@ export default function HomePage() {
     };
 
     const loadProfile = async (user) => {
-      // Get profile
+      // .maybeSingle so a missing profile returns null cleanly instead of
+      // PostgREST's 406 ("Not Acceptable") that .single throws when 0 rows
+      // come back. Without this, an auth user that predates the
+      // handle_new_user trigger gets stuck on the loading screen.
       const { data: prof } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (!prof) {
-        // Profile doesn't exist yet (trigger may not have fired yet)
-        // Create it manually
+        // Profile doesn't exist yet (trigger may not have fired yet,
+        // typically because the auth.users row predates the trigger).
+        // Insert one. Explicit onConflict makes the upsert resolve to
+        // an UPDATE if the row was just created by a racing trigger,
+        // instead of returning a 409.
         const { data: newProf } = await supabase
           .from("profiles")
-          .upsert({
-            id: user.id,
-            display_name: user.user_metadata?.full_name || user.user_metadata?.name || "User",
-            avatar_url: user.user_metadata?.avatar_url || null,
-          })
+          .upsert(
+            {
+              id: user.id,
+              display_name: user.user_metadata?.full_name || user.user_metadata?.name || "User",
+              avatar_url: user.user_metadata?.avatar_url || null,
+            },
+            { onConflict: "id" }
+          )
           .select()
-          .single();
+          .maybeSingle();
         setProfile(newProf);
         setNeedsLanguage(true);
         setLoading(false);
@@ -104,7 +113,7 @@ export default function HomePage() {
       .from("profiles")
       .select("*")
       .eq("id", session.user.id)
-      .single();
+      .maybeSingle();
     setProfile(prof);
     if (!prof?.household_id) {
       setNeedsHousehold(true);
@@ -123,7 +132,7 @@ export default function HomePage() {
       .from("profiles")
       .select("*")
       .eq("id", session.user.id)
-      .single();
+      .maybeSingle();
 
     setProfile(prof);
 
