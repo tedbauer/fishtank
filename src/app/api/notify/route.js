@@ -37,6 +37,22 @@ export async function GET(request) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        // Compute the most recent completion date per household, so we
+        // can detect "user has been away" the same way the in-app
+        // comeback banner does. Listing 15 chore names in a push
+        // notification is a great way to make someone feel worse —
+        // when behind, we replace it with a single soft nudge.
+        const choreHousehold = new Map((chores || []).map((c) => [c.id, c.household_id]));
+        const householdLastCompletion = {};
+        for (const c of completions || []) {
+            const hid = choreHousehold.get(c.chore_id);
+            if (!hid) continue;
+            const d = c.completed_date;
+            if (!householdLastCompletion[hid] || d > householdLastCompletion[hid]) {
+                householdLastCompletion[hid] = d;
+            }
+        }
+
         // Compute per-household: due today count, overdue list, streak status
         const householdData = {};
 
@@ -86,34 +102,56 @@ export async function GET(request) {
             const prefs = sub.preferences || { dailySummary: true, overdueAlerts: true, streakWarnings: true };
             const messages = [];
 
-            // Daily summary
-            if (prefs.dailySummary && data.dueToday.length > 0) {
-                messages.push({
-                    title: `🐟 ${data.dueToday.length} Chore${data.dueToday.length > 1 ? "s" : ""} Due Today`,
-                    body: data.dueToday.join(", "),
-                    tag: "daily-summary",
-                });
+            // "Behind" mirrors the in-app comeback-mode threshold: 5+
+            // overdue OR 3+ days since the household's last completion.
+            // When this is true we send one soft nudge instead of a
+            // wall of chore names.
+            const lastDateStr = householdLastCompletion[sub.household_id];
+            let daysSinceLastCompletion = null;
+            if (lastDateStr) {
+                const lastDate = new Date(lastDateStr + "T00:00:00");
+                daysSinceLastCompletion = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
             }
+            const isBehind =
+                data.overdue.length >= 5 ||
+                (daysSinceLastCompletion !== null && daysSinceLastCompletion >= 3);
 
-            // Overdue alerts — frame as encouragement, not a scold:
-            // even one chore today brings the tank back to baseline.
-            if (prefs.overdueAlerts && data.overdue.length > 0) {
-                const n = data.overdue.length;
-                const names = data.overdue.map((a) => a.name).join(", ");
+            if (isBehind && (prefs.dailySummary || prefs.overdueAlerts)) {
                 messages.push({
-                    title: `🐟 ${n} chore${n > 1 ? "s" : ""} overdue`,
-                    body: `Doing just one keeps the tank healthy: ${names}`,
-                    tag: "overdue-alert",
+                    title: "🌱 Welcome back to your tank",
+                    body: "Just one chore today brings it back to life and starts a fresh streak.",
+                    tag: "comeback-nudge",
                 });
-            }
+            } else {
+                // Daily summary
+                if (prefs.dailySummary && data.dueToday.length > 0) {
+                    messages.push({
+                        title: `🐟 ${data.dueToday.length} Chore${data.dueToday.length > 1 ? "s" : ""} Due Today`,
+                        body: data.dueToday.join(", "),
+                        tag: "daily-summary",
+                    });
+                }
 
-            // Streak warnings
-            if (prefs.streakWarnings && data.streakAtRisk) {
-                messages.push({
-                    title: "🔥 Keep your streak alive",
-                    body: "Even one chore today keeps it going",
-                    tag: "streak-warning",
-                });
+                // Overdue alerts — frame as encouragement, not a scold:
+                // even one chore today brings the tank back to baseline.
+                if (prefs.overdueAlerts && data.overdue.length > 0) {
+                    const n = data.overdue.length;
+                    const names = data.overdue.map((a) => a.name).join(", ");
+                    messages.push({
+                        title: `🐟 ${n} chore${n > 1 ? "s" : ""} overdue`,
+                        body: `Doing just one keeps the tank healthy: ${names}`,
+                        tag: "overdue-alert",
+                    });
+                }
+
+                // Streak warnings
+                if (prefs.streakWarnings && data.streakAtRisk) {
+                    messages.push({
+                        title: "🔥 Keep your streak alive",
+                        body: "Even one chore today keeps it going",
+                        tag: "streak-warning",
+                    });
+                }
             }
 
             // Send the most important one (avoid spamming)
