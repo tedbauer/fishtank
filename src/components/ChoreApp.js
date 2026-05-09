@@ -1601,6 +1601,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [pullDelta, setPullDelta] = useState(0);
     const [toasts, setToasts] = useState([]);
     const [showQualityBreakdown, setShowQualityBreakdown] = useState(false);
+    const [showCatchingUp, setShowCatchingUp] = useState(false);
     const prevStreakRef = useRef(null);
     const pullRef = useRef({ active: false, startY: 0, delta: 0 });
     const toastIdRef = useRef(0);
@@ -1918,6 +1919,69 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     );
     const householdHappiness = happinessDetails.finalScore;
     const householdMood = moodTier(householdHappiness);
+
+    // ===== COMEBACK STATE =====
+    // When the streak is broken AND the user has been away (or has a real
+    // pile of overdue chores), we soften the UI: friendlier banner, amber
+    // overdue chips instead of red, and the overdue stack collapses behind
+    // a "show" disclosure so the chore list stops feeling like a wall.
+    const overdueChores = choresWithStatus.filter((c) => c.status === "overdue");
+    const completedTodayAny = choresWithStatus.some((c) => c.completedToday);
+    const lastCompletionDate = useMemo(() => {
+        let latest = null;
+        for (const c of completions) {
+            const d = parseDate(c.completed_date);
+            if (!latest || d > latest) latest = d;
+        }
+        return latest;
+    }, [completions]);
+    const daysSinceLastCompletion = lastCompletionDate
+        ? daysBetween(lastCompletionDate, today())
+        : null;
+    const isComebackMode =
+        streak === 0 &&
+        !completedTodayAny &&
+        (overdueChores.length >= 5 ||
+            (daysSinceLastCompletion !== null && daysSinceLastCompletion >= 3));
+
+    // Tank quality if the user completed any one chore today: removes the
+    // streak-break penalty and adds the recovery bonus that
+    // happinessBreakdown applies once `completedTodayAny` is true.
+    const projectedTankScore = useMemo(() => {
+        if (completedTodayAny) return householdHappiness;
+        const overdueTotal = overdueChores.reduce(
+            (s, c) => s + (3 + Math.min(15, Math.max(0, c.daysOverdue) * 2)),
+            0
+        );
+        const recoveryBonus = overdueTotal > 0 ? Math.round(overdueTotal * 0.5) : 0;
+        const hasRecurringChores = choresWithStatus.some((c) => !c.one_time);
+        const removedStreakPenalty =
+            hasRecurringChores && streak === 0 && completions.length > 0 ? 15 : 0;
+        return Math.max(
+            0,
+            Math.min(100, householdHappiness + recoveryBonus + removedStreakPenalty)
+        );
+    }, [completedTodayAny, householdHappiness, overdueChores, choresWithStatus, streak, completions]);
+
+    // In comeback mode we hide overdue chores from the per-owner sections
+    // and tuck them into a single collapsible "Catching up" group, so the
+    // wall of red doesn't greet someone who's already feeling behind.
+    const overdueTodayIds = useMemo(
+        () => new Set(todayList.filter((c) => c.status === "overdue").map((c) => c.id)),
+        [todayList]
+    );
+    const myChoresVisible = isComebackMode
+        ? myChores.filter((c) => !overdueTodayIds.has(c.id))
+        : myChores;
+    const unassignedVisible = isComebackMode
+        ? unassigned.filter((c) => !overdueTodayIds.has(c.id))
+        : unassigned;
+    const partnerChoresVisible = isComebackMode
+        ? partnerChores.filter((c) => !overdueTodayIds.has(c.id))
+        : partnerChores;
+    const catchingUpPile = isComebackMode
+        ? todayList.filter((c) => overdueTodayIds.has(c.id) && !c.completedToday)
+        : [];
 
     // Detect streak increase and animate
     useEffect(() => {
@@ -2415,7 +2479,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                 {streak}
                             </div>
                             <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>
-                                {streak === 0 ? t("noStreak", lang) : t("dayStreak", lang)}
+                                {streak === 0 ? t("streakStart", lang) : t("dayStreak", lang)}
                             </div>
                         </div>
                         <div style={{
@@ -2461,6 +2525,43 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     </div>
 
+                    {isComebackMode && (
+                        <div style={{
+                            padding: "16px 18px", marginBottom: "1rem",
+                            background: "#FFF8EC", borderRadius: "14px",
+                            border: "2px solid #2C2C2A", boxShadow: boxShadow("#F59E0B", 3, 3),
+                            fontFamily: FONT,
+                        }}>
+                            <div style={{ fontSize: "15px", fontWeight: 800, color: "#7C2D12", marginBottom: "4px" }}>
+                                🌱 {t("comebackHeadline", lang, { name: currentUser.name?.split(" ")[0] || currentUser.name })}
+                            </div>
+                            <div style={{ fontSize: "13px", color: "#7C2D12", marginBottom: "10px" }}>
+                                {t("comebackBody", lang)}
+                            </div>
+                            <div style={{ fontSize: "11px", fontWeight: 700, color: "#888780", marginBottom: "6px" }}>
+                                {t("comebackPreviewLabel", lang)}
+                            </div>
+                            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                                <span style={{
+                                    fontSize: "12px", fontWeight: 700,
+                                    padding: "4px 10px", background: "#FEF3C7",
+                                    color: "#B45309", border: "1.5px solid #F59E0B",
+                                    borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "4px",
+                                }}>
+                                    <Flame size={12} color="#F59E0B" /> {t("comebackStreakPreview", lang, { from: 0, to: 1 })}
+                                </span>
+                                <span style={{
+                                    fontSize: "12px", fontWeight: 700,
+                                    padding: "4px 10px", background: "#E1F5EE",
+                                    color: "#085041", border: "1.5px solid #1D9E75",
+                                    borderRadius: "8px",
+                                }}>
+                                    {t("comebackTankPreview", lang, { from: householdHappiness, to: projectedTankScore })}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
                     {todayList.length === 0 && (
                         <div style={{ textAlign: "center", padding: "2.5rem 1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
                             <div style={{ fontSize: "36px", marginBottom: "8px" }}>✨</div>
@@ -2476,20 +2577,65 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     )}
 
-                    {myChores.length > 0 && (
+                    {myChoresVisible.length > 0 && (
                         <Section title={t("yourTurn", lang, { name: currentUser.name })} accentColor={currentUser.color}>
-                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
+                            {myChoresVisible.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
                     )}
-                    {unassigned.length > 0 && (
+                    {unassignedVisible.length > 0 && (
                         <Section title={t("upForGrabs", lang)} accentColor="#888780">
-                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
+                            {unassignedVisible.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
                     )}
-                    {partnerChores.length > 0 && partner && (
+                    {partnerChoresVisible.length > 0 && partner && (
                         <Section title={t("partnersTurn", lang, { name: partner.name })} accentColor={partner.color}>
-                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
+                            {partnerChoresVisible.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
+                    )}
+
+                    {catchingUpPile.length > 0 && (
+                        <div style={{ marginBottom: "1.5rem", fontFamily: FONT }}>
+                            <button
+                                onClick={() => setShowCatchingUp((s) => !s)}
+                                style={{
+                                    width: "100%", padding: "10px 14px",
+                                    background: "#FFF8EC", border: "2px solid #2C2C2A",
+                                    borderRadius: "12px", boxShadow: boxShadow("#F59E0B", 2, 2),
+                                    cursor: "pointer", fontFamily: FONT,
+                                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                                    gap: "8px",
+                                }}
+                            >
+                                <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 700, color: "#7C2D12" }}>
+                                    <AlarmClock size={14} color="#B45309" />
+                                    {showCatchingUp
+                                        ? t("comebackCatchingUp", lang, { n: catchingUpPile.length })
+                                        : t("comebackPilePeek", lang, { n: catchingUpPile.length })}
+                                </span>
+                                <span style={{ fontSize: "12px", fontWeight: 700, color: "#B45309" }}>
+                                    {showCatchingUp ? t("comebackPileHide", lang) : "▾"}
+                                </span>
+                            </button>
+                            {showCatchingUp && (
+                                <div style={{ marginTop: "10px" }}>
+                                    {catchingUpPile.map((c) => (
+                                        <ChoreRow
+                                            key={c.id}
+                                            chore={c}
+                                            users={users}
+                                            currentUser={currentUser}
+                                            onComplete={completeChore}
+                                            onCompleteTogether={completeChoreTogether}
+                                            onUndo={undoComplete}
+                                            onAssign={assignOwner}
+                                            onSnooze={snoozeChore}
+                                            lang={lang}
+                                            soft
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     )}
 
                     {snoozedList.length > 0 && (
@@ -3274,10 +3420,23 @@ const SNOOZE_OPTIONS = [
     { label: "2 weeks", days: 14 },
 ];
 
-function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign, onSnooze, lang = "en" }) {
+function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign, onSnooze, lang = "en", soft = false }) {
     const freqInfo = FREQ[chore.freq];
     const isOverdue = chore.status === "overdue";
     const isDone = chore.completedToday;
+    // In comeback mode, swap the alarm-red overdue palette for a calmer
+    // amber so the user doesn't feel ambushed by a wall of red rows.
+    const overdueBg = soft ? "#FFF8EC" : "#FEF2F2";
+    const overdueBorder = soft ? "#F59E0B" : "#EF4444";
+    const overdueShadow = soft ? "#F59E0B" : "#EF4444";
+    const overdueText = soft ? "#B45309" : "#DC2626";
+    const overdueChipBg = soft ? "#FEF3C7" : "#EF4444";
+    const overdueChipBorder = soft ? "#F59E0B" : "#DC2626";
+    const overdueChipFg = soft ? "#7C2D12" : "white";
+    const overdueChipDot = soft ? "🟡" : "🔴";
+    const overdueChipText = soft
+        ? t("catchingUpShort", lang, { n: chore.daysOverdue })
+        : t("overdueShort", lang, { n: chore.daysOverdue });
     const [justChecked, setJustChecked] = useState(false);
     const [completeAs, setCompleteAs] = useState(chore.owner_id || "");
     const [snoozeOpen, setSnoozeOpen] = useState(false);
@@ -3306,10 +3465,10 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
         <div style={{
             display: "flex", flexDirection: "column", padding: "12px 14px",
             marginBottom: "8px", fontFamily: FONT,
-            background: isDone ? "#F4FBF7" : isOverdue ? "#FEF2F2" : "white",
-            border: `2px solid ${isDone ? "#1D9E75" : isOverdue ? "#EF4444" : "#2C2C2A"}`,
+            background: isDone ? "#F4FBF7" : isOverdue ? overdueBg : "white",
+            border: `2px solid ${isDone ? "#1D9E75" : isOverdue ? overdueBorder : "#2C2C2A"}`,
             borderRadius: "12px",
-            boxShadow: isDone ? boxShadow("#1D9E75", 2, 2) : isOverdue ? boxShadow("#EF4444", 3, 3) : boxShadow("#e8e8e8", 2, 2),
+            boxShadow: isDone ? boxShadow("#1D9E75", 2, 2) : isOverdue ? boxShadow(overdueShadow, 3, 3) : boxShadow("#e8e8e8", 2, 2),
             transition: "background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
         }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -3334,7 +3493,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                     <div style={{
                         fontSize: "14px", fontWeight: 700,
                         textDecoration: isDone ? "line-through" : "none",
-                        color: isDone ? "#b4b2a9" : isOverdue ? "#DC2626" : "#2C2C2A",
+                        color: isDone ? "#b4b2a9" : isOverdue ? overdueText : "#2C2C2A",
                     }}>
                         {chore.name}
                     </div>
@@ -3375,7 +3534,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                         {t(freqInfo.labelKey, lang)}
                                     </span>
                                 )}
-                                {isOverdue && <span style={{ fontSize: "12px", color: "white", fontWeight: 700, background: "#EF4444", padding: "2px 8px", borderRadius: "6px", border: "1.5px solid #DC2626", display: "inline-flex", alignItems: "center", gap: "4px" }}>🔴 {t("overdueShort", lang, { n: chore.daysOverdue })}</span>}
+                                {isOverdue && <span style={{ fontSize: "12px", color: overdueChipFg, fontWeight: 700, background: overdueChipBg, padding: "2px 8px", borderRadius: "6px", border: `1.5px solid ${overdueChipBorder}`, display: "inline-flex", alignItems: "center", gap: "4px" }}>{overdueChipDot} {overdueChipText}</span>}
                                 {!isOverdue && chore.status === "due" && (
                                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>
                                         {chore.one_time && chore.deadline ? `${t("due", lang)} ${friendlyDate(parseDate(chore.deadline), lang)}` : t("dueToday", lang)}
