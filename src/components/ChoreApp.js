@@ -25,6 +25,7 @@ import {
     BellOff,
     Flame,
     ShoppingBag,
+    ShoppingCart,
     Coins,
     AlarmClock,
     X as XIcon,
@@ -219,23 +220,24 @@ const TANK_STATE_BADGE = {
 };
 
 // =========== STREAK SYSTEM ===========
-const computeStreak = (chores, completions) => {
-    if (!chores.length) return 0;
+const computeStreak = (chores, completions, groceryBoughtDates = new Set()) => {
+    if (!chores.length && groceryBoughtDates.size === 0) return 0;
     const t = today();
     const todayStr = formatDate(t);
     let streak = 0;
 
-    // Today counts if the user completed any recurring chore today.
-    // Overdue work piles don't gate the streak — the previous "all due
-    // chores done" rule meant a user 60 days behind could complete one
-    // chore and still see streak = 0, which broke the comeback flow.
+    // Today counts if the user completed any recurring chore today OR
+    // bought any grocery item today. Either is enough to extend the
+    // streak — buying milk shouldn't be worth less than ticking a
+    // chore for "did I show up today" purposes.
     const todayCompletedChoreIds = new Set(
         completions.filter((c) => c.completed_date === todayStr).map((c) => c.chore_id)
     );
     const completedRecurringToday = chores.some(
         (c) => !c.one_time && todayCompletedChoreIds.has(c.id)
     );
-    if (completedRecurringToday) streak++;
+    const boughtGroceryToday = groceryBoughtDates.has(todayStr);
+    if (completedRecurringToday || boughtGroceryToday) streak++;
 
     // Check past days
     for (let dayOffset = 1; dayOffset < 365; dayOffset++) {
@@ -1630,6 +1632,9 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [chores, setChores] = useState([]);
     const [completions, setCompletions] = useState([]);
     const [purchases, setPurchases] = useState([]);
+    const [groceryItems, setGroceryItems] = useState([]);
+    const [newGroceryName, setNewGroceryName] = useState("");
+    const [showBoughtToday, setShowBoughtToday] = useState(false);
     const [view, setView] = useState("today");
     const [showInventory, setShowInventory] = useState(false);
     const [showDoneToday, setShowDoneToday] = useState(false);
@@ -1742,14 +1747,16 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         if (!profile?.household_id) return;
         const choreIdsRes = await supabase.from("chores").select("id").eq("household_id", profile.household_id);
         const choreIds = choreIdsRes.data?.map((c) => c.id) || [];
-        const [choresRes, compsRes, purchasesRes] = await Promise.all([
+        const [choresRes, compsRes, purchasesRes, groceriesRes] = await Promise.all([
             supabase.from("chores").select("*").eq("household_id", profile.household_id).order("created_at"),
             supabase.from("completions").select("*").in("chore_id", choreIds),
             supabase.from("purchases").select("*").eq("household_id", profile.household_id).order("created_at"),
+            supabase.from("grocery_items").select("*").eq("household_id", profile.household_id).order("added_at"),
         ]);
         if (choresRes.data) setChores(choresRes.data);
         if (compsRes.data) setCompletions(compsRes.data);
         if (purchasesRes.data) setPurchases(purchasesRes.data);
+        if (groceriesRes.data) setGroceryItems(groceriesRes.data);
         setLoading(false);
     }, [profile?.household_id, supabase]);
 
@@ -1954,7 +1961,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         }).length
         : 0;
 
-    const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
+    const groceryBoughtDates = useMemo(
+        () => new Set(groceryItems.filter((g) => g.bought_at).map((g) => g.bought_at)),
+        [groceryItems]
+    );
+    const streak = useMemo(
+        () => computeStreak(chores, completions, groceryBoughtDates),
+        [chores, completions, groceryBoughtDates]
+    );
 
     // ===== COMEBACK STATE =====
     // Without an "overdue pile" to detect, comeback mode keys solely on
@@ -2083,14 +2097,22 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         return map;
     }, [chores]);
 
-    // Coins from chore rewards + a flat DAILY_BONUS_COINS for each day
-    // the household had any completion. Derived from completions so it
-    // backfills naturally for historical days too.
+    // Coins from chore rewards + grocery purchases + a flat
+    // DAILY_BONUS_COINS for each day the household had any activity
+    // (chore completion OR grocery purchase). Derived from existing
+    // data so historical days backfill for free.
     const coinsEarned = useMemo(() => {
         const choreSum = completions.reduce((sum, c) => sum + (choreRewardMap[c.chore_id] ?? 5), 0);
-        const distinctDays = new Set(completions.map((c) => c.completed_date)).size;
-        return choreSum + distinctDays * DAILY_BONUS_COINS;
-    }, [completions, choreRewardMap]);
+        const grocerySum = groceryItems.reduce(
+            (sum, g) => sum + (g.bought_at ? (g.reward ?? 3) : 0),
+            0
+        );
+        const activeDates = new Set([
+            ...completions.map((c) => c.completed_date),
+            ...groceryItems.filter((g) => g.bought_at).map((g) => g.bought_at),
+        ]);
+        return choreSum + grocerySum + activeDates.size * DAILY_BONUS_COINS;
+    }, [completions, groceryItems, choreRewardMap]);
 
     const coinsSpent = useMemo(
         () => purchases.reduce((sum, p) => sum + (STORE_ITEM_MAP[p.item_id]?.price ?? 0), 0),
@@ -2270,6 +2292,61 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         setCompletions((prev) => prev.filter((c) => c.chore_id !== choreId));
     };
 
+    // ===== Grocery list =====
+    const GROCERY_REWARD = 3;
+
+    const addGrocery = async () => {
+        const name = newGroceryName.trim();
+        if (!name || !profile?.household_id) return;
+        const payload = {
+            name,
+            household_id: profile.household_id,
+            added_by: user.id,
+            reward: GROCERY_REWARD,
+        };
+        const { data, error } = await supabase.from("grocery_items").insert(payload).select().single();
+        if (error) { alert("Couldn't add: " + error.message); return; }
+        if (data) {
+            setGroceryItems((prev) => [...prev, data]);
+            setNewGroceryName("");
+            pushToast({
+                title: `🥕 Added: ${data.name}`,
+                subtitle: t("groceryToBuy", lang),
+                color: "#F59E0B",
+                icon: <Plus size={16} strokeWidth={3} />,
+            });
+        }
+    };
+
+    const buyGrocery = async (itemId) => {
+        const item = groceryItems.find((g) => g.id === itemId);
+        if (!item || item.bought_at) return;
+        const updates = { bought_at: todayStr, bought_by: user.id };
+        const { error } = await supabase.from("grocery_items").update(updates).eq("id", itemId);
+        if (error) { alert("Couldn't mark bought: " + error.message); return; }
+        setGroceryItems((prev) => prev.map((g) => (g.id === itemId ? { ...g, ...updates } : g)));
+        pushToast({
+            title: `🛒 Bought: ${item.name}`,
+            subtitle: `+${item.reward ?? GROCERY_REWARD} coins`,
+            color: "#1D9E75",
+            icon: <Check size={16} strokeWidth={3} />,
+        });
+    };
+
+    const undoBuyGrocery = async (itemId) => {
+        const item = groceryItems.find((g) => g.id === itemId);
+        if (!item || !item.bought_at) return;
+        const updates = { bought_at: null, bought_by: null };
+        const { error } = await supabase.from("grocery_items").update(updates).eq("id", itemId);
+        if (error) return;
+        setGroceryItems((prev) => prev.map((g) => (g.id === itemId ? { ...g, ...updates } : g)));
+    };
+
+    const deleteGrocery = async (itemId) => {
+        await supabase.from("grocery_items").delete().eq("id", itemId);
+        setGroceryItems((prev) => prev.filter((g) => g.id !== itemId));
+    };
+
     if (loading) return null;
 
     const PULL_THRESHOLD = 64;
@@ -2361,6 +2438,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             }}>
                 {[
                     { id: "today", label: t("tab_today", lang), icon: Home, accent: "#D4537E" },
+                    { id: "grocery", label: t("tab_grocery", lang), icon: ShoppingCart, accent: "#F59E0B" },
                     { id: "week", label: t("tab_week", lang), icon: Clock, accent: "#7F77DD" },
                     { id: "month", label: t("tab_month", lang), icon: Calendar, accent: "#1D9E75" },
                     { id: "longterm", label: t("tab_longterm", lang), icon: RotateCcw, accent: "#BA7517" },
@@ -2726,6 +2804,25 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </Section>
                     )}
                 </div>
+            )}
+
+            {/* GROCERY LIST */}
+            {view === "grocery" && (
+                <GroceryView
+                    items={groceryItems}
+                    users={users}
+                    todayStr={todayStr}
+                    newName={newGroceryName}
+                    setNewName={setNewGroceryName}
+                    onAdd={addGrocery}
+                    onBuy={buyGrocery}
+                    onUndoBuy={undoBuyGrocery}
+                    onDelete={deleteGrocery}
+                    showBoughtToday={showBoughtToday}
+                    setShowBoughtToday={setShowBoughtToday}
+                    lang={lang}
+                    rewardPreview={GROCERY_REWARD}
+                />
             )}
 
             {/* THIS WEEK VIEW — 7-day calendar */}
@@ -3216,6 +3313,255 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 }
 
 // =========== SUB-COMPONENTS ===========
+
+function GroceryView({
+    items, users, todayStr, newName, setNewName,
+    onAdd, onBuy, onUndoBuy, onDelete,
+    showBoughtToday, setShowBoughtToday, lang, rewardPreview,
+}) {
+    // Active = not yet bought. Bought-today = bought today (counted toward
+    // the streak, shown in a collapsed celebration section). Older bought
+    // rows stay in the DB (so coin balance is stable) but are hidden from
+    // the UI to keep the list calm.
+    const pending = items.filter((g) => !g.bought_at);
+    const boughtToday = items.filter((g) => g.bought_at === todayStr);
+    const pendingReward = pending.reduce((s, g) => s + (g.reward ?? rewardPreview), 0);
+
+    return (
+        <div style={{ fontFamily: FONT }}>
+            {/* Add row */}
+            <div style={{
+                display: "flex", gap: "8px", marginBottom: "14px",
+            }}>
+                <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") onAdd(); }}
+                    placeholder={t("groceryPlaceholder", lang)}
+                    style={{
+                        flex: 1, padding: "10px 12px",
+                        border: "2px solid #2C2C2A", borderRadius: "10px",
+                        fontSize: "14px", fontFamily: FONT,
+                        boxShadow: boxShadow("#F59E0B", 2, 2),
+                    }}
+                />
+                <button
+                    onClick={onAdd}
+                    style={{
+                        padding: "10px 16px",
+                        background: "#F59E0B", color: "white",
+                        border: "2px solid #2C2C2A", borderRadius: "10px",
+                        cursor: "pointer", fontWeight: 700,
+                        display: "flex", alignItems: "center", gap: "4px",
+                        fontFamily: FONT,
+                        boxShadow: boxShadow("#2C2C2A", 2, 2),
+                    }}
+                >
+                    <Plus size={14} /> {t("addButton", lang)}
+                </button>
+            </div>
+
+            {/* Summary header */}
+            <div style={{
+                padding: "10px 14px", marginBottom: "12px",
+                background: "white", border: "2px solid #2C2C2A",
+                borderRadius: "12px",
+                boxShadow: boxShadow("#F59E0B", 2, 2),
+                fontFamily: FONT,
+                display: "flex", alignItems: "center", gap: "10px",
+            }}>
+                <span style={{ fontSize: "20px", lineHeight: 1 }}>🛒</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "13px", fontWeight: 800, color: "#2C2C2A" }}>
+                        {pending.length === 0
+                            ? t("groceryAllBought", lang)
+                            : t("groceryToBuyCount", lang, { n: pending.length })}
+                    </div>
+                    <div style={{ fontSize: "11px", fontWeight: 600, color: "#78350F", marginTop: "1px" }}>
+                        {pending.length > 0 && (
+                            <>
+                                <Coins size={10} strokeWidth={2.5} style={{ display: "inline", verticalAlign: "-1px" }} />
+                                {" "}
+                                {t("groceryEarnable", lang, { coins: pendingReward })}
+                            </>
+                        )}
+                        {pending.length === 0 && boughtToday.length > 0 && t("groceryNiceWork", lang)}
+                        {pending.length === 0 && boughtToday.length === 0 && t("groceryEmpty", lang)}
+                    </div>
+                </div>
+            </div>
+
+            {/* Pending items */}
+            {pending.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "14px" }}>
+                    {pending.map((item) => (
+                        <GroceryRow
+                            key={item.id}
+                            item={item}
+                            users={users}
+                            onBuy={() => onBuy(item.id)}
+                            onDelete={() => onDelete(item.id)}
+                            lang={lang}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {/* Bought today collapsed */}
+            {boughtToday.length > 0 && (
+                <div style={{ marginBottom: "1rem", fontFamily: FONT }}>
+                    <button
+                        onClick={() => setShowBoughtToday((v) => !v)}
+                        style={{
+                            width: "100%",
+                            padding: "9px 12px",
+                            background: "#F4FBF7",
+                            border: "2px solid #1D9E75",
+                            borderRadius: "12px",
+                            boxShadow: boxShadow("#1D9E75", 2, 2),
+                            cursor: "pointer", fontFamily: FONT,
+                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            gap: "8px",
+                        }}
+                    >
+                        <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 800, color: "#085041" }}>
+                            <Check size={13} strokeWidth={3} /> {t("groceryBoughtToday", lang, { n: boughtToday.length })}
+                        </span>
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: "#085041" }}>
+                            {showBoughtToday ? "▴" : "▾"}
+                        </span>
+                    </button>
+                    {showBoughtToday && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "10px" }}>
+                            {boughtToday.map((item) => (
+                                <GroceryRow
+                                    key={item.id}
+                                    item={item}
+                                    users={users}
+                                    onBuy={() => onUndoBuy(item.id)}
+                                    onDelete={() => onDelete(item.id)}
+                                    lang={lang}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {pending.length === 0 && boughtToday.length === 0 && (
+                <div style={{
+                    textAlign: "center", padding: "2.5rem 1rem",
+                    background: "#FFFBEB", borderRadius: "14px",
+                    border: "2px solid #2C2C2A", boxShadow: boxShadow("#F59E0B", 3, 3),
+                    fontFamily: FONT,
+                }}>
+                    <div style={{ fontSize: "36px", marginBottom: "8px" }}>🥕</div>
+                    <div style={{ fontWeight: 700, color: "#78350F", marginBottom: "4px", fontSize: "16px" }}>
+                        {t("groceryEmptyTitle", lang)}
+                    </div>
+                    <div style={{ fontSize: "13px", color: "#78350F" }}>
+                        {t("groceryEmptyHint", lang)}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function GroceryRow({ item, users, onBuy, onDelete, lang }) {
+    const addedBy = item.added_by ? users.find((u) => u.id === item.added_by) : null;
+    const isBought = !!item.bought_at;
+    const [pop, setPop] = useState(false);
+
+    const handleClick = () => {
+        setPop(true);
+        setTimeout(() => setPop(false), 500);
+        onBuy();
+    };
+
+    return (
+        <div
+            onClick={handleClick}
+            role="button" tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
+            style={{
+                display: "flex", alignItems: "center", gap: "10px",
+                padding: "9px 12px",
+                background: isBought ? "#F4FBF7" : "white",
+                border: `2px solid ${isBought ? "#1D9E75" : "#2C2C2A"}`,
+                borderRadius: "12px",
+                boxShadow: boxShadow(isBought ? "#1D9E75" : "#e8e8e8", 2, 2),
+                cursor: "pointer", fontFamily: FONT, userSelect: "none",
+                transition: "transform 0.2s, background 0.3s, border-color 0.3s, box-shadow 0.3s",
+                transform: pop ? "scale(1.02)" : "scale(1)",
+            }}
+        >
+            <div style={{
+                width: "20px", height: "20px", minWidth: "20px",
+                borderRadius: "50%",
+                border: `2.5px solid ${isBought ? "#1D9E75" : "#B4B2A9"}`,
+                background: isBought ? "#1D9E75" : "transparent",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+            }}>
+                <Check size={11} strokeWidth={3} color="white" style={{ opacity: isBought ? 1 : 0 }} />
+            </div>
+            <div style={{
+                flex: 1, fontSize: "13px", fontWeight: 700,
+                color: isBought ? "#888780" : "#2C2C2A",
+                textDecoration: isBought ? "line-through" : "none",
+                wordBreak: "break-word",
+            }}>
+                {item.name}
+            </div>
+            {!isBought && (
+                <span style={{
+                    fontSize: "10px", fontWeight: 700, color: "#78350F",
+                    background: "#FEF3C7",
+                    padding: "1px 6px", borderRadius: "5px",
+                    border: "1px solid #F59E0B",
+                    display: "inline-flex", alignItems: "center", gap: "2px",
+                    flexShrink: 0,
+                }}>
+                    <Coins size={9} strokeWidth={2.5} /> +{item.reward ?? 3}
+                </span>
+            )}
+            {addedBy && (
+                <span
+                    title={`Added by ${addedBy.name}`}
+                    style={{
+                        flexShrink: 0,
+                        width: "18px", height: "18px", borderRadius: "50%",
+                        background: addedBy.color || "#888780",
+                        border: "1.5px solid #2C2C2A",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "9px", fontWeight: 800, color: "white",
+                    }}
+                >
+                    {addedBy.name?.[0]?.toUpperCase() || "•"}
+                </span>
+            )}
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete "${item.name}"?`)) onDelete();
+                }}
+                title="Delete"
+                style={{
+                    flexShrink: 0,
+                    width: "22px", height: "22px",
+                    border: "none", background: "transparent",
+                    color: "#B4B2A9", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    borderRadius: "4px",
+                }}
+            >
+                <Trash2 size={12} />
+            </button>
+        </div>
+    );
+}
 
 function EmptyState({ text }) {
     return (

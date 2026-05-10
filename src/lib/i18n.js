@@ -51,6 +51,7 @@ export const translations = {
 
         // ChoreApp tabs
         tab_today: "Today",
+        tab_grocery: "Grocery",
         tab_week: "This Week",
         tab_month: "This Month",
         tab_longterm: "Long-Term",
@@ -72,6 +73,18 @@ export const translations = {
         progress_timeLeft: "about {time} left",
         progress_bonusWaiting: "🎁 +{coins} daily bonus on your first chore",
         doneToday: "Done today ({n})",
+
+        // Grocery list
+        groceryPlaceholder: "milk, eggs, bread…",
+        groceryToBuy: "on the list",
+        groceryToBuyCount: "{n} on the list",
+        groceryAllBought: "All bought — nice!",
+        groceryEarnable: "+{coins} coins to earn",
+        groceryNiceWork: "🐠 nice work today",
+        groceryEmpty: "add something to start a list",
+        groceryEmptyTitle: "Nothing on the list",
+        groceryEmptyHint: "Add something above to share the list with your household.",
+        groceryBoughtToday: "Bought today ({n})",
         weekSpotlightTitle: "Bigger projects this week",
         weekTimeTotal: "{time} this week · {n} chores",
         weekTimeCount: "{n} this week",
@@ -263,6 +276,7 @@ export const translations = {
         hh_err_no_profile: "Hồ sơ của bạn chưa tồn tại. Hãy đăng xuất, đăng nhập lại và thử lại.",
 
         tab_today: "Hôm nay",
+        tab_grocery: "Đi chợ",
         tab_week: "Tuần này",
         tab_month: "Tháng này",
         tab_longterm: "Dài hạn",
@@ -284,6 +298,17 @@ export const translations = {
         progress_timeLeft: "còn khoảng {time}",
         progress_bonusWaiting: "🎁 +{coins} thưởng cho việc đầu tiên hôm nay",
         doneToday: "Đã xong hôm nay ({n})",
+
+        groceryPlaceholder: "sữa, trứng, bánh mì…",
+        groceryToBuy: "trên danh sách",
+        groceryToBuyCount: "{n} món cần mua",
+        groceryAllBought: "Đã mua hết — tuyệt!",
+        groceryEarnable: "kiếm thêm +{coins} xu",
+        groceryNiceWork: "🐠 làm tốt lắm",
+        groceryEmpty: "thêm món gì đó để bắt đầu",
+        groceryEmptyTitle: "Danh sách trống",
+        groceryEmptyHint: "Thêm món để chia sẻ với gia đình.",
+        groceryBoughtToday: "Đã mua hôm nay ({n})",
         weekSpotlightTitle: "Việc lớn tuần này",
         weekTimeTotal: "{time} tuần này · {n} việc",
         weekTimeCount: "{n} việc tuần này",
