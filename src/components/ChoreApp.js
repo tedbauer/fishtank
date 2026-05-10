@@ -2242,6 +2242,19 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             setNewChoreName(""); setNewChoreDesc("");
             setNewChoreOneTime(false); setNewChoreDeadline("");
             setNewChoreMinutes("");
+            const freqLabel = data.one_time
+                ? t("oneTime", lang)
+                : t(FREQ[data.freq]?.labelKey || "freq_weekly", lang);
+            const subtitleParts = [freqLabel];
+            if (data.estimated_minutes != null) {
+                subtitleParts.push(formatMinutesShort(data.estimated_minutes, lang));
+            }
+            pushToast({
+                title: `🐠 Added: ${data.name}`,
+                subtitle: subtitleParts.join(" · "),
+                color: data.one_time ? "#7C3AED" : (FREQ[data.freq]?.color || "#7F77DD"),
+                icon: <Plus size={16} strokeWidth={3} />,
+            });
         }
     };
 
