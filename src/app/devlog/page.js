@@ -4,6 +4,18 @@ const FONT = "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive";
 
 const ENTRIES = [
     {
+        date: "May 10, 2026 (afternoon)",
+        title: "Time Estimates, Calendar Tabs, Less Stressful List",
+        items: [
+            "⏱️ Each chore can now have a time estimate. Set it on Add Chore (the new minutes input) or in Manage. The Today tab shows a header like 'About 30 min today · 5 left' so you can plan.",
+            "📅 This Week became a 7-day calendar. Each day card shows the day's scheduled chores with their time estimate, today highlighted, with a per-day and per-week total.",
+            "📆 This Month became a month calendar grid (the same layout the Schedule tab used). Tap a day to see what's scheduled, with checkmarks for what was completed.",
+            "🐟 Schedule tab is gone — its functionality moved into This Week and This Month so each tab tells you when things happen at its own zoom level.",
+            "🌿 Today rows got lighter: the redundant 'due today' chip is gone (the section heading already says it), and the 'last: X days ago' subtitle is gone (it was emotional baggage). What's left: a checkbox, the chore name, the cadence chip, the time pill if set, and the assign dropdown.",
+            "⚠️ DB migration: run supabase_migration_07_time_estimate.sql before deploying. Adds a nullable estimated_minutes smallint column with a 1–600 range check.",
+        ],
+    },
+    {
         date: "May 10, 2026",
         title: "Schedule, Calendar, and No More Overdue",
         items: [
