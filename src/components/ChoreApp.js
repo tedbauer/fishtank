@@ -31,6 +31,7 @@ import {
     Package,
 } from "lucide-react";
 import HeatmapView from "@/components/HeatmapView";
+import ScheduleView from "@/components/ScheduleView";
 import ProfilePicturePicker, { Avatar } from "@/components/ProfilePicturePicker";
 import { t, LANGUAGES } from "@/lib/i18n";
 
@@ -65,6 +66,82 @@ const parseDate = (s) => {
     const d = new Date(s + "T00:00:00");
     d.setHours(0, 0, 0, 0);
     return d;
+};
+
+// =========== SCHEDULING ===========
+// Each recurring chore has a fixed schedule: daily fires every day,
+// every2 fires every other day from creation, weekly/biweekly land on
+// a specific day-of-week, and monthly lands on a specific day-of-month.
+// Schedule overrides live on the chore row (schedule_dow,
+// schedule_week_parity, schedule_dom); when those are NULL we fall
+// back to deriving from created_at, so existing chores keep working.
+//
+// Skipping a scheduled day costs you the coins for that occurrence —
+// it does NOT push the chore forward or stack overdue. The chore just
+// reappears on its next scheduled day.
+
+const dayOfWeek = (d) => d.getDay();
+const weekParityOf = (d) => {
+    // Stable parity tied to a UTC reference (Sunday 1970-01-04). Two
+    // dates 7 days apart land in the same parity; 14 days flips back.
+    const refMs = Date.UTC(1970, 0, 4);
+    const weeks = Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - refMs) / (7 * 86400000));
+    return ((weeks % 2) + 2) % 2;
+};
+const daysInMonth = (year, monthIndex) =>
+    new Date(year, monthIndex + 1, 0).getDate();
+
+const choreSchedule = (chore) => {
+    const created = chore.created_at
+        ? parseDate(chore.created_at.split("T")[0])
+        : today();
+    return {
+        dow: chore.schedule_dow ?? dayOfWeek(created),
+        weekParity:
+            chore.schedule_week_parity ?? weekParityOf(created),
+        dom: chore.schedule_dom ?? created.getDate(),
+        created,
+    };
+};
+
+const isScheduledForDay = (chore, date) => {
+    if (chore.one_time) return false;
+    const sched = choreSchedule(chore);
+    if (date < sched.created) return false;
+    const freq = chore.freq;
+    if (freq === "daily") return true;
+    if (freq === "every2") {
+        return daysBetween(sched.created, date) % 2 === 0;
+    }
+    if (freq === "weekly") return dayOfWeek(date) === sched.dow;
+    if (freq === "biweekly") {
+        return (
+            dayOfWeek(date) === sched.dow &&
+            weekParityOf(date) === sched.weekParity
+        );
+    }
+    if (freq === "monthly") {
+        const dim = daysInMonth(date.getFullYear(), date.getMonth());
+        return date.getDate() === Math.min(sched.dom, dim);
+    }
+    // quarterly / biannual: every N days from creation
+    const freqDays = FREQ[freq]?.days || 7;
+    return daysBetween(sched.created, date) % freqDays === 0;
+};
+
+const nextScheduledDate = (chore, fromDate) => {
+    if (chore.one_time) {
+        if (chore.deadline) return parseDate(chore.deadline.split("T")[0]);
+        return null;
+    }
+    const start = new Date(fromDate);
+    start.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 400; i++) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + i);
+        if (isScheduledForDay(chore, d)) return d;
+    }
+    return null;
 };
 
 const friendlyDate = (d, lang = "en") => {
@@ -1548,11 +1625,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [newChoreDeadline, setNewChoreDeadline] = useState("");
     const [linkCopied, setLinkCopied] = useState(false);
     const [notifStatus, setNotifStatus] = useState("default"); // default | granted | denied | subscribing
-    const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, overdueAlerts: true, streakWarnings: true, choreDoneAlerts: true });
+    const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, streakWarnings: true, choreDoneAlerts: true });
     const [streakAnim, setStreakAnim] = useState(false);
     const [pullDelta, setPullDelta] = useState(0);
     const [toasts, setToasts] = useState([]);
-    const [showCatchingUp, setShowCatchingUp] = useState(false);
     const prevStreakRef = useRef(null);
     const pullRef = useRef({ active: false, startY: 0, delta: 0 });
     const toastIdRef = useRef(0);
@@ -1750,7 +1826,12 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         window.location.href = "/login";
     };
 
-    // Chore status — FIXED: daily chores due in <=1 day show as "due"
+    // Chore status — schedule-driven. A chore is "due" only on its
+    // scheduled days (per isScheduledForDay). Skipping a scheduled day
+    // does not stack overdue: the chore quietly reappears on its next
+    // scheduled day. The "did it early" guard keeps a chore from
+    // showing on its scheduled day if a fresh completion already
+    // covers this cycle (last completion within freqDays - 1 days).
     const choreStatus = (chore) => {
         if (chore.snoozed_until && chore.snoozed_until > todayStr) {
             return { status: "snoozed", snoozeUntil: parseDate(chore.snoozed_until), lastDone: null };
@@ -1761,8 +1842,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             if (anyComp) return { status: "done", one_time_completed: true, lastDone: { date: parseDate(anyComp.completed_date), userId: anyComp.user_id } };
             if (chore.deadline) {
                 const daysLeft = daysBetween(today(), parseDate(chore.deadline));
-                if (daysLeft < 0) return { status: "overdue", daysOverdue: -daysLeft, lastDone: null };
-                if (daysLeft === 0) return { status: "due", daysOverdue: 0, lastDone: null };
+                if (daysLeft <= 0) return { status: "due", daysOverdue: 0, lastDone: null };
                 return { status: "done", daysUntilDue: daysLeft, lastDone: null };
             }
             return { status: "due", daysOverdue: 0, lastDone: null };
@@ -1771,31 +1851,21 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         const last = completions
             .filter((c) => c.chore_id === chore.id)
             .sort((a, b) => new Date(b.completed_date) - new Date(a.completed_date))[0];
-
+        const lastDone = last ? { date: parseDate(last.completed_date), userId: last.user_id } : null;
         const freqDays = FREQ[chore.freq]?.days || 7;
-        let baselineDate;
+        const t = today();
 
-        if (last) {
-            baselineDate = parseDate(last.completed_date);
-        } else if (chore.created_at) {
-            baselineDate = parseDate(chore.created_at.split("T")[0]);
-        } else {
-            return { status: "due", daysOverdue: 0, lastDone: null };
+        const scheduledToday = isScheduledForDay(chore, t);
+        const recentlyDone =
+            last && daysBetween(parseDate(last.completed_date), t) < freqDays - 1;
+
+        if (scheduledToday && !recentlyDone) {
+            return { status: "due", daysOverdue: 0, lastDone };
         }
 
-        const daysSince = daysBetween(baselineDate, today());
-        if (daysSince >= freqDays) {
-            return {
-                status: daysSince > freqDays + 3 ? "overdue" : "due",
-                daysOverdue: daysSince - freqDays,
-                lastDone: last ? { date: parseDate(last.completed_date), userId: last.user_id } : null,
-            };
-        }
-        return {
-            status: "done",
-            daysUntilDue: freqDays - daysSince,
-            lastDone: last ? { date: parseDate(last.completed_date), userId: last.user_id } : null,
-        };
+        const next = nextScheduledDate(chore, new Date(t.getTime() + 86400000));
+        const daysUntilDue = next ? Math.max(1, daysBetween(t, next)) : freqDays;
+        return { status: "done", daysUntilDue, lastDone };
     };
 
     const todayStr = formatDate(today());
@@ -1815,15 +1885,15 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
     const snoozedList = choresWithStatus.filter((c) => c.status === "snoozed");
 
-    // ===== NEW TAB LOGIC =====
-    // TODAY: anything due/overdue OR completed today, AND short-cycle stuff due within 1 day
+    // ===== TAB LOGIC =====
+    // TODAY: anything actually scheduled for today (status === "due") plus
+    // anything completed today. No "overdue" carry-forward — the schedule
+    // is the only signal.
     const todayList = choresWithStatus.filter((c) => {
         if (c.status === "snoozed") return false;
         if (c.one_time_completed && !c.completedToday) return false;
         if (c.completedToday) return true;
-        if (c.status === "due" || c.status === "overdue") return true;
-        // Show short-cycle chores that are due tomorrow (1 day away) in Today
-        if (!c.one_time && c.status === "done" && c.daysUntilDue <= 1) return true;
+        if (c.status === "due") return true;
         return false;
     });
 
@@ -1866,11 +1936,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
 
     // ===== COMEBACK STATE =====
-    // When the streak is broken AND the user has been away (or has a real
-    // pile of overdue chores), we soften the UI: friendlier banner, amber
-    // overdue chips instead of red, and the overdue stack collapses behind
-    // a "show" disclosure so the chore list stops feeling like a wall.
-    const overdueChores = choresWithStatus.filter((c) => c.status === "overdue");
+    // Without an "overdue pile" to detect, comeback mode keys solely on
+    // how long the user has been away: streak broken AND last completion
+    // was 3+ days ago. Mirrors the friendlier banner + softer notification
+    // tone that already exist for that case.
     const completedTodayAny = choresWithStatus.some((c) => c.completedToday);
     const lastCompletionDate = useMemo(() => {
         let latest = null;
@@ -1886,34 +1955,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const isComebackMode =
         streak === 0 &&
         !completedTodayAny &&
-        (overdueChores.length >= 5 ||
-            (daysSinceLastCompletion !== null && daysSinceLastCompletion >= 3));
+        daysSinceLastCompletion !== null &&
+        daysSinceLastCompletion >= 3;
 
     // Visible-in-tank purchases (excludes inventory items, which sit at
     // negative coordinates). Buying anything that's actually in the tank
     // pushes a healthy tank to "ultra" — the user has earned decoration.
     const hasPurchases = purchases.some((p) => p.x >= 0);
     const tankState = computeTankState({ streak, isComebackMode, hasPurchases });
-
-    // In comeback mode we hide overdue chores from the per-owner sections
-    // and tuck them into a single collapsible "Catching up" group, so the
-    // wall of red doesn't greet someone who's already feeling behind.
-    const overdueTodayIds = useMemo(
-        () => new Set(todayList.filter((c) => c.status === "overdue").map((c) => c.id)),
-        [todayList]
-    );
-    const myChoresVisible = isComebackMode
-        ? myChores.filter((c) => !overdueTodayIds.has(c.id))
-        : myChores;
-    const unassignedVisible = isComebackMode
-        ? unassigned.filter((c) => !overdueTodayIds.has(c.id))
-        : unassigned;
-    const partnerChoresVisible = isComebackMode
-        ? partnerChores.filter((c) => !overdueTodayIds.has(c.id))
-        : partnerChores;
-    const catchingUpPile = isComebackMode
-        ? todayList.filter((c) => overdueTodayIds.has(c.id) && !c.completedToday)
-        : [];
 
     // Detect streak increase and animate
     useEffect(() => {
@@ -2266,6 +2315,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     { id: "week", label: t("tab_week", lang), icon: Clock, accent: "#7F77DD" },
                     { id: "month", label: t("tab_month", lang), icon: Calendar, accent: "#1D9E75" },
                     { id: "longterm", label: t("tab_longterm", lang), icon: RotateCcw, accent: "#BA7517" },
+                    { id: "schedule", label: t("tab_schedule", lang), icon: Calendar, accent: "#1D9E75" },
                     { id: "heatmap", label: t("tab_heatmap", lang), icon: BarChart3, accent: "#D85A30" },
                     { id: "store", label: t("tab_store", lang), icon: ShoppingBag, accent: "#F59E0B" },
                     { id: "manage", label: t("tab_manage", lang), icon: Home, accent: "#888780" },
@@ -2494,65 +2544,20 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     )}
 
-                    {myChoresVisible.length > 0 && (
+                    {myChores.length > 0 && (
                         <Section title={t("yourTurn", lang, { name: currentUser.name })} accentColor={currentUser.color}>
-                            {myChoresVisible.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
+                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
                     )}
-                    {unassignedVisible.length > 0 && (
+                    {unassigned.length > 0 && (
                         <Section title={t("upForGrabs", lang)} accentColor="#888780">
-                            {unassignedVisible.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
+                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
                     )}
-                    {partnerChoresVisible.length > 0 && partner && (
+                    {partnerChores.length > 0 && partner && (
                         <Section title={t("partnersTurn", lang, { name: partner.name })} accentColor={partner.color}>
-                            {partnerChoresVisible.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
+                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
                         </Section>
-                    )}
-
-                    {catchingUpPile.length > 0 && (
-                        <div style={{ marginBottom: "1.5rem", fontFamily: FONT }}>
-                            <button
-                                onClick={() => setShowCatchingUp((s) => !s)}
-                                style={{
-                                    width: "100%", padding: "10px 14px",
-                                    background: "#FFF8EC", border: "2px solid #2C2C2A",
-                                    borderRadius: "12px", boxShadow: boxShadow("#F59E0B", 2, 2),
-                                    cursor: "pointer", fontFamily: FONT,
-                                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                                    gap: "8px",
-                                }}
-                            >
-                                <span style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 700, color: "#7C2D12" }}>
-                                    <AlarmClock size={14} color="#B45309" />
-                                    {showCatchingUp
-                                        ? t("comebackCatchingUp", lang, { n: catchingUpPile.length })
-                                        : t("comebackPilePeek", lang, { n: catchingUpPile.length })}
-                                </span>
-                                <span style={{ fontSize: "12px", fontWeight: 700, color: "#B45309" }}>
-                                    {showCatchingUp ? t("comebackPileHide", lang) : "▾"}
-                                </span>
-                            </button>
-                            {showCatchingUp && (
-                                <div style={{ marginTop: "10px" }}>
-                                    {catchingUpPile.map((c) => (
-                                        <ChoreRow
-                                            key={c.id}
-                                            chore={c}
-                                            users={users}
-                                            currentUser={currentUser}
-                                            onComplete={completeChore}
-                                            onCompleteTogether={completeChoreTogether}
-                                            onUndo={undoComplete}
-                                            onAssign={assignOwner}
-                                            onSnooze={snoozeChore}
-                                            lang={lang}
-                                            soft
-                                        />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
                     )}
 
                     {snoozedList.length > 0 && (
@@ -2686,6 +2691,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>The Big Stuff — Longer Cycles 🔮</div>
                     {longtermList.length === 0 && <EmptyState text="Nothing long-term pending!" />}
                     {longtermList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="longterm" lang={lang} />)}
+                </div>
+            )}
+
+            {/* SCHEDULE VIEW */}
+            {view === "schedule" && (
+                <div>
+                    <ScheduleView chores={chores} completions={completions} lang={lang} />
                 </div>
             )}
 
@@ -3081,7 +3093,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     {[
                                         { key: "choreDoneAlerts", label: t("notif_partnerActivity", lang), desc: t("notif_partnerActivityDesc", lang) },
                                         { key: "dailySummary", label: t("notif_dailySummary", lang), desc: t("notif_dailySummaryDesc", lang) },
-                                        { key: "overdueAlerts", label: t("notif_overdue", lang), desc: t("notif_overdueDesc", lang) },
                                         { key: "streakWarnings", label: t("notif_streak", lang), desc: t("notif_streakDesc", lang) },
                                     ].map(({ key, label, desc }) => (
                                         <label key={key} style={{
@@ -3196,23 +3207,9 @@ const SNOOZE_OPTIONS = [
     { label: "2 weeks", days: 14 },
 ];
 
-function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign, onSnooze, lang = "en", soft = false }) {
+function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, onUndo, onAssign, onSnooze, lang = "en" }) {
     const freqInfo = FREQ[chore.freq];
-    const isOverdue = chore.status === "overdue";
     const isDone = chore.completedToday;
-    // In comeback mode, swap the alarm-red overdue palette for a calmer
-    // amber so the user doesn't feel ambushed by a wall of red rows.
-    const overdueBg = soft ? "#FFF8EC" : "#FEF2F2";
-    const overdueBorder = soft ? "#F59E0B" : "#EF4444";
-    const overdueShadow = soft ? "#F59E0B" : "#EF4444";
-    const overdueText = soft ? "#B45309" : "#DC2626";
-    const overdueChipBg = soft ? "#FEF3C7" : "#EF4444";
-    const overdueChipBorder = soft ? "#F59E0B" : "#DC2626";
-    const overdueChipFg = soft ? "#7C2D12" : "white";
-    const overdueChipDot = soft ? "🟡" : "🔴";
-    const overdueChipText = soft
-        ? t("catchingUpShort", lang, { n: chore.daysOverdue })
-        : t("overdueShort", lang, { n: chore.daysOverdue });
     const [justChecked, setJustChecked] = useState(false);
     const [completeAs, setCompleteAs] = useState(chore.owner_id || "");
     const [snoozeOpen, setSnoozeOpen] = useState(false);
@@ -3241,10 +3238,10 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
         <div style={{
             display: "flex", flexDirection: "column", padding: "12px 14px",
             marginBottom: "8px", fontFamily: FONT,
-            background: isDone ? "#F4FBF7" : isOverdue ? overdueBg : "white",
-            border: `2px solid ${isDone ? "#1D9E75" : isOverdue ? overdueBorder : "#2C2C2A"}`,
+            background: isDone ? "#F4FBF7" : "white",
+            border: `2px solid ${isDone ? "#1D9E75" : "#2C2C2A"}`,
             borderRadius: "12px",
-            boxShadow: isDone ? boxShadow("#1D9E75", 2, 2) : isOverdue ? boxShadow(overdueShadow, 3, 3) : boxShadow("#e8e8e8", 2, 2),
+            boxShadow: isDone ? boxShadow("#1D9E75", 2, 2) : boxShadow("#e8e8e8", 2, 2),
             transition: "background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease",
         }}>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -3269,7 +3266,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                     <div style={{
                         fontSize: "14px", fontWeight: 700,
                         textDecoration: isDone ? "line-through" : "none",
-                        color: isDone ? "#b4b2a9" : isOverdue ? overdueText : "#2C2C2A",
+                        color: isDone ? "#b4b2a9" : "#2C2C2A",
                     }}>
                         {chore.name}
                     </div>
@@ -3310,8 +3307,7 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                         {t(freqInfo.labelKey, lang)}
                                     </span>
                                 )}
-                                {isOverdue && <span style={{ fontSize: "12px", color: overdueChipFg, fontWeight: 700, background: overdueChipBg, padding: "2px 8px", borderRadius: "6px", border: `1.5px solid ${overdueChipBorder}`, display: "inline-flex", alignItems: "center", gap: "4px" }}>{overdueChipDot} {overdueChipText}</span>}
-                                {!isOverdue && chore.status === "due" && (
+                                {chore.status === "due" && (
                                     <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>
                                         {chore.one_time && chore.deadline ? `${t("due", lang)} ${friendlyDate(parseDate(chore.deadline), lang)}` : t("dueToday", lang)}
                                     </span>
@@ -3413,20 +3409,18 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
                 : chore.daysUntilDue === 1
                     ? t("inOneDay", lang)
                     : t("inDays", lang, { n: chore.daysUntilDue }))
-            : chore.status === "overdue"
-                ? t("overdueShort2", lang, { n: chore.daysOverdue })
-                : t("dueNow", lang);
+            : t("dueNow", lang);
 
-    const isOverdue = chore.status === "overdue" || chore.status === "due";
+    const isDue = chore.status === "due";
 
     return (
         <div style={{
             padding: "10px 14px",
             marginBottom: removing ? "0px" : "8px", fontFamily: FONT,
-            background: checked ? "#F4FBF7" : isOverdue ? "#FEF2F2" : "white",
-            border: `2px solid ${checked ? "#1D9E75" : isOverdue ? "#EF4444" : "#2C2C2A"}`,
+            background: checked ? "#F4FBF7" : isDue ? "#FEF3C7" : "white",
+            border: `2px solid ${checked ? "#1D9E75" : isDue ? "#F59E0B" : "#2C2C2A"}`,
             borderRadius: "12px",
-            boxShadow: checked ? boxShadow("#1D9E75", 2, 2) : isOverdue ? boxShadow("#EF4444", 3, 3) : boxShadow("#e8e8e8", 2, 2),
+            boxShadow: checked ? boxShadow("#1D9E75", 2, 2) : isDue ? boxShadow("#F59E0B", 2, 2) : boxShadow("#e8e8e8", 2, 2),
             maxHeight: removing ? "0px" : "120px",
             opacity: removing ? 0 : 1,
             paddingTop: removing ? "0px" : "10px", paddingBottom: removing ? "0px" : "10px",
@@ -3491,6 +3485,7 @@ function AnimatedCheckRow({ chore, users, onComplete, onAssign, variant = "week"
 
 // =========== MANAGE CHORE ROW (EDITABLE) ===========
 function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en" }) {
+    const sched = choreSchedule(chore);
     const [editing, setEditing] = useState(false);
     const [editName, setEditName] = useState(chore.name);
     const [editDesc, setEditDesc] = useState(chore.description || "");
@@ -3499,10 +3494,13 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
     const [editReward, setEditReward] = useState(String(chore.reward ?? 5));
     const [editOneTime, setEditOneTime] = useState(chore.one_time || false);
     const [editDeadline, setEditDeadline] = useState(chore.deadline || "");
+    const [editDow, setEditDow] = useState(sched.dow);
+    const [editWeekParity, setEditWeekParity] = useState(sched.weekParity);
+    const [editDom, setEditDom] = useState(sched.dom);
 
     const handleSave = () => {
         const rewardNum = Math.max(0, parseInt(editReward, 10) || 0);
-        onUpdate(chore.id, {
+        const updates = {
             name: editName.trim() || chore.name,
             description: editDesc.trim() || null,
             freq: editOneTime ? "weekly" : editFreq,
@@ -3510,7 +3508,16 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
             reward: rewardNum,
             one_time: editOneTime,
             deadline: editOneTime && editDeadline ? editDeadline : null,
-        });
+            // Persist schedule overrides only for the freq variants that
+            // have an editable schedule. Set the others to NULL so old
+            // values don't accidentally start applying after a freq swap.
+            schedule_dow:
+                !editOneTime && (editFreq === "weekly" || editFreq === "biweekly") ? editDow : null,
+            schedule_week_parity:
+                !editOneTime && editFreq === "biweekly" ? editWeekParity : null,
+            schedule_dom: !editOneTime && editFreq === "monthly" ? editDom : null,
+        };
+        onUpdate(chore.id, updates);
         onAssign(chore.id, editOwner || null);
         setEditing(false);
     };
@@ -3523,6 +3530,9 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
         setEditReward(String(chore.reward ?? 5));
         setEditOneTime(chore.one_time || false);
         setEditDeadline(chore.deadline || "");
+        setEditDow(sched.dow);
+        setEditWeekParity(sched.weekParity);
+        setEditDom(sched.dom);
         setEditing(false);
     };
 
@@ -3559,6 +3569,77 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
                         {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
                 </div>
+                {!editOneTime && (editFreq === "weekly" || editFreq === "biweekly" || editFreq === "monthly") && (
+                    <div style={{
+                        marginBottom: "8px", padding: "8px 10px",
+                        background: "#F1EFE8", borderRadius: "8px",
+                        border: "2px solid #B4B2A9",
+                    }}>
+                        <div style={{ fontSize: "11px", fontWeight: 700, color: "#555", marginBottom: "6px" }}>
+                            {t("schedule_runOn", lang)}
+                        </div>
+                        {(editFreq === "weekly" || editFreq === "biweekly") && (
+                            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                                {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+                                    <button
+                                        key={d}
+                                        onClick={() => setEditDow(d)}
+                                        style={{
+                                            padding: "5px 9px", fontSize: "11px", fontWeight: 700,
+                                            fontFamily: FONT,
+                                            background: editDow === d ? "#7F77DD" : "white",
+                                            color: editDow === d ? "white" : "#2C2C2A",
+                                            border: "2px solid #2C2C2A", borderRadius: "6px",
+                                            cursor: "pointer", flex: 1, minWidth: "32px",
+                                        }}
+                                    >
+                                        {t(`dow_short_${d}`, lang)}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {editFreq === "biweekly" && (
+                            <div style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
+                                {[0, 1].map((p) => (
+                                    <button
+                                        key={p}
+                                        onClick={() => setEditWeekParity(p)}
+                                        style={{
+                                            padding: "5px 10px", fontSize: "11px", fontWeight: 700,
+                                            fontFamily: FONT,
+                                            background: editWeekParity === p ? "#378ADD" : "white",
+                                            color: editWeekParity === p ? "white" : "#2C2C2A",
+                                            border: "2px solid #2C2C2A", borderRadius: "6px",
+                                            cursor: "pointer", flex: 1,
+                                        }}
+                                    >
+                                        {t(p === 0 ? "schedule_weekA" : "schedule_weekB", lang)}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {editFreq === "monthly" && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <span style={{ fontSize: "12px", fontWeight: 600, color: "#555" }}>
+                                    {t("schedule_dayOfMonth", lang)}
+                                </span>
+                                <input
+                                    type="number" min="1" max="31"
+                                    value={editDom}
+                                    onChange={(e) => {
+                                        const v = parseInt(e.target.value, 10);
+                                        if (!isNaN(v)) setEditDom(Math.max(1, Math.min(31, v)));
+                                    }}
+                                    style={{
+                                        width: "56px", padding: "4px 6px",
+                                        border: "2px solid #2C2C2A", borderRadius: "6px",
+                                        fontSize: "12px", fontFamily: FONT, fontWeight: 700,
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div onClick={() => setEditOneTime((v) => !v)} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px", cursor: "pointer", fontSize: "12px", fontWeight: 600, color: editOneTime ? "#5B21B6" : "#888780", userSelect: "none" }}>
                     <div style={{ width: "18px", height: "18px", borderRadius: "4px", border: "2px solid #2C2C2A", flexShrink: 0, background: editOneTime ? "#7C3AED" : "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         {editOneTime && <Check size={11} color="white" strokeWidth={3} />}

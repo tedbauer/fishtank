@@ -4,6 +4,18 @@ const FONT = "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive";
 
 const ENTRIES = [
     {
+        date: "May 10, 2026",
+        title: "Schedule, Calendar, and No More Overdue",
+        items: [
+            "🗓️ Each chore now has a schedule. Daily chores fire every day, weekly/biweekly chores land on a specific day-of-week, monthly chores on a specific day-of-month. Skipping a day no longer stacks up as 'overdue' — you just don't earn the coins for that occurrence and the chore reappears on its next scheduled day.",
+            "📅 New Schedule tab — a month calendar with colored dots showing which chores land on which day. Tap a day to see the full list. Find it next to Heatmap.",
+            "✏️ Edit a chore's schedule from the Manage tab — pick the day of week (and Week A vs B for biweekly) or day of month for monthly. New chores default to the day of week / day of month they were created on.",
+            "🐟 Today list dropped from 'all due + everything past due' down to 'just what's actually scheduled today'. The wall of red overdue stamps is gone; chores get a calmer 'due today' chip and that's it.",
+            "🔕 Push notifications switched to the same model — daily summary lists only what's on the schedule for today, not what was missed.",
+            "⚠️ DB migration: run supabase_migration_06_schedule.sql to add the schedule_dow / schedule_week_parity / schedule_dom columns. Existing chores keep working with NULL overrides (defaults derive from created_at).",
+        ],
+    },
+    {
         date: "May 9, 2026",
         title: "Tank Quality, Simplified",
         items: [
