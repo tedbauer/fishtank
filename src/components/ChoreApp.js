@@ -49,6 +49,12 @@ const FREQ = {
 
 const USER_COLORS = ["#7F77DD", "#1D9E75", "#D4537E", "#378ADD", "#D85A30", "#BA7517"];
 
+// Flat bonus coins awarded the first time you complete any chore on a
+// given day. The structure incentivizes "showing up" (one chore = the
+// bonus) without making the marginal chore reward feel small — doing
+// more is still bonus-on-bonus, just at the chore's reward rate.
+const DAILY_BONUS_COINS = 5;
+
 const FONT = "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive";
 
 // Solid color box shadow helper
@@ -2021,6 +2027,10 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     // Actions
     const completeChore = async (choreId) => {
         const chore = chores.find((c) => c.id === choreId);
+        // Capture this before optimistic state update so we know if this
+        // is the first completion of the day (and therefore earns the
+        // daily bonus).
+        const wasFirstToday = !completions.some((c) => c.completed_date === todayStr);
         const { data, error } = await supabase
             .from("completions")
             .insert({ chore_id: choreId, user_id: user.id, completed_date: todayStr })
@@ -2034,9 +2044,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             notifyChoreComplete(chore?.name || "a chore");
             const reward = chore?.reward ?? 5;
             pushToast({
-                title: `Done: ${chore?.name || "chore"}`,
-                subtitle: `+${reward} coins`,
-                color: FREQ[chore?.freq]?.color || "#22C55E",
+                title: wasFirstToday
+                    ? `🎁 First today: ${chore?.name || "chore"}`
+                    : `Done: ${chore?.name || "chore"}`,
+                subtitle: wasFirstToday
+                    ? `+${reward} coins · +${DAILY_BONUS_COINS} daily bonus!`
+                    : `+${reward} coins`,
+                color: wasFirstToday ? "#F59E0B" : FREQ[chore?.freq]?.color || "#22C55E",
                 icon: <Check size={18} strokeWidth={3} />,
             });
         }
@@ -2069,10 +2083,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         return map;
     }, [chores]);
 
-    const coinsEarned = useMemo(
-        () => completions.reduce((sum, c) => sum + (choreRewardMap[c.chore_id] ?? 5), 0),
-        [completions, choreRewardMap]
-    );
+    // Coins from chore rewards + a flat DAILY_BONUS_COINS for each day
+    // the household had any completion. Derived from completions so it
+    // backfills naturally for historical days too.
+    const coinsEarned = useMemo(() => {
+        const choreSum = completions.reduce((sum, c) => sum + (choreRewardMap[c.chore_id] ?? 5), 0);
+        const distinctDays = new Set(completions.map((c) => c.completed_date)).size;
+        return choreSum + distinctDays * DAILY_BONUS_COINS;
+    }, [completions, choreRewardMap]);
 
     const coinsSpent = useMemo(
         () => purchases.reduce((sum, p) => sum + (STORE_ITEM_MAP[p.item_id]?.price ?? 0), 0),
@@ -2577,6 +2595,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     doneCount={done.length}
                                     totalMin={totalMin}
                                     missingCount={missing}
+                                    dailyBonus={DAILY_BONUS_COINS}
                                     lang={lang}
                                 />
 
@@ -3447,7 +3466,11 @@ function ChoreTile({ chore, users, currentUser, onComplete, onUndo, onAssign, la
     };
 
     const bg = isDone ? "#F4FBF7" : freqInfo?.bg || "white";
-    const border = isDone ? "#1D9E75" : freqInfo?.color || "#2C2C2A";
+    // Tile border + shadow stay neutral so a quick-cadence color like
+    // every2's orange doesn't read as "warning red". Frequency lives in
+    // the chip + the colored stripe along the top of the tile instead.
+    const border = isDone ? "#1D9E75" : "#2C2C2A";
+    const shadowColor = isDone ? "#1D9E75" : "#e8e8e8";
     const text = isDone ? "#888780" : freqInfo?.text || "#2C2C2A";
 
     return (
@@ -3456,12 +3479,12 @@ function ChoreTile({ chore, users, currentUser, onComplete, onUndo, onAssign, la
             role="button" tabIndex={0}
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
             style={{
-                position: "relative",
+                position: "relative", overflow: "hidden",
                 padding: "12px",
                 background: bg,
                 border: `2px solid ${border}`,
                 borderRadius: "14px",
-                boxShadow: boxShadow(border, 2, 2),
+                boxShadow: boxShadow(shadowColor, 2, 2),
                 cursor: "pointer", fontFamily: FONT,
                 transition: "transform 0.2s, background 0.3s, border-color 0.3s, box-shadow 0.3s",
                 transform: pop ? "scale(1.04)" : "scale(1)",
@@ -3469,6 +3492,14 @@ function ChoreTile({ chore, users, currentUser, onComplete, onUndo, onAssign, la
                 minHeight: "96px", userSelect: "none",
             }}
         >
+            {/* Top stripe: subtle freq accent, hidden when done */}
+            {!isDone && freqInfo && (
+                <div style={{
+                    position: "absolute", top: 0, left: 0, right: 0,
+                    height: "4px", background: freqInfo.color,
+                    opacity: 0.7,
+                }} />
+            )}
             <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
                 <div style={{
                     width: "22px", height: "22px", minWidth: "22px",
@@ -3544,7 +3575,7 @@ function ChoreTile({ chore, users, currentUser, onComplete, onUndo, onAssign, la
 // Shows fraction done, time left for what's not done, and a progress
 // bar. Emoji + tagline shifts as you make progress so the header
 // feels alive instead of just showing a number.
-function CuteProgressHeader({ remaining, doneCount, totalMin, missingCount, lang = "en" }) {
+function CuteProgressHeader({ remaining, doneCount, totalMin, missingCount, dailyBonus, lang = "en" }) {
     const total = remaining + doneCount;
     if (total === 0) return null;
     const pct = Math.round((doneCount / total) * 100);
@@ -3554,11 +3585,17 @@ function CuteProgressHeader({ remaining, doneCount, totalMin, missingCount, lang
     else if (pct >= 50) { emoji = "🐟"; toneKey = "progress_halfway"; barColor = "#22C55E"; }
     else if (pct > 0)   { emoji = "🐠"; toneKey = "progress_keepGoing"; barColor = "#7F77DD"; }
 
-    const subline = remaining === 0
-        ? t(toneKey, lang)
-        : totalMin > 0
-            ? t("progress_timeLeft", lang, { time: formatMinutesShort(totalMin, lang) })
-            : t(toneKey, lang);
+    // When the user hasn't done anything yet, dangle the daily bonus
+    // as the carrot instead of just saying "lets go". This is the
+    // moment where one chore = the most reward, so make that obvious.
+    const showBonusCarrot = doneCount === 0 && dailyBonus > 0;
+    const subline = showBonusCarrot
+        ? t("progress_bonusWaiting", lang, { coins: dailyBonus })
+        : remaining === 0
+            ? t(toneKey, lang)
+            : totalMin > 0
+                ? t("progress_timeLeft", lang, { time: formatMinutesShort(totalMin, lang) })
+                : t(toneKey, lang);
 
     return (
         <div style={{

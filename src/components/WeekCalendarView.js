@@ -141,6 +141,24 @@ export default function WeekCalendarView({ chores, completions, lang = "en" }) {
         return { count, time, done };
     }, [days, chores, completions]);
 
+    // Longer-cycle chores landing in the visible week. Surfacing these
+    // upfront makes "scrub the tub on Saturday" feel like a heads-up
+    // instead of a surprise — and lets the user mentally plan around
+    // the bigger items.
+    const LONGER_CYCLES = new Set(["monthly", "quarterly", "biannual"]);
+    const spotlight = useMemo(() => {
+        const out = [];
+        for (const d of days) {
+            for (const c of chores) {
+                if (!LONGER_CYCLES.has(c.freq)) continue;
+                if (isScheduledForDay(c, d)) {
+                    out.push({ chore: c, date: d });
+                }
+            }
+        }
+        return out;
+    }, [days, chores]);
+
     return (
         <div style={{ fontFamily: FONT }}>
             {/* Week nav header */}
@@ -184,6 +202,74 @@ export default function WeekCalendarView({ chores, completions, lang = "en" }) {
                     <ChevronRight size={14} />
                 </button>
             </div>
+
+            {/* Longer-cycle spotlight — "this week's bigger projects" */}
+            {spotlight.length > 0 && (
+                <div style={{
+                    padding: "10px 12px", marginBottom: "12px",
+                    background: "#FFFBEB",
+                    border: "2px solid #2C2C2A",
+                    borderRadius: "12px",
+                    boxShadow: boxShadow("#F59E0B", 2, 2),
+                }}>
+                    <div style={{
+                        fontSize: "12px", fontWeight: 800, color: "#7C2D12",
+                        marginBottom: "6px",
+                        display: "flex", alignItems: "center", gap: "6px",
+                    }}>
+                        🌟 {t("weekSpotlightTitle", lang)}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                        {spotlight.map(({ chore, date }) => {
+                            const isToday = formatDate(date) === formatDate(t0);
+                            return (
+                                <button
+                                    key={`${chore.id}-${formatDate(date)}`}
+                                    onClick={() => setSelectedDate(date)}
+                                    style={{
+                                        display: "flex", alignItems: "center", gap: "8px",
+                                        padding: "6px 10px",
+                                        background: "white",
+                                        border: "1.5px solid #B45309",
+                                        borderRadius: "8px",
+                                        cursor: "pointer", fontFamily: FONT,
+                                        textAlign: "left",
+                                    }}
+                                >
+                                    <div style={{
+                                        width: "8px", height: "8px", borderRadius: "50%",
+                                        background: FREQ_COLOR[chore.freq] || "#888780",
+                                        border: "1.5px solid #2C2C2A",
+                                        flexShrink: 0,
+                                    }} />
+                                    <span style={{
+                                        flex: 1, fontSize: "12px", fontWeight: 700, color: "#2C2C2A",
+                                        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                                    }}>
+                                        {chore.name}
+                                    </span>
+                                    <span style={{
+                                        fontSize: "10px", fontWeight: 700, color: "#7C2D12",
+                                        flexShrink: 0,
+                                    }}>
+                                        {isToday
+                                            ? t("date_today", lang)
+                                            : date.toLocaleDateString(lang === "vi" ? "vi-VN" : undefined, { weekday: "short" })}
+                                    </span>
+                                    {chore.estimated_minutes != null && (
+                                        <span style={{
+                                            fontSize: "10px", fontWeight: 700, color: "#085041",
+                                            flexShrink: 0,
+                                        }}>
+                                            {formatMinutesShort(chore.estimated_minutes, lang)}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* 7-day strip with progress rings */}
             <div style={{
