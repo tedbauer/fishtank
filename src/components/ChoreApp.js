@@ -78,40 +78,48 @@ const friendlyDate = (d, lang = "en") => {
     return d.toLocaleDateString(lang === "vi" ? "vi-VN" : undefined, { month: "short", day: "numeric" });
 };
 
-// =========== HAPPINESS SYSTEM ===========
-// Returns both the final tank quality score and the line items that
-// produced it, so the UI can show the user where each deduction came
-// from. Doing even one chore today triggers a recovery bonus (waiving
-// half the overdue cost and skipping the streak-break penalty), so a
-// day or two of slack doesn't tank the score.
-const happinessBreakdown = (completions, choresWithStatus, streak, offset = 0) => {
-    const items = [{ kind: "base", label: null, value: 100 }];
-    let overdueTotal = 0;
-    choresWithStatus.forEach((c) => {
-        if (c.status !== "overdue") return;
-        const penalty = 3 + Math.min(15, Math.max(0, c.daysOverdue) * 2);
-        overdueTotal += penalty;
-        items.push({
-            kind: "overdue",
-            label: c.name || "chore",
-            daysOverdue: c.daysOverdue,
-            value: -penalty,
-        });
-    });
-    const completedTodayAny = choresWithStatus.some((c) => c.completedToday);
-    if (completedTodayAny && overdueTotal > 0) {
-        items.push({ kind: "recovery", label: null, value: Math.round(overdueTotal * 0.5) });
-    }
-    const hasRecurringChores = choresWithStatus.some((c) => !c.one_time);
-    if (hasRecurringChores && streak === 0 && completions.length > 0 && !completedTodayAny) {
-        items.push({ kind: "streakBreak", label: null, value: -15 });
-    }
-    if (offset !== 0) {
-        items.push({ kind: "adjustment", label: null, value: offset });
-    }
-    const rawScore = items.reduce((acc, it) => acc + it.value, 0);
-    const finalScore = Math.max(0, Math.min(100, Math.round(rawScore)));
-    return { items, rawScore: Math.round(rawScore), finalScore, clamped: rawScore !== finalScore };
+// =========== TANK STATE ===========
+// Three discrete states drive the tank's visuals (water color, fish
+// speed, accents). Streak is the primary signal — if you keep doing
+// at least one chore a day, the tank stays healthy. Falling out of
+// streak in the same circumstances that show the in-app comeback
+// banner (5+ overdue OR 3+ days idle) drops the tank to "unhealthy".
+// Buying anything from the shop pushes a healthy tank to "ultra" —
+// extra effort earns a brighter tank.
+const computeTankState = ({ streak, isComebackMode, hasPurchases }) => {
+    if (streak === 0 && isComebackMode) return "unhealthy";
+    if (hasPurchases) return "ultra";
+    return "healthy";
+};
+
+const TANK_STATE_VISUALS = {
+    unhealthy: {
+        water: "#1e2530",
+        line: "rgba(147,197,253,0.4)",
+        heart: "#93C5FD",
+        swim: "60s", school: "70s", snail: "140s", shrimp: 80,
+        accent: "#93C5FD",
+    },
+    healthy: {
+        water: "#2a2a4a",
+        line: "rgba(255,107,157,0.45)",
+        heart: "#FF6B9D",
+        swim: "22s", school: "29s", snail: "65s", shrimp: 35,
+        accent: "#FF6B9D",
+    },
+    ultra: {
+        water: "#1a3a5c",
+        line: "rgba(255,217,61,0.5)",
+        heart: "#FFD93D",
+        swim: "18s", school: "24s", snail: "55s", shrimp: 30,
+        accent: "#FFD93D",
+    },
+};
+
+const TANK_STATE_BADGE = {
+    unhealthy: { emoji: "🌱", labelKey: "tankStateRecovering", color: "#7C2D12", bg: "#FEF3C7", shadow: "#F59E0B" },
+    healthy: { emoji: "🐟", labelKey: "tankStateHealthy", color: "#085041", bg: "#E1F5EE", shadow: "#1D9E75" },
+    ultra: { emoji: "✨", labelKey: "tankStateThriving", color: "#78350F", bg: "#FEF3C7", shadow: "#FFD93D" },
 };
 
 // =========== STREAK SYSTEM ===========
@@ -176,25 +184,6 @@ const computeStreak = (chores, completions) => {
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
-const moodTier = (h) => {
-    if (h >= 85) return "ecstatic";
-    if (h >= 70) return "happy";
-    if (h >= 55) return "content";
-    if (h >= 40) return "meh";
-    if (h >= 20) return "sad";
-    return "miserable";
-};
-
-const moodLabel = (tier) =>
-    ({ ecstatic: "Flourishing", happy: "Thriving", content: "Managing", meh: "Managing", sad: "Struggling", miserable: "Struggling" })[tier];
-
-const moodColor = (h) => {
-    if (h >= 80) return "#16A34A";
-    if (h >= 55) return "#22C55E";
-    if (h >= 30) return "#F59E0B";
-    return "#EF4444";
-};
-
 // =========== REWARD TYPES PER FREQUENCY ===========
 const REWARD_MAP = {
     daily: { emoji: "🐟", label: "Fish Food!", color: "#FF6B35" },
@@ -250,12 +239,9 @@ function TankImg({ src, width, alt = "" }) {
 }
 
 // =========== MINIMAL LINE-ART FISH ===========
-function LineFish({ mood, size = 32 }) {
+function LineFish({ tankState = "healthy", size = 32 }) {
     if (TANK_IMAGES.fish) return <TankImg src={TANK_IMAGES.fish} width={size} alt="fish" />;
-    const c = {
-        ecstatic: "#FFD93D", happy: "#FF6B9D", content: "#C084FC",
-        meh: "#999", sad: "#67E8F9", miserable: "#93C5FD",
-    }[mood] || "#C084FC";
+    const c = TANK_STATE_VISUALS[tankState]?.accent || TANK_STATE_VISUALS.healthy.accent;
 
     return (
         <svg width={size} height={size * 0.55} viewBox="0 0 18 10" xmlns="http://www.w3.org/2000/svg" fill="none" stroke={c} strokeWidth="1">
@@ -936,7 +922,7 @@ function DraggableCritter({ purchase, boundsRef, tankInnerRef, floorBottom = 16,
 }
 
 // =========== MINIMAL AQUARIUM ===========
-function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0, lang = "en", onMovePurchase, onRemovePurchase }) {
+function Aquarium({ tankState = "healthy", rewardAnim, purchases = [], expansions = 0, lang = "en", onMovePurchase, onRemovePurchase }) {
     const tankRef = useRef(null);
     const viewportRef = useRef(null);
     const [anyDragging, setAnyDragging] = useState(false);
@@ -945,30 +931,20 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
     const [snailState, setSnailState] = useState({ visible: true, home: null });
     const [schoolState, setSchoolState] = useState({ visible: true, home: null });
     const tankWidthPct = 100 * (1 + TANK_EXPAND_STEP * expansions);
-    const swimDuration = { ecstatic: "18s", happy: "22s", content: "28s", meh: "35s", sad: "45s", miserable: "60s" }[mood] || "28s";
-    const shrimpBaseDur = { ecstatic: 30, happy: 35, content: 40, meh: 50, sad: 60, miserable: 80 }[mood] || 40;
+    const visuals = TANK_STATE_VISUALS[tankState] || TANK_STATE_VISUALS.healthy;
+    const swimDuration = visuals.swim;
+    const shrimpBaseDur = visuals.shrimp;
     const placedShrimp = purchases.filter((p) => p.item_id?.startsWith("shrimp_") && p.x >= 0);
-    const schoolDur = { ecstatic: "24s", happy: "29s", content: "34s", meh: "43s", sad: "54s", miserable: "70s" }[mood] || "34s";
-    const snailDur = { ecstatic: "55s", happy: "65s", content: "75s", meh: "90s", sad: "110s", miserable: "140s" }[mood] || "75s";
+    const schoolDur = visuals.school;
+    const snailDur = visuals.snail;
     const localSwimDuration = `${Math.max(6, parseFloat(swimDuration) * 0.4).toFixed(1)}s`;
     const localSnailDuration = `${Math.max(20, parseFloat(snailDur) * 0.45).toFixed(1)}s`;
     const localSchoolDuration = `${Math.max(8, parseFloat(schoolDur) * 0.4).toFixed(1)}s`;
-    const uid = `aq-${mood}`;
+    const uid = `aq-${tankState}`;
 
-    const waterColor = {
-        ecstatic: "#1a3a5c", happy: "#2a2a4a", content: "#1b3345",
-        meh: "#2a2a2a", sad: "#1a2e3e", miserable: "#1e2530",
-    }[mood] || "#1b3345";
-
-    const lineColor = {
-        ecstatic: "rgba(255,217,61,0.5)", happy: "rgba(255,107,157,0.45)", content: "rgba(192,132,252,0.45)",
-        meh: "rgba(180,178,169,0.35)", sad: "rgba(103,232,249,0.4)", miserable: "rgba(147,197,253,0.4)",
-    }[mood] || "rgba(192,132,252,0.45)";
-
-    const heartColor = {
-        ecstatic: "#FFD93D", happy: "#FF6B9D", content: "#C084FC",
-        meh: "#999", sad: "#67E8F9", miserable: "#93C5FD",
-    }[mood] || "#C084FC";
+    const waterColor = visuals.water;
+    const lineColor = visuals.line;
+    const heartColor = visuals.heart;
 
     return (
         <div ref={viewportRef} className="aq-viewport" style={{
@@ -1295,7 +1271,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                         <div style={{ position: "relative", width: 40, height: 24 }}>
                             {[{ dx: 0, dy: 0 }, { dx: 16, dy: -7 }, { dx: -8, dy: 9 }, { dx: 24, dy: 3 }].map((off, i) => (
                                 <div key={i} style={{ position: "absolute", left: off.dx, top: off.dy }}>
-                                    <LineFish mood={mood} size={14} />
+                                    <LineFish tankState={tankState} size={14} />
                                 </div>
                             ))}
                         </div>
@@ -1337,7 +1313,7 @@ function Aquarium({ mood, happiness, rewardAnim, purchases = [], expansions = 0,
                         }
                     >
                         <div style={{ position: "relative" }}>
-                            <LineFish mood={mood} size={32} />
+                            <LineFish tankState={tankState} size={32} />
                             {[0, 1, 2].map((i) => (
                                 <div key={i} style={{
                                     position: "absolute", top: -6, left: 6 + i * 7,
@@ -1567,7 +1543,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [inviteCode, setInviteCode] = useState(null);
     const [codeCopied, setCodeCopied] = useState(false);
     const [rewardAnim, setRewardAnim] = useState(null);
-    const [happinessOffset, setHappinessOffset] = useState(0);
     const [newChoreDesc, setNewChoreDesc] = useState("");
     const [newChoreOneTime, setNewChoreOneTime] = useState(false);
     const [newChoreDeadline, setNewChoreDeadline] = useState("");
@@ -1577,7 +1552,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [streakAnim, setStreakAnim] = useState(false);
     const [pullDelta, setPullDelta] = useState(0);
     const [toasts, setToasts] = useState([]);
-    const [showQualityBreakdown, setShowQualityBreakdown] = useState(false);
     const [showCatchingUp, setShowCatchingUp] = useState(false);
     const prevStreakRef = useRef(null);
     const pullRef = useRef({ active: false, startY: 0, delta: 0 });
@@ -1890,12 +1864,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         : 0;
 
     const streak = useMemo(() => computeStreak(chores, completions), [chores, completions]);
-    const happinessDetails = useMemo(
-        () => happinessBreakdown(completions, choresWithStatus, streak, happinessOffset),
-        [completions, choresWithStatus, streak, happinessOffset]
-    );
-    const householdHappiness = happinessDetails.finalScore;
-    const householdMood = moodTier(householdHappiness);
 
     // ===== COMEBACK STATE =====
     // When the streak is broken AND the user has been away (or has a real
@@ -1921,30 +1889,11 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         (overdueChores.length >= 5 ||
             (daysSinceLastCompletion !== null && daysSinceLastCompletion >= 3));
 
-    // Tank quality if the user completed any one chore today: removes the
-    // streak-break penalty and adds the recovery bonus that
-    // happinessBreakdown applies once `completedTodayAny` is true.
-    //
-    // We have to reconstruct the post-completion raw score from scratch,
-    // not add bonuses on top of `householdHappiness`. When the user is
-    // very behind, `householdHappiness` is already clamped to 0 — adding
-    // bonuses to that clamped value invents happiness that won't actually
-    // exist after the completion lands (the bug that surfaced as a "0 →
-    // 100" preview where the tank only rose to 12).
-    const projectedTankScore = useMemo(() => {
-        if (completedTodayAny) return householdHappiness;
-        const overdueTotal = overdueChores.reduce(
-            (s, c) => s + (3 + Math.min(15, Math.max(0, c.daysOverdue) * 2)),
-            0
-        );
-        const recoveryBonus = overdueTotal > 0 ? Math.round(overdueTotal * 0.5) : 0;
-        // After completing one chore today, happinessBreakdown will:
-        //   - keep the overdue penalties (overdueTotal)
-        //   - add the recovery bonus (overdueTotal * 0.5)
-        //   - skip the streak-break penalty (because completedTodayAny)
-        const rawProjected = 100 - overdueTotal + recoveryBonus;
-        return Math.max(0, Math.min(100, Math.round(rawProjected)));
-    }, [completedTodayAny, householdHappiness, overdueChores]);
+    // Visible-in-tank purchases (excludes inventory items, which sit at
+    // negative coordinates). Buying anything that's actually in the tank
+    // pushes a healthy tank to "ultra" — the user has earned decoration.
+    const hasPurchases = purchases.some((p) => p.x >= 0);
+    const tankState = computeTankState({ streak, isComebackMode, hasPurchases });
 
     // In comeback mode we hide overdue chores from the per-owner sections
     // and tuck them into a single collapsible "Catching up" group, so the
@@ -2240,15 +2189,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     onSaved={(updated) => setLocalProfile(updated)}
                 />
             )}
-            {showQualityBreakdown && (
-                <TankQualityModal
-                    breakdown={happinessDetails}
-                    score={householdHappiness}
-                    color={moodColor(householdHappiness)}
-                    lang={lang}
-                    onClose={() => setShowQualityBreakdown(false)}
-                />
-            )}
             {/* PULL-TO-REFRESH INDICATOR */}
             {pullDelta > 0 && (
                 <div style={{
@@ -2360,8 +2300,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 <div>
                     <div data-no-ptr style={{ marginBottom: "1.25rem" }}>
                         <Aquarium
-                            happiness={householdHappiness}
-                            mood={householdMood}
+                            tankState={tankState}
                             rewardAnim={rewardAnim}
                             purchases={purchases}
                             expansions={tankExpansions}
@@ -2435,21 +2374,24 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         }
                     `}</style>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "1.25rem" }}>
-                        {/* Row 1: Tank Quality, Streak, Left Today */}
-                        <button
-                            onClick={() => setShowQualityBreakdown(true)}
-                            title={t("tq_tapHint", lang)}
-                            style={{
-                                padding: "10px 8px", background: "white", borderRadius: "12px", textAlign: "center",
-                                border: "2px solid #2C2C2A", boxShadow: boxShadow(moodColor(householdHappiness), 2, 2),
-                                cursor: "pointer", fontFamily: FONT,
-                            }}
-                        >
-                            <div style={{ fontSize: "20px", fontWeight: 800, color: moodColor(householdHappiness), transition: "color 0.5s ease" }}>
-                                {householdHappiness}
-                            </div>
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#888780", marginTop: "2px" }}>{t("tankQuality", lang)}</div>
-                        </button>
+                        {/* Row 1: Tank state, Streak, Left Today */}
+                        {(() => {
+                            const badge = TANK_STATE_BADGE[tankState];
+                            return (
+                                <div style={{
+                                    padding: "10px 8px", background: badge.bg, borderRadius: "12px", textAlign: "center",
+                                    border: "2px solid #2C2C2A", boxShadow: boxShadow(badge.shadow, 2, 2),
+                                    fontFamily: FONT,
+                                }}>
+                                    <div style={{ fontSize: "20px", fontWeight: 800, color: badge.color, transition: "color 0.5s ease" }}>
+                                        {badge.emoji}
+                                    </div>
+                                    <div style={{ fontSize: "10px", fontWeight: 700, color: badge.color, marginTop: "2px" }}>
+                                        {t(badge.labelKey, lang)}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                         <div style={{
                             padding: "10px 8px", background: streak > 0 ? "#FEF3C7" : "white",
                             borderRadius: "12px", textAlign: "center",
@@ -2532,14 +2474,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     borderRadius: "8px", display: "inline-flex", alignItems: "center", gap: "4px",
                                 }}>
                                     <Flame size={12} color="#F59E0B" /> {t("comebackStreakPreview", lang, { from: 0, to: 1 })}
-                                </span>
-                                <span style={{
-                                    fontSize: "12px", fontWeight: 700,
-                                    padding: "4px 10px", background: "#E1F5EE",
-                                    color: "#085041", border: "1.5px solid #1D9E75",
-                                    borderRadius: "8px",
-                                }}>
-                                    {t("comebackTankPreview", lang, { from: householdHappiness, to: projectedTankScore })}
                                 </span>
                             </div>
                         </div>
@@ -2798,21 +2732,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     background: "#EF4444", color: "white", border: "2px solid #2C2C2A",
                                     borderRadius: "6px", cursor: "pointer",
                                 }}>-{n}</button>
-                            ))}
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#991B1B", margin: "0 6px 0 8px" }}>🎭</span>
-                            {[10, 25].map((n) => (
-                                <button key={`h+${n}`} onClick={() => setHappinessOffset((o) => Math.min(100, o + n))} style={{
-                                    padding: "4px 10px", fontSize: "12px", fontWeight: 700, fontFamily: FONT,
-                                    background: "#22C55E", color: "white", border: "2px solid #2C2C2A",
-                                    borderRadius: "6px", cursor: "pointer",
-                                }}>+{n}❤️</button>
-                            ))}
-                            {[10, 25].map((n) => (
-                                <button key={`h-${n}`} onClick={() => setHappinessOffset((o) => Math.max(-100, o - n))} style={{
-                                    padding: "4px 10px", fontSize: "12px", fontWeight: 700, fontFamily: FONT,
-                                    background: "#EF4444", color: "white", border: "2px solid #2C2C2A",
-                                    borderRadius: "6px", cursor: "pointer",
-                                }}>-{n}❤️</button>
                             ))}
                         </div>
                     )}
@@ -3232,132 +3151,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 }
 
 // =========== SUB-COMPONENTS ===========
-
-function TankQualityModal({ breakdown, score, color, lang, onClose }) {
-    const { items, rawScore, clamped } = breakdown;
-    const itemLabel = (it) => {
-        switch (it.kind) {
-            case "base": return t("tq_base", lang);
-            case "overdue": return t("tq_overdueRow", lang, { name: it.label, n: it.daysOverdue });
-            case "recovery": return t("tq_recovery", lang);
-            case "streakBreak": return t("tq_streakBreak", lang);
-            case "adjustment": return t("tq_adjustment", lang);
-            default: return "";
-        }
-    };
-    return (
-        <div
-            onClick={onClose}
-            style={{
-                position: "fixed", inset: 0, background: "rgba(44,44,42,0.55)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                padding: "16px", zIndex: 1000, fontFamily: FONT,
-            }}
-        >
-            <div
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                    background: "#f8f7f4", borderRadius: "16px",
-                    border: "2px solid #2C2C2A", boxShadow: boxShadow("#2C2C2A", 4, 4),
-                    width: "100%", maxWidth: "420px", maxHeight: "90vh", overflowY: "auto",
-                    padding: "18px",
-                }}
-            >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700 }}>{t("tq_title", lang)}</h3>
-                    <button
-                        onClick={onClose}
-                        style={{
-                            background: "white", border: "2px solid #2C2C2A", borderRadius: "8px",
-                            padding: "4px 6px", cursor: "pointer", boxShadow: boxShadow("#2C2C2A", 2, 2),
-                        }}
-                        aria-label={t("profile_cancel", lang)}
-                    >
-                        <X size={14} />
-                    </button>
-                </div>
-
-                <div style={{
-                    background: "white", border: "2px solid #2C2C2A", borderRadius: "12px",
-                    padding: "10px 14px", marginBottom: "12px",
-                    boxShadow: boxShadow(color, 2, 2),
-                    display: "flex", alignItems: "baseline", justifyContent: "space-between",
-                }}>
-                    <span style={{ fontSize: "13px", fontWeight: 600, color: "#2C2C2A" }}>{t("tq_currentScore", lang)}</span>
-                    <span style={{ fontSize: "26px", fontWeight: 800, color }}>{score}</span>
-                </div>
-
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#888780", marginBottom: "8px" }}>
-                    {t("tq_breakdown", lang)}
-                </div>
-
-                <div style={{
-                    background: "white", border: "2px solid #2C2C2A", borderRadius: "12px",
-                    boxShadow: boxShadow("#e8e8e8", 2, 2),
-                    overflow: "hidden",
-                }}>
-                    {items.map((it, i) => {
-                        const isPositive = it.value > 0;
-                        const isBase = it.kind === "base";
-                        return (
-                            <div
-                                key={i}
-                                style={{
-                                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                                    padding: "10px 14px",
-                                    borderTop: i === 0 ? "none" : "1px solid #eee",
-                                    fontSize: "13px",
-                                }}
-                            >
-                                <span style={{ color: "#2C2C2A", fontWeight: isBase ? 700 : 500, paddingRight: "10px" }}>
-                                    {itemLabel(it)}
-                                </span>
-                                <span style={{
-                                    fontWeight: 700, fontFamily: "monospace", fontSize: "13px",
-                                    color: isBase ? "#2C2C2A" : isPositive ? "#1D9E75" : "#D4537E",
-                                    whiteSpace: "nowrap",
-                                }}>
-                                    {isBase ? it.value : `${isPositive ? "+" : "−"}${Math.abs(it.value)}`}
-                                </span>
-                            </div>
-                        );
-                    })}
-                    <div style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        padding: "12px 14px",
-                        borderTop: "2px solid #2C2C2A",
-                        background: "#f5f4f1",
-                    }}>
-                        <span style={{ color: "#2C2C2A", fontWeight: 700, fontSize: "13px" }}>{t("tq_total", lang)}</span>
-                        <span style={{ fontWeight: 800, fontSize: "16px", color, fontFamily: "monospace" }}>
-                            {score}
-                        </span>
-                    </div>
-                </div>
-
-                {clamped && (
-                    <div style={{
-                        marginTop: "10px", padding: "8px 12px",
-                        background: "#FEF3C7", borderRadius: "8px", border: "2px solid #F59E0B",
-                        fontSize: "11px", fontWeight: 600, color: "#78350F",
-                    }}>
-                        {t("tq_clamped", lang, { raw: rawScore })}
-                    </div>
-                )}
-
-                {items.length === 1 && (
-                    <div style={{
-                        marginTop: "10px", padding: "8px 12px",
-                        background: "#E1F5EE", borderRadius: "8px", border: "2px solid #1D9E75",
-                        fontSize: "12px", fontWeight: 600, color: "#085041",
-                    }}>
-                        {t("tq_perfect", lang)}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
 
 function EmptyState({ text }) {
     return (

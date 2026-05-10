@@ -4,12 +4,19 @@ const FONT = "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive";
 
 const ENTRIES = [
     {
+        date: "May 9, 2026",
+        title: "Tank Quality, Simplified",
+        items: [
+            "🐟 Tank Quality is gone. Your tank now has three states tied to behavior: Recovering when you've fallen behind, Healthy when your streak is alive, and Thriving once you've started decorating with shop items. No more 0–100 score doing the talking.",
+            "🔥 Streak got friendlier — completing any one chore on a day now keeps your streak going, even if you have a pile of overdue stuff.",
+        ],
+    },
+    {
         date: "April 26, 2025",
-        title: "Bigger Tanks, Smarter Happiness & Inventory",
+        title: "Bigger Tanks & Inventory",
         items: [
             "🔧 Tank Expansion upgrade — buy a Larger Tank in the shop to give your creatures more room to roam! The tank becomes scrollable so you can fill it with tons of decorations.",
             "📦 Inventory system — newly purchased items now go to your inventory first. Tap the Inventory button below the tank to see your items and place them with a tap.",
-            "🧠 Happiness overhaul — Tank Quality now starts at 100 and drops when chores go overdue. Keep your streak alive to keep your tank happy!",
             "🌿 Cryptocoryne plant added to the shop.",
             "🦐 Shrimp now do cute little hops as they crawl around.",
             "🏖️ New pixel-art seafloor replaces the old line drawing at the bottom of the tank.",
