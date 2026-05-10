@@ -3465,13 +3465,15 @@ function ChoreTile({ chore, users, currentUser, onComplete, onUndo, onAssign, la
         onAssign(chore.id, next);
     };
 
-    const bg = isDone ? "#F4FBF7" : freqInfo?.bg || "white";
-    // Tile border + shadow stay neutral so a quick-cadence color like
-    // every2's orange doesn't read as "warning red". Frequency lives in
-    // the chip + the colored stripe along the top of the tile instead.
+    const bg = isDone ? "#F4FBF7" : "white";
+    // Plain white tile background. Frequency is conveyed by a single
+    // colored accent — the thin top stripe — and a small chip. The
+    // earlier pastel-by-freq backgrounds (light pink / peach / lavender)
+    // made the today grid read warm and busy; white makes the page
+    // feel like a clean checklist instead.
     const border = isDone ? "#1D9E75" : "#2C2C2A";
     const shadowColor = isDone ? "#1D9E75" : "#e8e8e8";
-    const text = isDone ? "#888780" : freqInfo?.text || "#2C2C2A";
+    const text = isDone ? "#888780" : "#2C2C2A";
 
     return (
         <div
@@ -3480,36 +3482,36 @@ function ChoreTile({ chore, users, currentUser, onComplete, onUndo, onAssign, la
             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
             style={{
                 position: "relative", overflow: "hidden",
-                padding: "12px",
+                padding: "10px 12px 8px",
                 background: bg,
                 border: `2px solid ${border}`,
-                borderRadius: "14px",
+                borderRadius: "12px",
                 boxShadow: boxShadow(shadowColor, 2, 2),
                 cursor: "pointer", fontFamily: FONT,
                 transition: "transform 0.2s, background 0.3s, border-color 0.3s, box-shadow 0.3s",
                 transform: pop ? "scale(1.04)" : "scale(1)",
-                display: "flex", flexDirection: "column", gap: "10px",
-                minHeight: "96px", userSelect: "none",
+                display: "flex", flexDirection: "column", gap: "6px",
+                minHeight: "70px", userSelect: "none",
             }}
         >
             {/* Top stripe: subtle freq accent, hidden when done */}
             {!isDone && freqInfo && (
                 <div style={{
                     position: "absolute", top: 0, left: 0, right: 0,
-                    height: "4px", background: freqInfo.color,
-                    opacity: 0.7,
+                    height: "3px", background: freqInfo.color,
+                    opacity: 0.65,
                 }} />
             )}
             <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
                 <div style={{
-                    width: "22px", height: "22px", minWidth: "22px",
+                    width: "20px", height: "20px", minWidth: "20px",
                     borderRadius: "50%",
                     border: `2.5px solid ${isDone ? "#1D9E75" : "#B4B2A9"}`,
                     background: isDone ? "#1D9E75" : "transparent",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     flexShrink: 0, transition: "all 0.25s",
                 }}>
-                    <Check size={12} strokeWidth={3} color="white" style={{ opacity: isDone ? 1 : 0, transition: "opacity 0.25s" }} />
+                    <Check size={11} strokeWidth={3} color="white" style={{ opacity: isDone ? 1 : 0, transition: "opacity 0.25s" }} />
                 </div>
                 <div style={{
                     flex: 1, fontSize: "13px", fontWeight: 700,
@@ -3522,26 +3524,27 @@ function ChoreTile({ chore, users, currentUser, onComplete, onUndo, onAssign, la
             </div>
             <div style={{
                 marginTop: "auto",
-                display: "flex", alignItems: "center", gap: "5px",
-                fontSize: "10px", fontWeight: 700,
+                display: "flex", alignItems: "center", gap: "4px",
+                fontSize: "9px", fontWeight: 700,
                 flexWrap: "wrap",
             }}>
                 {chore.estimated_minutes != null && (
                     <span style={{
-                        color: "#085041", background: "rgba(225, 245, 238, 0.85)",
-                        padding: "1px 6px", borderRadius: "5px",
+                        color: "#085041",
+                        padding: "0 5px", borderRadius: "4px",
+                        background: "rgba(225, 245, 238, 0.85)",
                         border: "1px solid #1D9E75",
                         display: "inline-flex", alignItems: "center", gap: "2px",
                     }}>
-                        <Clock size={9} strokeWidth={2.5} />
+                        <Clock size={8} strokeWidth={2.5} />
                         {formatMinutesShort(chore.estimated_minutes, lang)}
                     </span>
                 )}
                 {freqInfo && (
                     <span style={{
                         color: freqInfo.text,
-                        padding: "1px 6px", borderRadius: "5px",
-                        background: "rgba(255,255,255,0.65)",
+                        padding: "0 5px", borderRadius: "4px",
+                        background: "transparent",
                         border: `1px solid ${freqInfo.color}`,
                     }}>
                         {t(freqInfo.labelKey, lang)}
@@ -3554,12 +3557,12 @@ function ChoreTile({ chore, users, currentUser, onComplete, onUndo, onAssign, la
                     title={owner ? `${owner.name} — tap to reassign` : t("upForGrabs", lang)}
                     style={{
                         marginLeft: "auto", flexShrink: 0,
-                        width: "22px", height: "22px",
+                        width: "18px", height: "18px",
                         borderRadius: "50%",
                         background: owner?.color || "white",
-                        border: `2px solid ${owner ? "#2C2C2A" : "#B4B2A9"}`,
+                        border: `1.5px solid ${owner ? "#2C2C2A" : "#B4B2A9"}`,
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: "10px", fontWeight: 800,
+                        fontSize: "9px", fontWeight: 800,
                         color: owner ? "white" : "#888780",
                         cursor: "pointer",
                     }}
