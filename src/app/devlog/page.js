@@ -4,6 +4,16 @@ const FONT = "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive";
 
 const ENTRIES = [
     {
+        date: "May 10, 2026 (evening)",
+        title: "Calmer Tiles, Daily Bonus, Longer-Cycle Spotlight",
+        items: [
+            "🎨 Tile borders are now neutral dark instead of the freq color, so the every-2-days orange and other strong palettes stopped reading as 'warning'. Frequency lives in the chip + a thin colored stripe along the top of the tile.",
+            "🎁 First chore each day earns a +5 daily bonus on top of the chore's reward. The progress header dangles the bonus before you start ('🎁 +5 daily bonus on your first chore'), and the completion toast names it on the first chore of the day.",
+            "🌟 Week tab now has a 'Bigger projects this week' callout above the day strip — monthly / quarterly / biannual chores landing in the visible week show up there with the day they're scheduled, so things like 'scrub the tub on Saturday' feel like a heads-up instead of a surprise. Tap an entry to jump to that day.",
+            "📈 Coin balance retroactively includes daily bonuses for every day the household had at least one completion — derived from existing data so nothing needs backfilling.",
+        ],
+    },
+    {
         date: "May 10, 2026 (afternoon)",
         title: "Tiles, Progress, and Calendars That Feel Good",
         items: [
