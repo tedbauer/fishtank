@@ -1626,6 +1626,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [purchases, setPurchases] = useState([]);
     const [view, setView] = useState("today");
     const [showInventory, setShowInventory] = useState(false);
+    const [showDoneToday, setShowDoneToday] = useState(false);
     const [calMonth, setCalMonth] = useState(today());
     const [newChoreName, setNewChoreName] = useState("");
     const [newChoreFreq, setNewChoreFreq] = useState("weekly");
@@ -2545,35 +2546,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     )}
 
-                    {(() => {
-                        const remaining = todayList.filter((c) => !c.completedToday);
-                        if (remaining.length === 0) return null;
-                        const withEstimate = remaining.filter((c) => c.estimated_minutes != null);
-                        const totalMin = withEstimate.reduce((s, c) => s + c.estimated_minutes, 0);
-                        const missing = remaining.length - withEstimate.length;
-                        return (
-                            <div style={{
-                                display: "flex", alignItems: "center", gap: "10px",
-                                padding: "10px 14px", marginBottom: "12px",
-                                background: "white", border: "2px solid #2C2C2A",
-                                borderRadius: "12px", boxShadow: boxShadow("#e8e8e8", 2, 2),
-                                fontFamily: FONT,
-                            }}>
-                                <Clock size={16} strokeWidth={2.5} color="#085041" />
-                                <div style={{ fontSize: "13px", fontWeight: 700, color: "#2C2C2A" }}>
-                                    {totalMin > 0
-                                        ? t("todayTimeTotal", lang, { time: formatMinutesShort(totalMin, lang), n: remaining.length })
-                                        : t("todayTimeUnknown", lang, { n: remaining.length })}
-                                </div>
-                                {missing > 0 && totalMin > 0 && (
-                                    <span style={{ fontSize: "11px", color: "#888780", fontStyle: "italic", marginLeft: "auto" }}>
-                                        {t("todayTimeMissing", lang, { n: missing })}
-                                    </span>
-                                )}
-                            </div>
-                        );
-                    })()}
-
                     {todayList.length === 0 && (
                         <div style={{ textAlign: "center", padding: "2.5rem 1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
                             <div style={{ fontSize: "36px", marginBottom: "8px" }}>✨</div>
@@ -2582,28 +2554,110 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     )}
 
-                    {todayList.length > 0 && todayList.every((c) => c.completedToday) && (
-                        <div style={{ textAlign: "center", padding: "1.5rem 1rem", marginBottom: "1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
-                            <div style={{ fontSize: "28px", marginBottom: "4px" }}>🎉</div>
-                            <div style={{ fontWeight: 700, color: "#085041", fontSize: "15px" }}>{t("allDoneForToday", lang)}</div>
-                        </div>
-                    )}
+                    {(() => {
+                        if (todayList.length === 0) return null;
+                        // Sort: yours first, then unassigned, then partner's. Within
+                        // each owner-bucket the original order from todayList is
+                        // preserved so the layout is stable.
+                        const ownerRank = (c) =>
+                            c.owner_id === currentUser.id ? 0
+                            : !c.owner_id ? 1
+                            : 2;
+                        const sorted = [...todayList].sort((a, b) => ownerRank(a) - ownerRank(b));
+                        const remaining = sorted.filter((c) => !c.completedToday);
+                        const done = sorted.filter((c) => c.completedToday);
+                        const remainingWithEst = remaining.filter((c) => c.estimated_minutes != null);
+                        const totalMin = remainingWithEst.reduce((s, c) => s + c.estimated_minutes, 0);
+                        const missing = remaining.length - remainingWithEst.length;
 
-                    {myChores.length > 0 && (
-                        <Section title={t("yourTurn", lang, { name: currentUser.name })} accentColor={currentUser.color}>
-                            {myChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
-                        </Section>
-                    )}
-                    {unassigned.length > 0 && (
-                        <Section title={t("upForGrabs", lang)} accentColor="#888780">
-                            {unassigned.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
-                        </Section>
-                    )}
-                    {partnerChores.length > 0 && partner && (
-                        <Section title={t("partnersTurn", lang, { name: partner.name })} accentColor={partner.color}>
-                            {partnerChores.map((c) => <ChoreRow key={c.id} chore={c} users={users} currentUser={currentUser} onComplete={completeChore} onCompleteTogether={completeChoreTogether} onUndo={undoComplete} onAssign={assignOwner} onSnooze={snoozeChore} lang={lang} />)}
-                        </Section>
-                    )}
+                        return (
+                            <>
+                                <CuteProgressHeader
+                                    remaining={remaining.length}
+                                    doneCount={done.length}
+                                    totalMin={totalMin}
+                                    missingCount={missing}
+                                    lang={lang}
+                                />
+
+                                {remaining.length === 0 && (
+                                    <div style={{ textAlign: "center", padding: "1.5rem 1rem", marginBottom: "1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
+                                        <div style={{ fontSize: "28px", marginBottom: "4px" }}>🎉</div>
+                                        <div style={{ fontWeight: 700, color: "#085041", fontSize: "15px" }}>{t("allDoneForToday", lang)}</div>
+                                    </div>
+                                )}
+
+                                {remaining.length > 0 && (
+                                    <div style={{
+                                        display: "grid",
+                                        gridTemplateColumns: "repeat(2, 1fr)",
+                                        gap: "10px",
+                                        marginBottom: "1rem",
+                                    }}>
+                                        {remaining.map((c) => (
+                                            <ChoreTile
+                                                key={c.id}
+                                                chore={c}
+                                                users={users}
+                                                currentUser={currentUser}
+                                                onComplete={completeChore}
+                                                onUndo={undoComplete}
+                                                onAssign={assignOwner}
+                                                lang={lang}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+
+                                {done.length > 0 && (
+                                    <div style={{ marginBottom: "1rem", fontFamily: FONT }}>
+                                        <button
+                                            onClick={() => setShowDoneToday((v) => !v)}
+                                            style={{
+                                                width: "100%",
+                                                padding: "9px 12px",
+                                                background: "#F4FBF7",
+                                                border: "2px solid #1D9E75",
+                                                borderRadius: "12px",
+                                                boxShadow: boxShadow("#1D9E75", 2, 2),
+                                                cursor: "pointer", fontFamily: FONT,
+                                                display: "flex", alignItems: "center", justifyContent: "space-between",
+                                                gap: "8px",
+                                            }}
+                                        >
+                                            <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 800, color: "#085041" }}>
+                                                <Check size={13} strokeWidth={3} /> {t("doneToday", lang, { n: done.length })}
+                                            </span>
+                                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#085041" }}>
+                                                {showDoneToday ? "▴" : "▾"}
+                                            </span>
+                                        </button>
+                                        {showDoneToday && (
+                                            <div style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(2, 1fr)",
+                                                gap: "10px",
+                                                marginTop: "10px",
+                                            }}>
+                                                {done.map((c) => (
+                                                    <ChoreTile
+                                                        key={c.id}
+                                                        chore={c}
+                                                        users={users}
+                                                        currentUser={currentUser}
+                                                        onComplete={completeChore}
+                                                        onUndo={undoComplete}
+                                                        onAssign={assignOwner}
+                                                        lang={lang}
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
 
                     {snoozedList.length > 0 && (
                         <Section title={t("snoozed", lang, { n: snoozedList.length })} accentColor="#888780">
@@ -3355,6 +3409,191 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                     </button>
                 </div>
             )}
+        </div>
+    );
+}
+
+// =========== CHORE TILE (compact today-grid item) ===========
+// Whole tile is the complete-toggle target. The owner avatar in the
+// corner is its own tappable area: taps cycle ownership through
+// "you → partner → up for grabs → you" so reassigning doesn't need
+// a dropdown. We keep the chore name front-and-center and push the
+// metadata (frequency, time, owner) to a single bottom row so the
+// grid feels calm.
+function ChoreTile({ chore, users, currentUser, onComplete, onUndo, onAssign, lang = "en" }) {
+    const freqInfo = FREQ[chore.freq];
+    const owner = chore.owner_id ? users.find((u) => u.id === chore.owner_id) : null;
+    const partner = users.find((u) => u.id !== currentUser.id);
+    const isDone = chore.completedToday;
+    const [pop, setPop] = useState(false);
+
+    const handleClick = () => {
+        if (isDone) {
+            onUndo(chore.id);
+            return;
+        }
+        setPop(true);
+        setTimeout(() => setPop(false), 600);
+        onComplete(chore.id);
+    };
+
+    const cycleOwner = (e) => {
+        e.stopPropagation();
+        let next;
+        if (!chore.owner_id) next = currentUser.id;
+        else if (chore.owner_id === currentUser.id) next = partner ? partner.id : null;
+        else next = null;
+        onAssign(chore.id, next);
+    };
+
+    const bg = isDone ? "#F4FBF7" : freqInfo?.bg || "white";
+    const border = isDone ? "#1D9E75" : freqInfo?.color || "#2C2C2A";
+    const text = isDone ? "#888780" : freqInfo?.text || "#2C2C2A";
+
+    return (
+        <div
+            onClick={handleClick}
+            role="button" tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
+            style={{
+                position: "relative",
+                padding: "12px",
+                background: bg,
+                border: `2px solid ${border}`,
+                borderRadius: "14px",
+                boxShadow: boxShadow(border, 2, 2),
+                cursor: "pointer", fontFamily: FONT,
+                transition: "transform 0.2s, background 0.3s, border-color 0.3s, box-shadow 0.3s",
+                transform: pop ? "scale(1.04)" : "scale(1)",
+                display: "flex", flexDirection: "column", gap: "10px",
+                minHeight: "96px", userSelect: "none",
+            }}
+        >
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                <div style={{
+                    width: "22px", height: "22px", minWidth: "22px",
+                    borderRadius: "50%",
+                    border: `2.5px solid ${isDone ? "#1D9E75" : "#B4B2A9"}`,
+                    background: isDone ? "#1D9E75" : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0, transition: "all 0.25s",
+                }}>
+                    <Check size={12} strokeWidth={3} color="white" style={{ opacity: isDone ? 1 : 0, transition: "opacity 0.25s" }} />
+                </div>
+                <div style={{
+                    flex: 1, fontSize: "13px", fontWeight: 700,
+                    color: text,
+                    textDecoration: isDone ? "line-through" : "none",
+                    lineHeight: 1.25, wordBreak: "break-word",
+                }}>
+                    {chore.name}
+                </div>
+            </div>
+            <div style={{
+                marginTop: "auto",
+                display: "flex", alignItems: "center", gap: "5px",
+                fontSize: "10px", fontWeight: 700,
+                flexWrap: "wrap",
+            }}>
+                {chore.estimated_minutes != null && (
+                    <span style={{
+                        color: "#085041", background: "rgba(225, 245, 238, 0.85)",
+                        padding: "1px 6px", borderRadius: "5px",
+                        border: "1px solid #1D9E75",
+                        display: "inline-flex", alignItems: "center", gap: "2px",
+                    }}>
+                        <Clock size={9} strokeWidth={2.5} />
+                        {formatMinutesShort(chore.estimated_minutes, lang)}
+                    </span>
+                )}
+                {freqInfo && (
+                    <span style={{
+                        color: freqInfo.text,
+                        padding: "1px 6px", borderRadius: "5px",
+                        background: "rgba(255,255,255,0.65)",
+                        border: `1px solid ${freqInfo.color}`,
+                    }}>
+                        {t(freqInfo.labelKey, lang)}
+                    </span>
+                )}
+                <span
+                    onClick={cycleOwner}
+                    role="button" tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); cycleOwner(e); } }}
+                    title={owner ? `${owner.name} — tap to reassign` : t("upForGrabs", lang)}
+                    style={{
+                        marginLeft: "auto", flexShrink: 0,
+                        width: "22px", height: "22px",
+                        borderRadius: "50%",
+                        background: owner?.color || "white",
+                        border: `2px solid ${owner ? "#2C2C2A" : "#B4B2A9"}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "10px", fontWeight: 800,
+                        color: owner ? "white" : "#888780",
+                        cursor: "pointer",
+                    }}
+                >
+                    {owner ? (owner.name?.[0]?.toUpperCase() || "•") : "?"}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+// =========== CUTE PROGRESS HEADER ===========
+// Shows fraction done, time left for what's not done, and a progress
+// bar. Emoji + tagline shifts as you make progress so the header
+// feels alive instead of just showing a number.
+function CuteProgressHeader({ remaining, doneCount, totalMin, missingCount, lang = "en" }) {
+    const total = remaining + doneCount;
+    if (total === 0) return null;
+    const pct = Math.round((doneCount / total) * 100);
+    let emoji = "🌱"; let toneKey = "progress_letsGo"; let barColor = "#7F77DD";
+    if (pct === 100) { emoji = "🎉"; toneKey = "progress_allDone"; barColor = "#1D9E75"; }
+    else if (pct >= 75) { emoji = "🌟"; toneKey = "progress_almostThere"; barColor = "#22C55E"; }
+    else if (pct >= 50) { emoji = "🐟"; toneKey = "progress_halfway"; barColor = "#22C55E"; }
+    else if (pct > 0)   { emoji = "🐠"; toneKey = "progress_keepGoing"; barColor = "#7F77DD"; }
+
+    const subline = remaining === 0
+        ? t(toneKey, lang)
+        : totalMin > 0
+            ? t("progress_timeLeft", lang, { time: formatMinutesShort(totalMin, lang) })
+            : t(toneKey, lang);
+
+    return (
+        <div style={{
+            padding: "12px 14px", marginBottom: "14px",
+            background: "white", border: "2px solid #2C2C2A",
+            borderRadius: "14px", boxShadow: boxShadow("#1D9E75", 3, 3),
+            fontFamily: FONT,
+        }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                <span style={{ fontSize: "22px", lineHeight: 1, flexShrink: 0 }}>{emoji}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "13px", fontWeight: 800, color: "#2C2C2A" }}>
+                        {t("progress_count", lang, { done: doneCount, total })}
+                    </div>
+                    <div style={{ fontSize: "11px", fontWeight: 600, color: "#085041", marginTop: "1px" }}>
+                        {subline}
+                        {missingCount > 0 && totalMin > 0 && (
+                            <span style={{ color: "#888780", fontStyle: "italic", marginLeft: "6px" }}>
+                                · {t("todayTimeMissing", lang, { n: missingCount })}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <div style={{
+                height: "8px", background: "#F1EFE8", borderRadius: "5px",
+                border: "1.5px solid #2C2C2A", overflow: "hidden",
+            }}>
+                <div style={{
+                    height: "100%", width: `${pct}%`,
+                    background: barColor,
+                    borderRadius: "3px",
+                    transition: "width 0.5s ease, background 0.3s",
+                }} />
+            </div>
         </div>
     );
 }

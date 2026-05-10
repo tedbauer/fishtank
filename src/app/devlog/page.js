@@ -5,13 +5,16 @@ const FONT = "'Comic Sans MS', 'Comic Sans', 'Chalkboard SE', cursive";
 const ENTRIES = [
     {
         date: "May 10, 2026 (afternoon)",
-        title: "Time Estimates, Calendar Tabs, Less Stressful List",
+        title: "Tiles, Progress, and Calendars That Feel Good",
         items: [
-            "⏱️ Each chore can now have a time estimate. Set it on Add Chore (the new minutes input) or in Manage. The Today tab shows a header like 'About 30 min today · 5 left' so you can plan.",
-            "📅 This Week became a 7-day calendar. Each day card shows the day's scheduled chores with their time estimate, today highlighted, with a per-day and per-week total.",
-            "📆 This Month became a month calendar grid (the same layout the Schedule tab used). Tap a day to see what's scheduled, with checkmarks for what was completed.",
-            "🐟 Schedule tab is gone — its functionality moved into This Week and This Month so each tab tells you when things happen at its own zoom level.",
-            "🌿 Today rows got lighter: the redundant 'due today' chip is gone (the section heading already says it), and the 'last: X days ago' subtitle is gone (it was emotional baggage). What's left: a checkbox, the chore name, the cadence chip, the time pill if set, and the assign dropdown.",
+            "🐟 Today is now a grid of cute tiles instead of a tall card list. Each tile is colored by frequency (daily=pink, weekly=purple, etc), tap the whole tile to mark complete. Tap the small avatar in the corner to cycle ownership: you → partner → up for grabs.",
+            "🌱 Cute progress header at the top of Today: '🌱 3 of 8 done · 25 min left' with a filling bar. The emoji and tagline shift as you make progress (🌱 → 🐠 → 🐟 → 🌟 → 🎉).",
+            "✓ Done today is collapsed at the bottom by default — done chores are still there if you want to see them, but they don't crowd what's remaining.",
+            "📅 This Week became a 7-day strip with a tiny progress ring per day. Tap a day to see its chores below; today gets a 🐟 fish in the ring once everything's done.",
+            "📆 This Month grid got friendlier: each cell shows the date, a few colored dots (or a count if 5+), and a daily time total. Past days where you cleared everything turn green with a soft border. Tap a day for the full list.",
+            "⏱️ Each chore can now have a time estimate (Add Chore + Manage forms). Aggregates show on Today, This Week, and This Month so you can plan around shorter / longer chores.",
+            "🚫 Schedule tab is gone — its functionality lives in This Week and This Month at their own zoom levels.",
+            "🌿 Today rows lost the redundant 'due today' chip and the 'last: X days ago' subtitle. The tiles do all the work with less weight.",
             "⚠️ DB migration: run supabase_migration_07_time_estimate.sql before deploying. Adds a nullable estimated_minutes smallint column with a 1–600 range check.",
         ],
     },
