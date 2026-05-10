@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import HeatmapView from "@/components/HeatmapView";
 import ScheduleView from "@/components/ScheduleView";
+import WeekCalendarView from "@/components/WeekCalendarView";
 import ProfilePicturePicker, { Avatar } from "@/components/ProfilePicturePicker";
 import { t, LANGUAGES } from "@/lib/i18n";
 
@@ -142,6 +143,18 @@ const nextScheduledDate = (chore, fromDate) => {
         if (isScheduledForDay(chore, d)) return d;
     }
     return null;
+};
+
+// Render a duration like "5 min" or "1h 30m". For aggregates we
+// flip to "h" notation past 60 minutes so "today: 90 min" doesn't
+// dominate the header.
+const formatMinutesShort = (m, lang = "en") => {
+    if (m == null) return "";
+    if (m < 60) return `${m} ${t("min_short", lang)}`;
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    if (rem === 0) return `${h}${t("hour_short", lang)}`;
+    return `${h}${t("hour_short", lang)} ${rem}${t("min_short_compact", lang)}`;
 };
 
 const friendlyDate = (d, lang = "en") => {
@@ -1623,6 +1636,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
     const [newChoreDesc, setNewChoreDesc] = useState("");
     const [newChoreOneTime, setNewChoreOneTime] = useState(false);
     const [newChoreDeadline, setNewChoreDeadline] = useState("");
+    const [newChoreMinutes, setNewChoreMinutes] = useState("");
     const [linkCopied, setLinkCopied] = useState(false);
     const [notifStatus, setNotifStatus] = useState("default"); // default | granted | denied | subscribing
     const [notifPrefs, setNotifPrefs] = useState({ dailySummary: true, streakWarnings: true, choreDoneAlerts: true });
@@ -2192,11 +2206,13 @@ export default function ChoreApp({ user, profile, householdMembers }) {
 
     const addChore = async () => {
         if (!newChoreName.trim() || !profile?.household_id) return;
+        const minutesParsed = newChoreMinutes.trim() === "" ? null : Math.max(1, Math.min(600, parseInt(newChoreMinutes, 10) || 0)) || null;
         const payload = {
             name: newChoreName.trim(),
             freq: newChoreOneTime ? "weekly" : newChoreFreq,
             description: newChoreDesc.trim() || null,
             household_id: profile.household_id,
+            estimated_minutes: minutesParsed,
             ...(newChoreOneTime && { one_time: true }),
             ...(newChoreOneTime && newChoreDeadline && { deadline: newChoreDeadline }),
         };
@@ -2206,6 +2222,7 @@ export default function ChoreApp({ user, profile, householdMembers }) {
             setChores((prev) => [...prev, data]);
             setNewChoreName(""); setNewChoreDesc("");
             setNewChoreOneTime(false); setNewChoreDeadline("");
+            setNewChoreMinutes("");
         }
     };
 
@@ -2315,7 +2332,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     { id: "week", label: t("tab_week", lang), icon: Clock, accent: "#7F77DD" },
                     { id: "month", label: t("tab_month", lang), icon: Calendar, accent: "#1D9E75" },
                     { id: "longterm", label: t("tab_longterm", lang), icon: RotateCcw, accent: "#BA7517" },
-                    { id: "schedule", label: t("tab_schedule", lang), icon: Calendar, accent: "#1D9E75" },
                     { id: "heatmap", label: t("tab_heatmap", lang), icon: BarChart3, accent: "#D85A30" },
                     { id: "store", label: t("tab_store", lang), icon: ShoppingBag, accent: "#F59E0B" },
                     { id: "manage", label: t("tab_manage", lang), icon: Home, accent: "#888780" },
@@ -2529,6 +2545,35 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                         </div>
                     )}
 
+                    {(() => {
+                        const remaining = todayList.filter((c) => !c.completedToday);
+                        if (remaining.length === 0) return null;
+                        const withEstimate = remaining.filter((c) => c.estimated_minutes != null);
+                        const totalMin = withEstimate.reduce((s, c) => s + c.estimated_minutes, 0);
+                        const missing = remaining.length - withEstimate.length;
+                        return (
+                            <div style={{
+                                display: "flex", alignItems: "center", gap: "10px",
+                                padding: "10px 14px", marginBottom: "12px",
+                                background: "white", border: "2px solid #2C2C2A",
+                                borderRadius: "12px", boxShadow: boxShadow("#e8e8e8", 2, 2),
+                                fontFamily: FONT,
+                            }}>
+                                <Clock size={16} strokeWidth={2.5} color="#085041" />
+                                <div style={{ fontSize: "13px", fontWeight: 700, color: "#2C2C2A" }}>
+                                    {totalMin > 0
+                                        ? t("todayTimeTotal", lang, { time: formatMinutesShort(totalMin, lang), n: remaining.length })
+                                        : t("todayTimeUnknown", lang, { n: remaining.length })}
+                                </div>
+                                {missing > 0 && totalMin > 0 && (
+                                    <span style={{ fontSize: "11px", color: "#888780", fontStyle: "italic", marginLeft: "auto" }}>
+                                        {t("todayTimeMissing", lang, { n: missing })}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })()}
+
                     {todayList.length === 0 && (
                         <div style={{ textAlign: "center", padding: "2.5rem 1rem", background: "#E1F5EE", borderRadius: "14px", border: "2px solid #2C2C2A", boxShadow: boxShadow("#1D9E75", 3, 3) }}>
                             <div style={{ fontSize: "36px", marginBottom: "8px" }}>✨</div>
@@ -2597,92 +2642,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                 </div>
             )}
 
-            {/* THIS WEEK VIEW */}
+            {/* THIS WEEK VIEW — 7-day calendar */}
             {view === "week" && (
-                <div>
-                    <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Coming Up This Week</div>
-                    {weekList.length === 0 && <EmptyState text="Nothing for this week! 🎈" />}
-                    {weekList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="week" lang={lang} />)}
-
-                    {(() => {
-                        const weekCompletedChores = {};
-                        completions.filter((c) => {
-                            const d = parseDate(c.completed_date);
-                            return daysBetween(d, today()) < 7 && daysBetween(d, today()) >= 0;
-                        }).forEach((c) => {
-                            const chore = chores.find((ch) => ch.id === c.chore_id);
-                            if (chore) {
-                                weekCompletedChores[chore.name] = (weekCompletedChores[chore.name] || 0) + 1;
-                            }
-                        });
-                        const entries = Object.entries(weekCompletedChores);
-                        if (entries.length === 0) return null;
-                        return (
-                            <div style={{ marginTop: "1.5rem" }}>
-                                <div style={{ fontSize: "13px", color: "#888780", fontWeight: 600, marginBottom: "8px" }}>Completed This Week</div>
-                                {entries.map(([name, count]) => (
-                                    <div key={name} style={{
-                                        padding: "8px 12px", marginBottom: "4px",
-                                        background: "#E1F5EE", borderRadius: "8px",
-                                        fontSize: "13px", color: "#085041",
-                                        display: "flex", justifyContent: "space-between", alignItems: "center",
-                                        border: "1px solid rgba(29,158,117,0.2)",
-                                    }}>
-                                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                            <Check size={12} color="#1D9E75" />
-                                            {name}
-                                        </span>
-                                        <span style={{ fontWeight: 700, fontSize: "12px", color: "#1D9E75" }}>×{count}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        );
-                    })()}
-                </div>
+                <WeekCalendarView chores={chores} completions={completions} lang={lang} />
             )}
 
-            {/* THIS MONTH VIEW */}
+            {/* THIS MONTH VIEW — month calendar grid */}
             {view === "month" && (
-                <div>
-                    <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>Due This Month</div>
-                    {monthList.length === 0 && <EmptyState text="All clear for the month! ✨" />}
-                    {monthList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="month" lang={lang} />)}
-
-                    {(() => {
-                        const monthCompletedChores = {};
-                        completions.filter((c) => {
-                            const d = parseDate(c.completed_date);
-                            return daysBetween(d, today()) < 30 && daysBetween(d, today()) >= 0;
-                        }).forEach((c) => {
-                            const chore = chores.find((ch) => ch.id === c.chore_id);
-                            if (chore) {
-                                monthCompletedChores[chore.name] = (monthCompletedChores[chore.name] || 0) + 1;
-                            }
-                        });
-                        const entries = Object.entries(monthCompletedChores);
-                        if (entries.length === 0) return null;
-                        return (
-                            <div style={{ marginTop: "1.5rem" }}>
-                                <div style={{ fontSize: "13px", color: "#888780", fontWeight: 600, marginBottom: "8px" }}>Completed This Month</div>
-                                {entries.map(([name, count]) => (
-                                    <div key={name} style={{
-                                        padding: "8px 12px", marginBottom: "4px",
-                                        background: "#E1F5EE", borderRadius: "8px",
-                                        fontSize: "13px", color: "#085041",
-                                        display: "flex", justifyContent: "space-between", alignItems: "center",
-                                        border: "1px solid rgba(29,158,117,0.2)",
-                                    }}>
-                                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                            <Check size={12} color="#1D9E75" />
-                                            {name}
-                                        </span>
-                                        <span style={{ fontWeight: 700, fontSize: "12px", color: "#1D9E75" }}>×{count}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        );
-                    })()}
-                </div>
+                <ScheduleView chores={chores} completions={completions} lang={lang} />
             )}
 
             {/* LONGTERM VIEW */}
@@ -2691,13 +2658,6 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                     <div style={{ marginBottom: "1rem", fontSize: "14px", color: "#888780", fontWeight: 600 }}>The Big Stuff — Longer Cycles 🔮</div>
                     {longtermList.length === 0 && <EmptyState text="Nothing long-term pending!" />}
                     {longtermList.map((c) => <AnimatedCheckRow key={c.id} chore={c} users={users} onComplete={completeChore} onAssign={assignOwner} variant="longterm" lang={lang} />)}
-                </div>
-            )}
-
-            {/* SCHEDULE VIEW */}
-            {view === "schedule" && (
-                <div>
-                    <ScheduleView chores={chores} completions={completions} lang={lang} />
                 </div>
             )}
 
@@ -2920,6 +2880,14 @@ export default function ChoreApp({ user, profile, householdMembers }) {
                                     {Object.entries(FREQ).map(([k, v]) => <option key={k} value={k}>{t(v.labelKey, lang)}</option>)}
                                 </select>
                             )}
+                            <input
+                                type="number" min="1" max="600"
+                                value={newChoreMinutes}
+                                onChange={(e) => setNewChoreMinutes(e.target.value)}
+                                placeholder={t("minutesPlaceholder", lang)}
+                                aria-label={t("minutesPlaceholder", lang)}
+                                style={{ width: "84px", padding: "10px 8px", border: "2px solid #2C2C2A", borderRadius: "10px", fontSize: "13px", fontFamily: FONT, boxShadow: boxShadow("#7F77DD", 2, 2), textAlign: "center" }}
+                            />
                             <button
                                 onClick={addChore}
                                 style={{ padding: "10px 16px", background: "#7F77DD", color: "white", border: "2px solid #2C2C2A", borderRadius: "10px", cursor: "pointer", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px", fontFamily: FONT, boxShadow: boxShadow("#2C2C2A", 2, 2) }}
@@ -3307,12 +3275,21 @@ function ChoreRow({ chore, users, currentUser, onComplete, onCompleteTogether, o
                                         {t(freqInfo.labelKey, lang)}
                                     </span>
                                 )}
-                                {chore.status === "due" && (
-                                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>
-                                        {chore.one_time && chore.deadline ? `${t("due", lang)} ${friendlyDate(parseDate(chore.deadline), lang)}` : t("dueToday", lang)}
+                                {chore.estimated_minutes != null && (
+                                    <span style={{
+                                        fontSize: "11px", fontWeight: 700, color: "#085041",
+                                        background: "#E1F5EE", padding: "2px 8px",
+                                        borderRadius: "6px", border: "1px solid #1D9E75",
+                                        display: "inline-flex", alignItems: "center", gap: "3px",
+                                    }}>
+                                        <Clock size={10} strokeWidth={2.5} /> {formatMinutesShort(chore.estimated_minutes, lang)}
                                     </span>
                                 )}
-                                {!chore.one_time && chore.lastDone && <span style={{ fontSize: "11px", color: "#b4b2a9" }}>{t("last", lang)} {friendlyDate(chore.lastDone.date, lang)}</span>}
+                                {chore.status === "due" && chore.one_time && chore.deadline && (
+                                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#B45309", background: "#FEF3C7", padding: "2px 8px", borderRadius: "6px", border: "1px solid #F59E0B" }}>
+                                        {t("due", lang)} {friendlyDate(parseDate(chore.deadline), lang)}
+                                    </span>
+                                )}
                             </>
                         )}
                     </div>
@@ -3497,15 +3474,22 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
     const [editDow, setEditDow] = useState(sched.dow);
     const [editWeekParity, setEditWeekParity] = useState(sched.weekParity);
     const [editDom, setEditDom] = useState(sched.dom);
+    const [editMinutes, setEditMinutes] = useState(
+        chore.estimated_minutes != null ? String(chore.estimated_minutes) : ""
+    );
 
     const handleSave = () => {
         const rewardNum = Math.max(0, parseInt(editReward, 10) || 0);
+        const minutesParsed = editMinutes.trim() === ""
+            ? null
+            : (Math.max(1, Math.min(600, parseInt(editMinutes, 10) || 0)) || null);
         const updates = {
             name: editName.trim() || chore.name,
             description: editDesc.trim() || null,
             freq: editOneTime ? "weekly" : editFreq,
             owner_id: editOwner || null,
             reward: rewardNum,
+            estimated_minutes: minutesParsed,
             one_time: editOneTime,
             deadline: editOneTime && editDeadline ? editDeadline : null,
             // Persist schedule overrides only for the freq variants that
@@ -3533,6 +3517,7 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
         setEditDow(sched.dow);
         setEditWeekParity(sched.weekParity);
         setEditDom(sched.dom);
+        setEditMinutes(chore.estimated_minutes != null ? String(chore.estimated_minutes) : "");
         setEditing(false);
     };
 
@@ -3647,11 +3632,20 @@ function ManageChoreRow({ chore, users, onUpdate, onAssign, onDelete, lang = "en
                     {t("oneTimeTask", lang)}
                 </div>
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#78350F", background: "#FEF3C7", padding: "6px 10px", border: "2px solid #2C2C2A", borderRadius: "6px", flex: 1, minWidth: "140px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#78350F", background: "#FEF3C7", padding: "6px 10px", border: "2px solid #2C2C2A", borderRadius: "6px", flex: 1, minWidth: "120px" }}>
                         <Coins size={12} strokeWidth={2.5} /> {t("rewardLabel", lang)}
                         <input
                             type="number" min="0" value={editReward}
                             onChange={(e) => setEditReward(e.target.value)}
+                            style={{ width: "56px", padding: "3px 6px", border: "1.5px solid #2C2C2A", borderRadius: "4px", fontSize: "12px", fontFamily: FONT, fontWeight: 700, marginLeft: "auto" }}
+                        />
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "#085041", background: "#E1F5EE", padding: "6px 10px", border: "2px solid #2C2C2A", borderRadius: "6px", flex: 1, minWidth: "120px" }}>
+                        <Clock size={12} strokeWidth={2.5} /> {t("minutesLabel", lang)}
+                        <input
+                            type="number" min="1" max="600" value={editMinutes}
+                            onChange={(e) => setEditMinutes(e.target.value)}
+                            placeholder="—"
                             style={{ width: "56px", padding: "3px 6px", border: "1.5px solid #2C2C2A", borderRadius: "4px", fontSize: "12px", fontFamily: FONT, fontWeight: 700, marginLeft: "auto" }}
                         />
                     </label>
