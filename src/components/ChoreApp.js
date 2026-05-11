@@ -220,62 +220,35 @@ const TANK_STATE_BADGE = {
 };
 
 // =========== STREAK SYSTEM ===========
-const computeStreak = (chores, completions, groceryBoughtDates = new Set()) => {
-    if (!chores.length && groceryBoughtDates.size === 0) return 0;
+// Streak = consecutive past days with any activity (a chore completion
+// or a grocery purchase), with "today" not breaking it just because
+// you haven't done anything yet — it's only midnight that closes the
+// day. If today HAS activity it counts as +1. The previous version
+// also walked back checking each chore's days-since-last-completion
+// against freqDays + 1, which meant any single under-loved weekly
+// chore could zero out a streak you'd legitimately built up. That's
+// the "I did 9 chores yesterday and my streak says 0" bug.
+const computeStreak = (completions, groceryBoughtDates = new Set()) => {
+    if (!completions.length && groceryBoughtDates.size === 0) return 0;
     const t = today();
-    const todayStr = formatDate(t);
+
+    const activeDates = new Set();
+    for (const c of completions) activeDates.add(c.completed_date);
+    for (const d of groceryBoughtDates) activeDates.add(d);
+
     let streak = 0;
-
-    // Today counts if the user completed any recurring chore today OR
-    // bought any grocery item today. Either is enough to extend the
-    // streak — buying milk shouldn't be worth less than ticking a
-    // chore for "did I show up today" purposes.
-    const todayCompletedChoreIds = new Set(
-        completions.filter((c) => c.completed_date === todayStr).map((c) => c.chore_id)
-    );
-    const completedRecurringToday = chores.some(
-        (c) => !c.one_time && todayCompletedChoreIds.has(c.id)
-    );
-    const boughtGroceryToday = groceryBoughtDates.has(todayStr);
-    if (completedRecurringToday || boughtGroceryToday) streak++;
-
-    // Check past days
-    for (let dayOffset = 1; dayOffset < 365; dayOffset++) {
-        const checkDate = new Date(t);
-        checkDate.setDate(checkDate.getDate() - dayOffset);
-        const checkStr = formatDate(checkDate);
-
-        let anyOverdue = false;
-        let anyActive = false;
-
-        for (const chore of chores) {
-            if (chore.one_time) continue;
-            const freqDays = FREQ[chore.freq]?.days || 7;
-            const choreCreated = chore.created_at ? parseDate(chore.created_at.split("T")[0]) : t;
-            if (checkDate < choreCreated) continue;
-
-            anyActive = true;
-
-            const relevantComps = completions
-                .filter((c) => c.chore_id === chore.id && c.completed_date <= checkStr)
-                .sort((a, b) => b.completed_date.localeCompare(a.completed_date));
-
-            const last = relevantComps[0];
-            let daysSince;
-            if (last) {
-                daysSince = daysBetween(parseDate(last.completed_date), checkDate);
-            } else {
-                daysSince = daysBetween(choreCreated, checkDate);
-            }
-
-            if (daysSince > freqDays + 1) {
-                anyOverdue = true;
-                break;
-            }
+    for (let offset = 0; offset < 365; offset++) {
+        const d = new Date(t);
+        d.setDate(d.getDate() - offset);
+        const dStr = formatDate(d);
+        if (activeDates.has(dStr)) {
+            streak++;
+            continue;
         }
-
-        if (!anyActive || anyOverdue) break;
-        streak++;
+        // Today (offset 0) without activity yet doesn't break the
+        // streak — it's still early. Any other gap does.
+        if (offset === 0) continue;
+        break;
     }
     return streak;
 };
@@ -1966,8 +1939,8 @@ export default function ChoreApp({ user, profile, householdMembers }) {
         [groceryItems]
     );
     const streak = useMemo(
-        () => computeStreak(chores, completions, groceryBoughtDates),
-        [chores, completions, groceryBoughtDates]
+        () => computeStreak(completions, groceryBoughtDates),
+        [completions, groceryBoughtDates]
     );
 
     // ===== COMEBACK STATE =====
